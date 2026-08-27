@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.0.0-ddl
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: db/migration/V1_0_0__system-ddl.sql
+  - changeSet:
+      id: 1.0.0-dml
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: db/migration/V1_0_0__system-dml.sql

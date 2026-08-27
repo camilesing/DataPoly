@@ -1,0 +1,177 @@
+{
+  "id": "",
+  "name": "",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "3977828",
+      "name": "数据库",
+      "font_class": "shujuku",
+      "unicode": "e615",
+      "unicode_decimal": 58901
+    },
+    {
+      "icon_id": "8331246",
+      "name": "icon 规范SVG源文件_系统监控-高亮",
+      "font_class": "iconguifanSVGyuanwenjian_xitongjiankong-gaoliang",
+      "unicode": "e63e",
+      "unicode_decimal": 58942
+    },
+    {
+      "icon_id": "10537322",
+      "name": "文件系统",
+      "font_class": "wenjianxitong",
+      "unicode": "e721",
+      "unicode_decimal": 59169
+    },
+    {
+      "icon_id": "12713672",
+      "name": "AI文件-列表",
+      "font_class": "icon-wenjianxitong-",
+      "unicode": "e60e",
+      "unicode_decimal": 58894
+    },
+    {
+      "icon_id": "12714171",
+      "name": "详细信息",
+      "font_class": "icon-wenjianxitong-1",
+      "unicode": "e612",
+      "unicode_decimal": 58898
+    },
+    {
+      "icon_id": "12714504",
+      "name": "文件夹详情右侧大图标",
+      "font_class": "icon-wenjianxitong-2",
+      "unicode": "e61c",
+      "unicode_decimal": 58908
+    },
+    {
+      "icon_id": "12714505",
+      "name": "文件系统软件图标",
+      "font_class": "icon-wenjianxitong-3",
+      "unicode": "e61d",
+      "unicode_decimal": 58909
+    },
+    {
+      "icon_id": "13492380",
+      "name": "icon-文件系统-70",
+      "font_class": "icon-wenjianxitong-4",
+      "unicode": "e61e",
+      "unicode_decimal": 58910
+    },
+    {
+      "icon_id": "14835758",
+      "name": "列表视图",
+      "font_class": "viewList",
+      "unicode": "e65f",
+      "unicode_decimal": 58975
+    },
+    {
+      "icon_id": "15192744",
+      "name": "文件系统",
+      "font_class": "wenjianxitong1",
+      "unicode": "e64d",
+      "unicode_decimal": 58957
+    },
+    {
+      "icon_id": "16769544",
+      "name": "0.1-icon-文件系统监测任务",
+      "font_class": "01-icon-wenjianxitongjiancerenwu",
+      "unicode": "e639",
+      "unicode_decimal": 58937
+    },
+    {
+      "icon_id": "18267958",
+      "name": "数据库",
+      "font_class": "shujuku1",
+      "unicode": "e997",
+      "unicode_decimal": 59799
+    },
+    {
+      "icon_id": "19690724",
+      "name": "文件系统-86",
+      "font_class": "wenjianxitong-86",
+      "unicode": "e740",
+      "unicode_decimal": 59200
+    },
+    {
+      "icon_id": "22090751",
+      "name": "文件系统信息",
+      "font_class": "wenjianxitongxinxi",
+      "unicode": "e61f",
+      "unicode_decimal": 58911
+    },
+    {
+      "icon_id": "24206743",
+      "name": "视图_表格",
+      "font_class": "shitu_biaoge",
+      "unicode": "e6a2",
+      "unicode_decimal": 59042
+    },
+    {
+      "icon_id": "25319615",
+      "name": "文件系统",
+      "font_class": "wenjianxitong2",
+      "unicode": "e61a",
+      "unicode_decimal": 58906
+    },
+    {
+      "icon_id": "26160806",
+      "name": "文件系统",
+      "font_class": "wenjianxitong3",
+      "unicode": "e7b1",
+      "unicode_decimal": 59313
+    },
+    {
+      "icon_id": "30136699",
+      "name": "文件系统",
+      "font_class": "file-system",
+      "unicode": "e74e",
+      "unicode_decimal": 59214
+    },
+    {
+      "icon_id": "32383766",
+      "name": "文件系统图标-01",
+      "font_class": "wenjianxitongtubiao-01",
+      "unicode": "e636",
+      "unicode_decimal": 58934
+    },
+    {
+      "icon_id": "33447413",
+      "name": "文件系统备份",
+      "font_class": "wenjianxitongbeifen",
+      "unicode": "e6a7",
+      "unicode_decimal": 59047
+    },
+    {
+      "icon_id": "34759614",
+      "name": "文件系统数",
+      "font_class": "wenjianxitongshu",
+      "unicode": "e646",
+      "unicode_decimal": 58950
+    },
+    {
+      "icon_id": "36689613",
+      "name": "文件系统",
+      "font_class": "wenjianxitong4",
+      "unicode": "e69c",
+      "unicode_decimal": 59036
+    },
+    {
+      "icon_id": "37801640",
+      "name": "文件系统汇聚-hover",
+      "font_class": "wenjianxitonghuiju-hover",
+      "unicode": "e65d",
+      "unicode_decimal": 58973
+    },
+    {
+      "icon_id": "42695954",
+      "name": "1_文件系统",
+      "font_class": "a-1_wenjianxitong",
+      "unicode": "e555",
+      "unicode_decimal": 58709
+    }
+  ]
+}

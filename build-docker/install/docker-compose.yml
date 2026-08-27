@@ -1,0 +1,111 @@
+version: '3.3'
+services:
+  mysqldb:
+    container_name: datapoly_mysqldb
+    image: mysql:5.7
+    networks:
+      datapoly-net:
+        ipv4_address: 172.28.0.10
+    volumes:
+      - "/data/mysql:/var/lib/mysql"
+    environment:
+      MYSQL_DATABASE: datapoly
+      MYSQL_USER: datapoly
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-123456}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_ROOT_HOST: '%'
+    healthcheck:
+      test: [ "CMD", "mysql", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-123456}" ,"-e"," select 1 " ]
+      interval: 10s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+  manager:
+    container_name: datapoly_manager
+    image: camilesing/datapoly-manager:latest
+    networks:
+      datapoly-net:
+        ipv4_address: 172.28.0.20
+    environment:
+      DB_TYPE: mysql
+      MYSQLDB_HOST: mysqldb
+      MYSQLDB_PORT: 3306
+      MYSQLDB_USERNAME: datapoly
+      MYSQLDB_PASSWORD: ${MYSQL_PASSWORD:-123456}
+      MYSQLDB_NAME: datapoly
+      MANAGER_HOST: manager
+      MANAGER_PORT: 8090
+      EXECUTOR_PORT: 8092
+      GATEWAY_PORT: 8091
+      DATAPOLY_DS_ENCRYPT: false
+      # 部署后请务必设置：覆盖种子 admin 口令（S5）
+      DATAPOLY_ADMIN_PASSWORD: ${DATAPOLY_ADMIN_PASSWORD:-}
+    #      DATAPOLY_MANAGER_URL: http://www.example.com:8090
+    #      DATAPOLY_GATEWAY_URL: http://www.example.com:8091
+    volumes:
+      - /tmp:/tmp
+    depends_on:
+      mysqldb:
+        condition: service_healthy
+  executor:
+    container_name: datapoly_executor
+    image: camilesing/datapoly-executor:latest
+    networks:
+      datapoly-net:
+        ipv4_address: 172.28.0.30
+    environment:
+      DB_TYPE: mysql
+      MYSQLDB_HOST: mysqldb
+      MYSQLDB_PORT: 3306
+      MYSQLDB_USERNAME: datapoly
+      MYSQLDB_PASSWORD: ${MYSQL_PASSWORD:-123456}
+      MYSQLDB_NAME: datapoly
+      MANAGER_HOST: manager
+      MANAGER_PORT: 8090
+      EXECUTOR_PORT: 8092
+      GATEWAY_PORT: 8091
+      DATAPOLY_DS_ENCRYPT: false
+      # 仅信任网关与本机（S2），不对外发布端口
+      DATAPOLY_EXECUTOR_GATEWAY_ENABLED: "true"
+      DATAPOLY_EXECUTOR_GATEWAY_TRUSTED_CIDRS: 127.0.0.1,::1,172.28.0.40
+      DATAPOLY_EXECUTOR_GATEWAY_AUTH_TOKEN: ${DATAPOLY_GATEWAY_TOKEN:-}
+    volumes:
+      - /tmp:/tmp
+    depends_on:
+      mysqldb:
+        condition: service_healthy
+  gateway:
+    container_name: datapoly_gateway
+    image: camilesing/datapoly-gateway:latest
+    networks:
+      datapoly-net:
+        ipv4_address: 172.28.0.40
+    environment:
+      DB_TYPE: mysql
+      MYSQLDB_HOST: mysqldb
+      MYSQLDB_PORT: 3306
+      MYSQLDB_USERNAME: datapoly
+      MYSQLDB_PASSWORD: ${MYSQL_PASSWORD:-123456}
+      MYSQLDB_NAME: datapoly
+      MANAGER_HOST: manager
+      MANAGER_PORT: 8090
+      EXECUTOR_PORT: 8092
+      GATEWAY_PORT: 8091
+      DATAPOLY_DS_ENCRYPT: false
+      # 与 executor 的 DATAPOLY_EXECUTOR_GATEWAY_AUTH_TOKEN 保持一致（S2）
+      # gateway 的 AddRequestHeader 不允许空值，未设置密钥时注入哨兵 UNSET（executor 未配置 auth-token 时忽略该头）
+      DATAPOLY_GATEWAY_TOKEN: ${DATAPOLY_GATEWAY_TOKEN:-UNSET}
+    volumes:
+      - /tmp:/tmp
+    ports:
+      - 8091:8091
+    depends_on:
+      mysqldb:
+        condition: service_healthy
+
+networks:
+  datapoly-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

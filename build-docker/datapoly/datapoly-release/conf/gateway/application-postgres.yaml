@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${PGDB_HOST}:${PGDB_PORT}/${PGDB_NAME}?currentSchema=public
+    username: ${PGDB_USERNAME}
+    password: ${PGDB_PASSWORD}
+    validation-query: SELECT 1
+    test-on-borrow: true

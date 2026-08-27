@@ -1,0 +1,66 @@
+version: '3.8'
+
+# DataPoly 开发/冒烟环境（Dev Containers）：
+#   dev       —— JDK8+Maven 开发容器（仓库挂载 /workspace，复用宿主 ~/.m2 缓存），三节点在本容器内启动
+#   mysql     —— 8.0，mysql_native_password（免三期冒烟时的 ALTER USER 步骤）
+#   postgres  —— 14（PG 元库冒烟用）
+# 用法见 AGENTS.md 第六节「devcontainer 冒烟方法」。
+
+services:
+  dev:
+    image: maven:3.8.7-eclipse-temurin-8
+    container_name: datapoly_dev
+    command: sleep infinity
+    volumes:
+      - ..:/workspace
+      - ~/.m2:/root/.m2
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - datapoly-dev
+
+  mysql:
+    image: mysql:8.0
+    container_name: datapoly_dev_mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: datapoly
+      MYSQL_USER: datapoly
+      MYSQL_PASSWORD: 123456
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "33061:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-uroot", "-p123456", "--silent" ]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+    networks:
+      - datapoly-dev
+
+  postgres:
+    image: postgres:14
+    container_name: datapoly_dev_postgres
+    environment:
+      POSTGRES_DB: datapoly
+      POSTGRES_USER: datapoly
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "54321:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U datapoly -d datapoly" ]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 10s
+    networks:
+      - datapoly-dev
+
+networks:
+  datapoly-dev:
+    driver: bridge

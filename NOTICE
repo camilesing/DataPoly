@@ -1,0 +1,29 @@
+DataPoly
+Copyright (c) 2024-2026 The DataPoly Authors.
+
+This product is licensed under the BSD 3-Clause License (see LICENSE).
+It includes third-party software under the licenses noted below.
+
+1. Model Context Protocol Java SDK (MIT License)
+   Upstream: https://github.com/modelcontextprotocol/java-sdk
+   Vendored source: datapoly-mcp/datapoly-mcp-core and
+   datapoly-mcp/datapoly-mcp-springmvc (package io.modelcontextprotocol.*).
+   License text: datapoly-mcp/LICENSE-MIT
+
+2. knife4j front-end assets (Apache License 2.0)
+   Upstream: https://github.com/xiaoymin/knife4j
+   Vendored resources: datapoly-executor/src/main/resources/knife4j/
+   License text: datapoly-executor/src/main/resources/knife4j/LICENSE-APACHE-2.0.txt
+
+3. Swagger UI distribution files (Apache License 2.0)
+   Upstream: https://github.com/swagger-api/swagger-ui
+   Vendored resources: datapoly-executor/src/main/resources/swagger/
+   License text: datapoly-executor/src/main/resources/swagger/LICENSE-APACHE-2.0.txt
+
+4. The built-in management UI is built with Vue.js and third-party npm
+   packages (Vue, Element UI, ECharts, CodeMirror, axios, etc.), used under
+   their respective permissive licenses. The full dependency list is in
+   datapoly-manager-ui/package-lock.json.
+
+Maven runtime dependencies (Spring Boot, Spring Cloud, MyBatis, Hazelcast,
+Guava and others) are consumed unmodified under their respective licenses.

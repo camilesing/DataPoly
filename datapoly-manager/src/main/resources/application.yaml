@@ -1,0 +1,99 @@
+server:
+  port: ${MANAGER_PORT}
+spring:
+  profiles:
+    include: ${DB_TYPE}
+  application:
+    name: datapoly-manager
+  mvc:
+    throw-exception-if-no-handler-found: false
+    static-path-pattern: /**
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+
+datapoly:
+  manager:
+    # 管理端 swagger 默认关闭（收口）：开发联调需要时经环境变量/本地配置打开
+    swagger:
+      enable: ${DATAPOLY_MANAGER_SWAGGER_ENABLE:false}
+    # 错误响应是否映射真实 HTTP 状态码（H5）：关闭后一切错误回 HTTP 200（兼容旧内置前端）
+    http-status-mapping:
+      enabled: ${DATAPOLY_MANAGER_HTTP_STATUS_MAPPING_ENABLED:true}
+    # 登录频控与失败锁定（内存实现，重启清零）
+    login:
+      rate-limit-per-minute: ${DATAPOLY_MANAGER_LOGIN_RATE_LIMIT_PER_MINUTE:10}
+      fail-lock-threshold: ${DATAPOLY_MANAGER_LOGIN_FAIL_LOCK_THRESHOLD:5}
+      fail-lock-seconds: ${DATAPOLY_MANAGER_LOGIN_FAIL_LOCK_SECONDS:300}
+  url:
+    gateway: ${DATAPOLY_GATEWAY_URL:}
+    manager: ${DATAPOLY_MANAGER_URL:}
+  # 种子 admin 口令覆盖（S5）：设置后启动时更新 admin 口令
+  admin:
+    password: ${DATAPOLY_ADMIN_PASSWORD:}
+  # 脚本沙箱与超时（S1）
+  executor:
+    script:
+      sandbox-enabled: ${DATAPOLY_SCRIPT_SANDBOX_ENABLED:true}
+      timeout-seconds: ${DATAPOLY_SCRIPT_TIMEOUT_SECONDS:60}
+  # CORS 白名单（S5/H7）：逗号分隔；默认 * 兼容，显式白名单时才允许凭据
+  cors:
+    allowed-origins: ${DATAPOLY_CORS_ALLOWED_ORIGINS:*}
+  # token 经 URL 查询参数传递的兼容开关（H7 收口，默认关闭）：token 进 URL 会经 Referer/代理日志扩散，
+  # 默认仅允许 Authorization: Bearer header；存量调用方无法立即改造时临时打开
+  security:
+    token-query-param-enabled: ${DATAPOLY_SECURITY_TOKEN_QUERY_PARAM_ENABLED:false}
+  datasource:
+    encrypt: ${DATAPOLY_DS_ENCRYPT:false}
+    # 数据源口令 AES 密钥（S5）：默认兼容存量密文，生产建议经环境变量轮换
+    aes-key: ${DATAPOLY_DS_AES_KEY:6635BC05BC357FEC7A85FDB9C972AD01}
+  cache:
+    hazelcast:
+      enabled: true
+    redis:
+      enabled: false
+      host: 127.0.0.1
+      port: 6379
+      password: ${DATAPOLY_REDIS_PASSWORD:}
+      database: 0
+
+mybatis:
+  configuration:
+    lazy-loading-enabled: true
+    aggressive-lazy-loading: false
+    map-underscore-to-camel-case: true
+    #log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+mybatis-plus:
+  global-config:
+    banner: false
+
+logging:
+  config: classpath:logback-manager.xml
+
+eureka:
+  dashboard:
+    enabled: false
+    path: /dashboard
+  instance:
+    ip-address: ${MANAGER_HOST}
+    prefer-ip-address: true
+    secure-port-enabled: false
+    non-secure-port-enabled: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+  client:
+    registry-fetch-interval-seconds: 5
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://${MANAGER_HOST}:${MANAGER_PORT}/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+datasource:
+  driver:
+    base-path: ${APP_DRIVERS_PATH}

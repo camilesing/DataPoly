@@ -1,0 +1,302 @@
+<assembly>
+
+    <id>${project.version}</id>
+
+    <formats>
+        <format>tar.gz</format>
+    </formats>
+
+    <includeBaseDirectory>true</includeBaseDirectory>
+
+    <dependencySets>
+        <dependencySet>
+            <useProjectArtifact>true</useProjectArtifact>
+            <outputDirectory>lib</outputDirectory>
+            <excludes>
+                <!--  排除datapoly-dist自身打的jar包-->
+                <exclude>com.cs:datapoly-dist</exclude>
+            </excludes>
+        </dependencySet>
+    </dependencySets>
+
+
+    <!-- 打包assembly中的bin目录到 打包目录/bin 下 -->
+    <files>
+
+        <!-- 随发布包携带许可证与第三方声明 -->
+        <file>
+            <source>${project.parent.basedir}/LICENSE</source>
+            <outputDirectory></outputDirectory>
+        </file>
+        <file>
+            <source>${project.parent.basedir}/NOTICE</source>
+            <outputDirectory></outputDirectory>
+        </file>
+
+        <file>
+            <source>src/main/assembly/bin/datapolyctl.sh</source>
+            <outputDirectory>bin</outputDirectory>
+            <lineEnding>unix</lineEnding>
+            <fileMode>0755</fileMode>
+        </file>
+        <file>
+            <source>src/main/assembly/bin/manager_startup.cmd</source>
+            <outputDirectory>bin</outputDirectory>
+            <lineEnding>dos</lineEnding>
+            <fileMode>0755</fileMode>
+        </file>
+        <file>
+            <source>src/main/assembly/bin/gateway_startup.cmd</source>
+            <outputDirectory>bin</outputDirectory>
+            <lineEnding>dos</lineEnding>
+            <fileMode>0755</fileMode>
+        </file>
+        <file>
+            <source>src/main/assembly/bin/executor_startup.cmd</source>
+            <outputDirectory>bin</outputDirectory>
+            <lineEnding>dos</lineEnding>
+            <fileMode>0755</fileMode>
+        </file>
+
+    </files>
+
+    <fileSets>
+
+        <!-- 创建logs目录文件夹 -->
+        <fileSet>
+            <directory>${project.basedir}</directory>
+            <outputDirectory>logs</outputDirectory>
+            <excludes>
+                <exclude>**/*</exclude>
+            </excludes>
+        </fileSet>
+
+        <!-- 创建lib目录文件夹 -->
+        <fileSet>
+            <directory>${project.basedir}</directory>
+            <outputDirectory>lib</outputDirectory>
+            <excludes>
+                <exclude>**/*</exclude>
+            </excludes>
+        </fileSet>
+
+        <!-- 创建conf目录文件夹 -->
+        <fileSet>
+            <directory>src/main/assembly/conf</directory>
+            <outputDirectory>conf</outputDirectory>
+            <lineEnding>unix</lineEnding>
+            <includes>
+                <include>*.ini</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-manager中的配置文件到打包目录/conf/manager 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-manager/src/main/resources/
+            </directory>
+            <outputDirectory>conf/manager</outputDirectory>
+            <includes>
+                <include>*.yml</include>
+                <include>*.yaml</include>
+                <include>*.xml</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-executor中的配置文件到打包目录/conf/executor 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-executor/src/main/resources
+            </directory>
+            <outputDirectory>conf/executor</outputDirectory>
+            <includes>
+                <include>*.yml</include>
+                <include>*.yaml</include>
+                <include>*.xml</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-gateway中的配置文件到打包目录/conf/gateway 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-gateway/src/main/resources
+            </directory>
+            <outputDirectory>conf/gateway</outputDirectory>
+            <includes>
+                <include>*.yml</include>
+                <include>*.yaml</include>
+                <include>*.xml</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-common的jar文件放到打包目录/lib 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-common/target
+            </directory>
+            <outputDirectory>lib/common</outputDirectory>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-template的jar文件放到打包目录/lib 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-template/target
+            </directory>
+            <outputDirectory>lib/common</outputDirectory>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-persistence的jar文件放到打包目录/lib 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-persistence/target
+            </directory>
+            <outputDirectory>lib/common</outputDirectory>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-core的jar文件放到打包目录/lib 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-core/target</directory>
+            <outputDirectory>lib/common</outputDirectory>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-manager的jar文件放到打包目录/lib/{common,manager} 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-manager/target</directory>
+            <outputDirectory>lib/common</outputDirectory>
+            <excludes>
+                <exclude>datapoly-manager-*.jar</exclude>
+                <exclude>liquibase-core-*.jar</exclude>
+                <exclude>spring-boot-starter-tomcat-*.jar</exclude>
+                <exclude>spring-boot-starter-web-*.jar</exclude>
+                <exclude>tomcat-embed-websocket-*.jar</exclude>
+                <exclude>tomcat-embed-core-*.jar</exclude>
+                <exclude>spring-webmvc-*.jar</exclude>
+                <exclude>spring-cloud-netflix-eureka-server-*.jar</exclude>
+                <exclude>spring-cloud-starter-netflix-eureka-server-*.jar</exclude>
+                <exclude>httpclient5-*.jar</exclude>
+                <exclude>httpcore5-*.jar</exclude>
+            </excludes>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-manager/target</directory>
+            <outputDirectory>lib/webmvc</outputDirectory>
+            <includes>
+                <include>spring-boot-starter-tomcat-*.jar</include>
+                <include>spring-boot-starter-web-*.jar</include>
+                <include>tomcat-embed-websocket-*.jar</include>
+                <include>tomcat-embed-core-*.jar</include>
+                <include>spring-webmvc-*.jar</include>
+                <include>httpclient5-*.jar</include>
+                <include>httpcore5-*.jar</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-manager/target</directory>
+            <outputDirectory>lib/manager</outputDirectory>
+            <includes>
+                <include>datapoly-manager-*.jar</include>
+                <include>liquibase-core-*.jar</include>
+                <include>spring-cloud-netflix-eureka-server-*.jar</include>
+                <include>spring-cloud-starter-netflix-eureka-server-*.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-executor的jar文件放到打包目录/lib/{common,executor} 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-executor/target
+            </directory>
+            <outputDirectory>lib/common</outputDirectory>
+            <excludes>
+                <exclude>datapoly-executor-*.jar</exclude>
+                <exclude>spring-boot-starter-tomcat-*.jar</exclude>
+                <exclude>spring-boot-starter-web-*.jar</exclude>
+                <exclude>tomcat-embed-websocket-*.jar</exclude>
+                <exclude>tomcat-embed-core-*.jar</exclude>
+                <exclude>spring-webmvc-*.jar</exclude>
+            </excludes>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-executor/target</directory>
+            <outputDirectory>lib/webmvc</outputDirectory>
+            <includes>
+                <include>spring-boot-starter-tomcat-*.jar</include>
+                <include>spring-boot-starter-web-*.jar</include>
+                <include>tomcat-embed-websocket-*.jar</include>
+                <include>tomcat-embed-core-*.jar</include>
+                <include>spring-webmvc-*.jar</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-executor/target
+            </directory>
+            <outputDirectory>lib/executor</outputDirectory>
+            <includes>
+                <include>datapoly-executor-*.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- 打包datapoly-gateway的jar文件单独移动到目录/lib/{common,ext,gateway} 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-gateway/target
+            </directory>
+            <outputDirectory>lib/common</outputDirectory>
+            <excludes>
+                <exclude>datapoly-gateway-*.jar</exclude>
+
+                <exclude>spring-boot-starter-tomcat-*.jar</exclude>
+                <exclude>spring-boot-starter-web-*.jar</exclude>
+                <exclude>tomcat-embed-websocket-*.jar</exclude>
+                <exclude>tomcat-embed-core-*.jar</exclude>
+                <exclude>spring-webmvc-*.jar</exclude>
+
+                <exclude>spring-boot-starter-webflux-*.jar</exclude>
+                <exclude>spring-webflux-*.jar</exclude>
+                <exclude>spring-cloud-starter-gateway-*.jar</exclude>
+                <exclude>spring-cloud-gateway-server-*.jar</exclude>
+            </excludes>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-gateway/target
+            </directory>
+            <outputDirectory>lib/webflux</outputDirectory>
+            <includes>
+                <include>spring-boot-starter-webflux-*.jar</include>
+                <include>spring-webflux-*.jar</include>
+                <include>spring-cloud-starter-gateway-*.jar</include>
+                <include>spring-cloud-gateway-server-*.jar</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${project.parent.basedir}/datapoly-gateway/target
+            </directory>
+            <outputDirectory>lib/gateway</outputDirectory>
+            <includes>
+                <include>datapoly-gateway-*.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- 将模块drivers驱动等打包目录/drivers 下 -->
+        <fileSet>
+            <directory>${project.parent.basedir}/drivers/
+            </directory>
+            <outputDirectory>drivers</outputDirectory>
+        </fileSet>
+
+    </fileSets>
+
+</assembly>

@@ -1,0 +1,113 @@
+server:
+  port: ${EXECUTOR_PORT}
+spring:
+  profiles:
+    include: ${DB_TYPE}
+  application:
+    name: datapoly-executor
+  main:
+    allow-bean-definition-overriding: false
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+
+datapoly:
+  executor:
+    print-sql-log: false
+    # 脚本沙箱与超时（S1）
+    script:
+      sandbox-enabled: ${DATAPOLY_SCRIPT_SANDBOX_ENABLED:true}
+      timeout-seconds: ${DATAPOLY_SCRIPT_TIMEOUT_SECONDS:60}
+    # 网关来源校验（S2）：仅信任白名单网段/地址的转发；auth-token 需与 gateway 一致
+    gateway:
+      enabled: ${DATAPOLY_EXECUTOR_GATEWAY_ENABLED:true}
+      trusted-cidrs: ${DATAPOLY_EXECUTOR_GATEWAY_TRUSTED_CIDRS:127.0.0.1,::1}
+      auth-token: ${DATAPOLY_EXECUTOR_GATEWAY_AUTH_TOKEN:}
+    # /token/generate 端点防护（S4）
+    token:
+      rate-limit-per-minute: ${DATAPOLY_TOKEN_RATE_LIMIT_PER_MINUTE:10}
+      fail-lock-threshold: ${DATAPOLY_TOKEN_FAIL_LOCK_THRESHOLD:5}
+      fail-lock-seconds: ${DATAPOLY_TOKEN_FAIL_LOCK_SECONDS:300}
+    # 隐式分页兜底（H4）：默认关闭——未声明/未传分页参数的查询不再被静默 LIMIT 截断；true 恢复旧行为
+    pagination:
+      implicit-enabled: ${DATAPOLY_EXECUTOR_PAGINATION_IMPLICIT_ENABLED:false}
+    # access_record 参数脱敏（四期）：小写包含匹配，命中词表的参数值落库前替换为掩码（仅审计展示，执行不受影响）
+    access-record:
+      mask-keys: ${DATAPOLY_EXECUTOR_ACCESS_RECORD_MASK_KEYS:password,passwd,pwd,secret,appsecret,app_secret,access_token,authorization,credential,api_key,apikey,access_key,accesskey,token}
+    # 元数据本地短 TTL 缓存（A2）：部署/下线/授权变更最多延迟一个 TTL 生效；TTL=0 或 enabled=false 时直通元库
+    metadata-cache:
+      enabled: ${DATAPOLY_EXECUTOR_METADATA_CACHE_ENABLED:true}
+      ttl-seconds: ${DATAPOLY_EXECUTOR_METADATA_CACHE_TTL_SECONDS:10}
+      maximum-size: ${DATAPOLY_EXECUTOR_METADATA_CACHE_MAXIMUM_SIZE:2000}
+      auth-group-enabled: ${DATAPOLY_EXECUTOR_METADATA_CACHE_AUTH_GROUP_ENABLED:true}
+    # SQL 模板 ${} 字面替换管控（S3）：open=true 公开 API 强制禁 ${}（默认）；
+    # dollar-enabled=false 收紧到全部 API 禁用（存量 API 需改用 #{} 参数化）
+    sql:
+      dollar-enabled: ${DATAPOLY_EXECUTOR_SQL_DOLLAR_ENABLED:true}
+      open-dollar-forbidden: ${DATAPOLY_EXECUTOR_SQL_OPEN_DOLLAR_FORBIDDEN:true}
+  # CORS 白名单（S5/H7）：逗号分隔；默认 * 兼容，显式白名单时才允许凭据
+  cors:
+    allowed-origins: ${DATAPOLY_CORS_ALLOWED_ORIGINS:*}
+  # token 经 URL 查询参数传递的兼容开关（H7 收口，默认关闭）：默认仅允许 Authorization: Bearer header
+  security:
+    token-query-param-enabled: ${DATAPOLY_SECURITY_TOKEN_QUERY_PARAM_ENABLED:false}
+  datasource:
+    encrypt: ${DATAPOLY_DS_ENCRYPT:false}
+    # 数据源口令 AES 密钥（S5）：默认兼容存量密文，生产建议经环境变量轮换
+    aes-key: ${DATAPOLY_DS_AES_KEY:6635BC05BC357FEC7A85FDB9C972AD01}
+  cache:
+    hazelcast:
+      enabled: true
+    redis:
+      enabled: false
+      host: 127.0.0.1
+      port: 6379
+      password: ${DATAPOLY_REDIS_PASSWORD:}
+      database: 0
+
+mybatis:
+  configuration:
+    lazy-loading-enabled: true
+    aggressive-lazy-loading: false
+    map-underscore-to-camel-case: true
+    #log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+mybatis-plus:
+  global-config:
+    banner: false
+
+logging:
+  config: classpath:logback-executor.xml
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    secure-port-enabled: false
+    non-secure-port-enabled: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+  client:
+    healthcheck:
+      enabled: true
+    registry-fetch-interval-seconds: 5
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://${MANAGER_HOST}:${MANAGER_PORT}/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springfox:
+  documentation:
+    enabled: true
+    auto-startup: false
+    swagger-ui:
+      enabled: false
+
+
+datasource:
+  driver:
+    base-path: ${APP_DRIVERS_PATH}

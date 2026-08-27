@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQLDB_HOST}:${MYSQLDB_PORT}/${MYSQLDB_NAME}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF8&autoReconnect=true&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&connectTimeout=30000&serverTimezone=Asia/Shanghai
+    username: ${MYSQLDB_USERNAME}
+    password: ${MYSQLDB_PASSWORD}
+    validation-query: SELECT 1
+    test-on-borrow: true

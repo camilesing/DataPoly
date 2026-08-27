@@ -1,0 +1,21 @@
+{
+  "name": "DataPoly Dev (JDK8 + MySQL8 + PG14)",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "root",
+  "forwardPorts": [
+    33061,
+    54321,
+    8090,
+    8091,
+    8092
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack"
+      ]
+    }
+  }
+}

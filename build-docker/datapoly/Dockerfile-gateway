@@ -1,0 +1,17 @@
+FROM openjdk:8-jre-alpine
+
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+ADD datapoly-release.tar.gz  /
+
+EXPOSE      8091
+
+USER        root
+
+WORKDIR /datapoly-release
+
+RUN chmod u+x /datapoly-release/bin/datapolyctl.sh
+
+CMD  ["/datapoly-release/bin/datapolyctl.sh","gateway"]
+

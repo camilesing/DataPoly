@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${PGDB_HOST}:${PGDB_PORT}/${PGDB_NAME}?currentSchema=public
+    username: ${PGDB_USERNAME}
+    password: ${PGDB_PASSWORD}
+    validation-query: SELECT 1
+    test-on-borrow: true
+  liquibase:
+    enabled: true
+    change-log: classpath:pg/changelog/db.changelog-master.yaml
+    database-change-log-table: DATAPOLY_DB_CHANGE_LOG_RECORD
+    database-change-log-lock-table: DATAPOLY_DB_CHANGE_LOG_LOCK

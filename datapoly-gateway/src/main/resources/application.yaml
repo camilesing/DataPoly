@@ -1,0 +1,104 @@
+server:
+  port: ${GATEWAY_PORT}
+spring:
+  profiles:
+    include: ${DB_TYPE}
+  application:
+    name: datapoly-gateway
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+  main:
+    web-application-type: reactive
+  cloud:
+    gateway:
+      routes:
+        - id: api_executor_route
+          uri: lb://datapoly-executor
+          predicates:
+            - Path=/api/**
+        - id: api_token_executor_route
+          uri: lb://datapoly-executor
+          predicates:
+            - Path=/token/generate
+        - id: api_doc_executor_route
+          uri: lb://datapoly-executor
+          predicates:
+            - Path=/apidoc/**
+        - id: user_manager_route
+          uri: lb://datapoly-manager
+          predicates:
+            - Path=/user/**
+        - id: manager_route
+          uri: lb://datapoly-manager
+          predicates:
+            - Path=/datapoly/manager/**
+        - id: eureka_manager_route
+          uri: lb://datapoly-manager
+          predicates:
+            - Path=/dashboard/**
+      # 网关身份头：清除客户端伪造值后注入真实密钥（executor 侧 GatewaySourceFilter 校验，S2）。
+      # 注意：AddRequestHeader 的 value 不允许为空，未设置密钥时注入哨兵 UNSET（executor 未配置 auth-token 时忽略该头）
+      default-filters:
+        - RemoveRequestHeader=X-DATAPOLY-Gateway-Token
+        - AddRequestHeader=X-DATAPOLY-Gateway-Token, ${DATAPOLY_GATEWAY_TOKEN:UNSET}
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: ${DATAPOLY_CORS_ALLOWED_ORIGINS:*}
+            allowed-methods: '*'
+            allowed-headers: "*"
+
+datapoly:
+  gateway:
+    # /token/generate 每 IP 限流（S4）
+    token-rate-limit-per-minute: ${DATAPOLY_GATEWAY_TOKEN_RATE_LIMIT_PER_MINUTE:20}
+    # 防火墙规则加载失败退避（A6）：未加载成功时的重试间隔，窗口内 fail-closed 返回 503
+    firewall:
+      retry-backoff-millis: ${DATAPOLY_GATEWAY_FIREWALL_RETRY_BACKOFF_MILLIS:5000}
+  datasource:
+    encrypt: ${DATAPOLY_DS_ENCRYPT:false}
+  cache:
+    hazelcast:
+      enabled: true
+    redis:
+      enabled: false
+      host: 127.0.0.1
+      port: 6379
+      password: ${DATAPOLY_REDIS_PASSWORD:}
+      database: 0
+
+mybatis:
+  configuration:
+    lazy-loading-enabled: true
+    aggressive-lazy-loading: false
+    map-underscore-to-camel-case: true
+    #log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+mybatis-plus:
+  global-config:
+    banner: false
+
+logging:
+  config: classpath:logback-gateway.xml
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    secure-port-enabled: false
+    non-secure-port-enabled: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+  client:
+    healthcheck:
+      enabled: true
+    registry-fetch-interval-seconds: 5
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://${MANAGER_HOST}:${MANAGER_PORT}/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
