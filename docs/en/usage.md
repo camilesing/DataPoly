@@ -104,3 +104,49 @@ Security notes:
   `dollarAllowed=true`; prefer `#{}` parameterization.
 - Keep the row cap and statement timeout backstops in place; filter/archival SQL is the
   better lever for very large result sets.
+
+## API assignment extension points (postDebug / postUpdate)
+
+The management-plane **debug execution** (`/assignment/debug`) and **configuration
+update** (`/assignment/update`) operations end with a post-extension hook: after the
+update transaction has committed, and after a debug run reaches a terminal state
+(success or failure both count), every registered processor is invoked in order and the
+outcome is broadcast through standard Spring events — audit trails, debug-result
+archival or external sync can be added without touching repository code.
+
+Implement `com.cs.core.extension.ApiAssignmentPostProcessor` (datapoly-core; both
+methods are empty defaults, override what you need):
+
+```java
+public class AuditPostProcessor implements com.cs.core.extension.ApiAssignmentPostProcessor {
+    @Override
+    public void postDebug(ApiDebugPostContext ctx) {
+        // ctx.request()/success()/answer()/logs()/types()/errorMessage()/elapsedMs()
+        // both success and failure outcomes fire; answer is the full query result
+    }
+
+    @Override
+    public void postUpdate(ApiUpdatePostContext ctx) {
+        // ctx.request(): the validated update request; ctx.entity(): the saved entity snapshot
+    }
+}
+```
+
+Register either as a host Spring bean (multiple beans execute in `@Order` order) or via
+`META-INF/services/com.cs.core.extension.ApiAssignmentPostProcessor` (recommended —
+zero Spring coupling); a class registered through both channels fires only once, with
+the Spring bean taking precedence.
+
+Alternatively skip the interface and listen to the Spring events
+`com.cs.core.extension.ApiAssignmentDebugEvent` / `ApiAssignmentUpdateEvent` with a
+plain `@EventListener` (`getContext()` exposes the outcome).
+
+Semantics and boundaries:
+- Hooks run **synchronously** on the manager request thread — keep them lightweight and
+  offload heavy work yourself.
+- A throwing processor is logged (warn) and skipped; the management API response, the
+  remaining processors and the event publication are unaffected. The update is already
+  committed when the hook fires, so an extension failure never rolls it back.
+- The debug context carries the full query result and execution logs; extension jars
+  belong to the host trust domain (same model as DataTaskSink) — do not forward results
+  to untrusted destinations.

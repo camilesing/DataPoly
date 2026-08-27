@@ -29,6 +29,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documentation: full standalone DataTask guide `docs/{zh,en}/data-task.md`
   (prerequisites, end-to-end curl walkthrough, sink authoring/registration,
   worker configuration, security constraints and troubleshooting FAQ).
+- API assignment post-extension points: the management-plane `debug` and `update`
+  operations now fan out to registered `com.cs.core.extension.ApiAssignmentPostProcessor`
+  providers (host Spring bean ordered by `@Order`, or `META-INF/services` with bean
+  precedence on duplicate registration; per-hook exception isolation so a throwing
+  extension never breaks the API flow) and publish the Spring events
+  `ApiAssignmentDebugEvent` / `ApiAssignmentUpdateEvent` carrying the full outcome
+  (debug answer/logs/types/error/elapsed, update request + saved entity snapshot).
+  Documented in the docs (zh & en) usage chapters.
 
 ### Fixed
 

@@ -16,6 +16,7 @@ import com.cs.core.exec.annotation.Comment;
 import com.cs.core.exec.engine.ApiExecutorEngineFactory;
 import com.cs.core.exec.engine.impl.ScriptExecutorService;
 import com.cs.core.exec.logger.DebugExecuteLogger;
+import com.cs.core.extension.*;
 import com.cs.core.util.*;
 import com.cs.persistence.dao.*;
 import com.cs.persistence.entity.*;
@@ -25,6 +26,7 @@ import com.google.common.base.Charsets;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +58,8 @@ public class ApiAssignmentService {
     private ApiModuleDao apiModuleDao;
     @Resource
     private DriverLoadService driverLoadService;
+    @Autowired(required = false)
+    private ApiAssignmentPostProcessors postProcessors = ApiAssignmentPostProcessors.empty();
 
     public List<ScriptEditorCompletion> completions() {
         List<ScriptEditorCompletion> results = new ArrayList<>();
@@ -279,6 +283,12 @@ public class ApiAssignmentService {
         File driverPath = driverLoadService.getVersionDriverFile(dataSourceEntity.getType(), dataSourceEntity.getVersion());
 
         ResultEntity entity;
+        boolean success = false;
+        String errorMessage = null;
+        Object answer = null;
+        List<OutParam> types = null;
+        String logs = null;
+        long startedAt = System.currentTimeMillis();
         try {
             DebugExecuteLogger.init();
             HikariDataSource dataSource = DataSourceUtils.getHikariDataSource(dataSourceEntity, driverPath.getAbsolutePath());
@@ -286,12 +296,12 @@ public class ApiAssignmentService {
                     .getExecutor(request.getEngine(), dataSource, dataSourceEntity.getType(), true)
                     .execute(scripts, params, request.getNamingStrategy(),
                             SqlTemplateGuard.isDollarSubstitutionAllowed(Boolean.FALSE));
-            Object answer = results.size() > 1 ? results : (1 == results.size()) ? results.get(0) : null;
+            answer = results.size() > 1 ? results : (1 == results.size()) ? results.get(0) : null;
             if (ProductTypeEnum.HTTP == dataSourceEntity.getType() && answer instanceof List) {
                 answer = ((List) answer).get(0);
             }
-            List<OutParam> types = JacksonUtils.parseFiledTypesAndFillNullAsString(results);
-            String logs = Optional.ofNullable(DebugExecuteLogger.get())
+            types = JacksonUtils.parseFiledTypesAndFillNullAsString(results);
+            logs = Optional.ofNullable(DebugExecuteLogger.get())
                     .orElseGet(ArrayList::new).stream().map(DisplayRecord::getDisplayText)
                     .collect(Collectors.toList()).stream().collect(Collectors.joining("\n\n"));
             Map<String, Object> respMap = new HashMap<>(4);
@@ -299,12 +309,24 @@ public class ApiAssignmentService {
             respMap.put("logs", logs);
             respMap.put("types", types);
             entity = ResultEntity.success(respMap);
+            success = true;
         } catch (Exception e) {
             log.warn("Failed to debug for error:{}", e.getMessage(), e);
-            entity = ResultEntity.failed(ExceptionUtil.getMessage(e));
+            errorMessage = ExceptionUtil.getMessage(e);
+            entity = ResultEntity.failed(errorMessage);
         } finally {
             DebugExecuteLogger.clear();
         }
+
+        postProcessors.postDebug(ApiDebugPostContext.builder()
+                .request(request)
+                .success(success)
+                .answer(answer)
+                .logs(logs)
+                .types(types)
+                .errorMessage(errorMessage)
+                .elapsedMs(System.currentTimeMillis() - startedAt)
+                .build());
 
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -503,6 +525,11 @@ public class ApiAssignmentService {
         apiAssignmentDao.update(assignmentEntity);
         warnDollarSubstitution("update", request.getName(), request.getOpen(), request.getEngine(),
                 request.getContextList());
+
+        postProcessors.postUpdate(ApiUpdatePostContext.builder()
+                .request(request)
+                .entity(assignmentEntity)
+                .build());
     }
 
     /**

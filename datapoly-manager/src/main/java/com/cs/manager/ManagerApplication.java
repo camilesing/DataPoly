@@ -22,6 +22,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.cs.core.datatask",
                 "com.cs.core.service",
                 "com.cs.core.exec",
+                "com.cs.core.extension",
                 "com.cs.cache",
                 "com.cs.manager"
         }

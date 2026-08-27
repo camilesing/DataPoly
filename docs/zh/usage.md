@@ -100,3 +100,38 @@ public class ExcelOssSink implements com.cs.common.datatask.DataTaskSink {
 - 能创建任务定义的用户等同拥有目标数据源的任意查询能力，请结合平台账号管理控制授权范围。
 - `${}` 原生替换默认禁止，仅在定义显式 `dollarAllowed=true` 时可用；请优先使用 `#{}` 参数化。
 - 行数上限与语句超时兜底（见配置表）不建议移除；超大结果集建议在 SQL 侧做归档过滤。
+
+## API 配置扩展点（postDebug / postUpdate）
+
+管理端 API 配置的**调试执行**（`/assignment/debug`）与**配置更新**（`/assignment/update`）在动作完成后留有后置扩展点：
+更新在 DAO 事务提交后、调试在得到终态结果（成功或失败均算完成）后，框架会依次调用所有已注册的处理器，并通过标准
+Spring 事件广播对应上下文。二开方可以在不改仓库代码的前提下实现审计留痕、调试结果转存、外部系统同步等增强。
+
+处理器实现 `com.cs.core.extension.ApiAssignmentPostProcessor`（datapoly-core，两个方法均为 default 空实现，按需覆写）：
+
+```java
+public class AuditPostProcessor implements com.cs.core.extension.ApiAssignmentPostProcessor {
+    @Override
+    public void postDebug(ApiDebugPostContext ctx) {
+        // ctx.request()/success()/answer()/logs()/types()/errorMessage()/elapsedMs()
+        // 成功与失败的调试终态都会回调，answer 为完整查询结果
+    }
+
+    @Override
+    public void postUpdate(ApiUpdatePostContext ctx) {
+        // ctx.request()：通过校验的更新请求；ctx.entity()：落库后的实体快照
+    }
+}
+```
+
+注册二选一：宿主 Spring Bean（多个 Bean 按 `@Order` 顺序执行），或新建
+`META-INF/services/com.cs.core.extension.ApiAssignmentPostProcessor` 文件登记实现类（推荐，零 Spring 依赖）；
+同一类两通道都注册时以 Spring Bean 为准，只触发一次。
+
+也可以不实现接口，直接在宿主应用用 `@EventListener` 监听 Spring 事件
+`com.cs.core.extension.ApiAssignmentDebugEvent` / `ApiAssignmentUpdateEvent`（`getContext()` 取上下文）。
+
+语义与边界：
+- 钩子在 manager 请求线程**同步**执行，请保持轻量，耗时操作建议自行转异步。
+- 单个处理器抛异常只记 warn 日志，不影响管理接口响应、其余处理器与事件发布；更新在钩子触发前已提交，扩展失败不会回滚业务更新。
+- 调试上下文携带完整查询结果与执行日志，扩展 jar 属宿主信任域（与 DataTaskSink 同一信任模型），请勿转发到不受信目的地。

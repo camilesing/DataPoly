@@ -107,3 +107,10 @@ NOTICE（第三方声明）、CHANGELOG.md。
   `${}` 替换默认禁止（定义级 `dollar_allowed` 显式开启才可用）；行数上限与语句超时兜底不得移除；
   运行中取消为协作式（worker 在进度心跳点识别 cancel_requested）。完整教程与扩展指南见 docs/*/data-task.md
   （usage.md「异步数据任务」为速查）。
+- **API 配置后置扩展点（2026-08 新增）**：管理端 `/assignment/debug`、`/assignment/update` 动作完成后调用
+  `com.cs.core.extension.ApiAssignmentPostProcessor`（`postDebug` 携带完整调试产物 answer/logs/types/errorMessage/耗时，
+  成功与失败终态均回调；`postUpdate` 携带通过校验的请求与落库实体快照，触发时 DAO 事务已提交）。注册通道同
+  DataTaskSink（宿主 Spring Bean 或 `META-INF/services`，同名类以 Spring Bean 为准、Bean 间按 @Order 排序），
+  并同步发布 Spring 事件 `ApiAssignmentDebugEvent`/`ApiAssignmentUpdateEvent`；处理器异常仅 warn 不影响主流程与其他处理器，
+  钩子于 manager 请求线程同步执行（实现须保持轻量），扩展 jar 属宿主信任域（调试上下文含完整查询结果）。
+  装配类 `ApiAssignmentExtensionConfiguration` 在 `com.cs.core.extension` 包（manager 已扫描）。用法见 docs/*/usage.md「API 配置扩展点」。
