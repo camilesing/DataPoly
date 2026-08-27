@@ -16,6 +16,7 @@ Hazelcast/Redis caching, online API docs, and LLM MCP services.
 - [Overview](docs/en/overview.md): features, supported databases, module structure
 - [Build & Deployment](docs/en/build-deploy.md): requirements, build, deployment, startup and access
 - [Usage](docs/en/usage.md): guided workflows (in preparation)
+- [Async Data Tasks (DataTask) guide](docs/en/data-task.md): end-to-end walkthrough, sink extension authoring, worker configuration and troubleshooting
 - [One-click install (docker-compose)](build-docker/install/README.md)
 - [中文文档](docs/zh/overview.md)
 

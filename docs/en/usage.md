@@ -19,6 +19,10 @@ definition, scheduling, progress and state machines only; **no delivery provider
 with the repository**, every concrete destination plugs in through the SPI below.
 Frontends poll the job record endpoint for terminal status and the artifact reference.
 
+> The full guide (prerequisites, an end-to-end curl walkthrough, sink authoring and
+> registration, troubleshooting) lives in [data-task.md](data-task.md); this chapter is
+> the quick reference.
+
 > Push-style completion notification (WebSocket/SSE/Webhook) can be added by listening to
 > the Spring event `com.cs.core.datatask.DataTaskEvent` in the host application; polling
 > is the default interaction.

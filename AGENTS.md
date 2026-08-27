@@ -22,7 +22,8 @@
 跑的就是第六节那条 `mvn test -pl …` 命令（temurin JDK 8），新增测试放这六个模块内即可被 CI 覆盖。
 
 **其他文档**：README / README.zh（精简入口，正文收敛于 docs/）、docs/en 与 docs/zh（双语镜像：产品介绍 →
-`overview.md`，构建部署 → `build-deploy.md`，使用教程 → `usage.md`，两语内容须同步维护）、SECURITY.md（漏洞上报）、
+`overview.md`，构建部署 → `build-deploy.md`，使用教程 → `usage.md`，DataTask 完整指南 → `data-task.md`，
+两语内容须同步维护）、SECURITY.md（漏洞上报）、
 NOTICE（第三方声明）、CHANGELOG.md。
 
 ## 一、网络分段要求（部署必须遵守）
@@ -104,4 +105,5 @@ NOTICE（第三方声明）、CHANGELOG.md。
   poll-interval-ms/reap-interval-ms/lease-seconds/flush-interval-ms/fetch-size/query-timeout-seconds/
   max-rows-default）。约束：`sink_config` 原文入库、勿存明文口令；任务定义作者等同获得目标数据源的查询能力；
   `${}` 替换默认禁止（定义级 `dollar_allowed` 显式开启才可用）；行数上限与语句超时兜底不得移除；
-  运行中取消为协作式（worker 在进度心跳点识别 cancel_requested）。扩展指南见 docs/*/usage.md「异步数据任务」。
+  运行中取消为协作式（worker 在进度心跳点识别 cancel_requested）。完整教程与扩展指南见 docs/*/data-task.md
+  （usage.md「异步数据任务」为速查）。

@@ -13,6 +13,7 @@ DataPoly 是一款开源的 SQL/DSL 数据访问中间件：只需选择数据�
 - [工具介绍](docs/zh/overview.md)：功能清单、数据库清单、模块结构
 - [编译打包与部署](docs/zh/build-deploy.md)：环境要求、编译、安装部署、启动与访问
 - [使用教程](docs/zh/usage.md)：向导式使用说明（编写中）
+- [异步数据任务（DataTask）指南](docs/zh/data-task.md)：端到端上手、投递扩展开发、worker 配置与故障排查
 - [一键安装（docker-compose）](build-docker/install/README.md)
 - [English Docs](docs/en/overview.md)
 

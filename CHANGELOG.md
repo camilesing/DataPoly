@@ -26,3 +26,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documentation: new "异步数据任务 / Async Data Tasks" chapter in docs (zh & en)
   covering the REST surface, lifecycle, worker configuration keys
   (`datapoly.data-task.*`) and the sink extension guide.
+- Documentation: full standalone DataTask guide `docs/{zh,en}/data-task.md`
+  (prerequisites, end-to-end curl walkthrough, sink authoring/registration,
+  worker configuration, security constraints and troubleshooting FAQ).
+
+### Fixed
+
+- `DataTaskSinkRegistry` was missing its Spring stereotype, so manager/executor
+  failed to boot with an unresolvable bean; it is now a `@Component` with an
+  optional sink list, and Spring-bean sinks take precedence over
+  ServiceLoader-discovered ones on duplicate `type()` (as documented).

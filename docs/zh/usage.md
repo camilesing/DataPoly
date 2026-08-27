@@ -14,6 +14,8 @@
 xlsx 并上传对象存储、写入消息队列等。框架只负责定义、调度、进度与状态机；**仓库内置零个投递实现**，
 任何具体目的地都通过下文的 SPI 以扩展方式接入。前端拿到 `jobId` 后轮询执行记录接口即可获得完成状态与产物地址。
 
+> 完整教程（前置条件、curl 端到端示例、sink 编写与注册、故障排查）见 [data-task.md](data-task.md)，本章为速查。
+
 > 完成后的推送式通知（WebSocket/SSE/Webhook）可在宿主应用监听 Spring 事件 `com.cs.core.datatask.DataTaskEvent`
 > 自行实现；默认交互方式为轮询。
 
