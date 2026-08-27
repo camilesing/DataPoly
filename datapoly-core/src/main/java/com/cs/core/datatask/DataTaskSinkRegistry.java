@@ -2,8 +2,9 @@
 package com.cs.core.datatask;
 
 import com.cs.common.datatask.DataTaskSink;
-import com.cs.common.datatask.SinkRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 
@@ -11,15 +12,16 @@ import java.util.*;
  * Resolution point for delivery providers. Providers registered as Spring beans take
  * precedence over ones found through the JDK ServiceLoader mechanism
  * ({@code META-INF/services/com.cs.common.datatask.DataTaskSink}) — extension jars can
- * plug in without any Spring coupling.
+ * plug in without any Spring coupling. The list may be {@code null} (or empty) when the
+ * application ships no sink beans, which is the default for this repository.
  */
 @Slf4j
+@Component
 public class DataTaskSinkRegistry {
 
     private final Map<String, DataTaskSink> sinks = new LinkedHashMap<>();
 
-    public DataTaskSinkRegistry(List<DataTaskSink> registered) {
-        registerAll(registered);
+    public DataTaskSinkRegistry(@Nullable List<DataTaskSink> registered) {
         try {
             List<DataTaskSink> spi = new ArrayList<>();
             for (DataTaskSink sink : ServiceLoader.load(DataTaskSink.class, DataTaskSink.class.getClassLoader())) {
@@ -29,6 +31,7 @@ public class DataTaskSinkRegistry {
         } catch (Throwable t) {
             log.warn("Failed to discover DataTaskSink providers via ServiceLoader: {}", t.getMessage());
         }
+        registerAll(registered);
     }
 
     private void registerAll(List<DataTaskSink> candidates) {
