@@ -11,8 +11,8 @@
 - 可运行服务：`datapoly-manager`（`ManagerApplication`：管理端 API + 元库写入 + Liquibase 唯一迁移执行方）、
   `datapoly-executor`（`ExecutorApplication`：SQL/脚本执行引擎，API 数据面）、`datapoly-gateway`
   （`GatewayApplication`：Spring Cloud Gateway 入口/防火墙）。端口与网络分段约束见第一节。
-- 库模块：`datapoly-common`（公共契约与工具）、`datapoly-template`（MyBatis 动态 SQL 模板 `XmlSqlTemplate`）、
-  `datapoly-core`（执行引擎/驱动加载/JDBC 与数据源工具）、`datapoly-persistence`（元库 entity/dao/mapper）、
+- 库模块：`datapoly-common`（公共契约与工具，含异步数据任务投递 SPI `com.cs.common.datatask`）、`datapoly-template`（MyBatis 动态 SQL 模板 `XmlSqlTemplate`）、
+  `datapoly-core`（执行引擎/驱动加载/JDBC 与数据源工具；含异步数据任务引擎与 worker `com.cs.core.datatask`）、`datapoly-persistence`（元库 entity/dao/mapper）、
   `datapoly-cache`（hazelcast/redis 实现）、`datapoly-mcp`（聚合模块，子模块 `datapoly-mcp-core`/
   `datapoly-mcp-springmvc` 内含 vendored `io.modelcontextprotocol.*`，勿动其版权头）、`datapoly-dist`（发布打包）。
 - 前端：`datapoly-manager-ui`（Vue2 + element-ui + axios，webpack 3 工具链，非 Maven 模块；产物须重建后同步进
@@ -94,3 +94,14 @@ NOTICE（第三方声明）、CHANGELOG.md。
 - 元数据库每请求查询（A2）已在三期以本地短 TTL 缓存收敛，见五C。
 - `DataSourceUtils` 的 `classLoaderMap` 与 `DriverLoadService` 的 drivers map 只增不减（进程生命周期内驻留，量级=驱动目录数，有界），属已知限制，无需清理。
 - firewall 规则行被删除（种子 id=1 不存在）时网关按"全拒绝"处理（fail-closed），属预期。
+- **异步数据任务（DataTask，2026-08 新增）**：manager 的 `/datapoly/manager/api/v1/data-task/**` 提供任务定义
+  （SQL + 入参声明 + 出参调整[命名策略/列别名/列顺序/类型格式化] + 投递目标）与执行记录的 CRUD/提交/取消/轮询；
+  executor 以 worker 轮询认领元库表 `DATAPOLY_DATA_TASK_JOB`（事务内 `FOR UPDATE SKIP LOCKED` 原子抢占，
+  租约超时由 reaper 记 FAILED），manager 与 executor 之间不新增任何直连。迁移在 Liquibase log-v1.1.0
+  （MySQL/PG 双份 DDL）。投递目的地一律由外部扩展实现 `com.cs.common.datatask.DataTaskSink` 注册
+  （宿主 Spring Bean 或 `META-INF/services`；**仓库内置零实现**）；完成通知走 Spring 事件 `DataTaskEvent`
+  加前端轮询执行记录接口。配置前缀 `datapoly.data-task.*`（executor 启用 worker：enabled/workers/
+  poll-interval-ms/reap-interval-ms/lease-seconds/flush-interval-ms/fetch-size/query-timeout-seconds/
+  max-rows-default）。约束：`sink_config` 原文入库、勿存明文口令；任务定义作者等同获得目标数据源的查询能力；
+  `${}` 替换默认禁止（定义级 `dollar_allowed` 显式开启才可用）；行数上限与语句超时兜底不得移除；
+  运行中取消为协作式（worker 在进度心跳点识别 cancel_requested）。扩展指南见 docs/*/usage.md「异步数据任务」。

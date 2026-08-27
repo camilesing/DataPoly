@@ -45,6 +45,17 @@ datapoly:
     sql:
       dollar-enabled: ${DATAPOLY_EXECUTOR_SQL_DOLLAR_ENABLED:true}
       open-dollar-forbidden: ${DATAPOLY_EXECUTOR_SQL_OPEN_DOLLAR_FORBIDDEN:true}
+  # 异步数据任务 worker：enabled=false 时本节点只做 API 数据面，不认领任务
+  data-task:
+    enabled: ${DATAPOLY_DATA_TASK_ENABLED:true}
+    workers: ${DATAPOLY_DATA_TASK_WORKERS:2}
+    poll-interval-ms: ${DATAPOLY_DATA_TASK_POLL_INTERVAL_MS:5000}
+    reap-interval-ms: ${DATAPOLY_DATA_TASK_REAP_INTERVAL_MS:30000}
+    lease-seconds: ${DATAPOLY_DATA_TASK_LEASE_SECONDS:600}
+    flush-interval-ms: ${DATAPOLY_DATA_TASK_FLUSH_INTERVAL_MS:5000}
+    fetch-size: ${DATAPOLY_DATA_TASK_FETCH_SIZE:1000}
+    query-timeout-seconds: ${DATAPOLY_DATA_TASK_QUERY_TIMEOUT_SECONDS:1800}
+    max-rows-default: ${DATAPOLY_DATA_TASK_MAX_ROWS_DEFAULT:1000000}
   # CORS 白名单（S5/H7）：逗号分隔；默认 * 兼容，显式白名单时才允许凭据
   cors:
     allowed-origins: ${DATAPOLY_CORS_ALLOWED_ORIGINS:*}

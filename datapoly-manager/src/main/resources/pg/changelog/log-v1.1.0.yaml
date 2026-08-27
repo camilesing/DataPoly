@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.1.0-data-task-ddl
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: pg/migration/V1_1_0__data-task-ddl.sql

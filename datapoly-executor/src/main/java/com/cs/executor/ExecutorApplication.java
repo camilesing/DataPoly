@@ -20,6 +20,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.cs.core.servlet",
                 "com.cs.core.exec",
                 "com.cs.core.executor",
+                "com.cs.core.datatask",
                 "com.cs.cache",
                 "com.cs.executor",
         }
