@@ -86,4 +86,18 @@ public class DataTaskOutputPlanTest {
                 Collections.singletonList("d"), Collections.emptyMap(), Collections.emptyList(), false, formats);
         Assert.assertSame(now, off.project(new Object[]{now})[0]);
     }
+
+    @Test
+    public void selectProjectsParallelPerColumnListsInTheShapedOrder() {
+        DataTaskOutputPlan plan = DataTaskOutputPlan.resolve(
+                Arrays.asList("a", "b", "c"), Collections.emptyMap(),
+                Arrays.asList("c", "a"), false, Collections.emptyMap());
+
+        Assert.assertEquals(Arrays.asList("META_C", "META_A"),
+                plan.select(Arrays.asList("META_A", "META_B", "META_C")));
+        // missing entries fall in as nulls, never throwing
+        Assert.assertEquals(Arrays.asList(null, "META_B"),
+                plan.select(Collections.singletonList("META_B")));
+        Assert.assertTrue(plan.select(null).isEmpty());
+    }
 }

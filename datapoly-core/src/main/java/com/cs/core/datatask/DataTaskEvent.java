@@ -8,7 +8,8 @@ import org.springframework.context.ApplicationEvent;
 /**
  * Published on the executor node through the standard Spring event mechanism when a
  * job reaches a terminal state. Extensions wanting push-style frontend notification
- * (websocket/SSE/webhook) listen for this event with a plain @EventListener.
+ * (websocket/SSE/webhook) listen for this event with a plain @EventListener and may
+ * filter on {@link #getSinkType()}.
  */
 @Getter
 public class DataTaskEvent extends ApplicationEvent {
@@ -20,9 +21,10 @@ public class DataTaskEvent extends ApplicationEvent {
     private final long totalRows;
     private final String artifactUri;
     private final String errorMessage;
+    private final String sinkType;
 
     public DataTaskEvent(Long jobId, Long defId, String defName, DataTaskStatus status,
-                         long totalRows, String artifactUri, String errorMessage) {
+                         long totalRows, String artifactUri, String errorMessage, String sinkType) {
         super(jobId);
         this.jobId = jobId;
         this.defId = defId;
@@ -31,5 +33,6 @@ public class DataTaskEvent extends ApplicationEvent {
         this.totalRows = totalRows;
         this.artifactUri = artifactUri;
         this.errorMessage = errorMessage;
+        this.sinkType = sinkType;
     }
 }

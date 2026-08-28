@@ -2,6 +2,7 @@
 package com.cs.core.datatask;
 
 import com.cs.common.datatask.CellDecorator;
+import com.cs.common.datatask.ColumnMetadata;
 import com.cs.common.datatask.DataTaskSink;
 import com.cs.common.datatask.SinkOutcome;
 import com.cs.common.datatask.SinkRequest;
@@ -127,13 +128,15 @@ public class DataTaskJobEngine {
         DataTaskStatus terminal;
         String artifactUri = null;
         String failureMessage = null;
+        String sinkType = null;
         Map<String, Object> artifactInfo = new LinkedHashMap<>();
         try {
             if (!isRunning(jobId)) {
                 return; // canceled or reaped between claim and pickup
             }
             DataTaskDefEntity snapshot = normalize(parseSnapshot(job.getSnapshot()));
-            artifactInfo.put("sinkType", StringUtils.defaultString(snapshot.getSinkType()));
+            sinkType = StringUtils.defaultString(snapshot.getSinkType());
+            artifactInfo.put("sinkType", sinkType);
 
             DataSourceEntity dsEntity = dataSourceDao.getById(snapshot.getDatasourceId());
             if (null == dsEntity) {
@@ -213,7 +216,7 @@ public class DataTaskJobEngine {
             artifactUri = null;
         }
         publish(new DataTaskEvent(jobId, job.getDefId(), job.getDefName(), terminal,
-                delivered, artifactUri, failureMessage));
+                delivered, artifactUri, failureMessage, sinkType));
     }
 
     /** Manager-side synchronous preview: no job record, no sink involvement. */
@@ -296,10 +299,12 @@ public class DataTaskJobEngine {
             Function<String, String> converter =
                     Objects.isNull(spec.getNaming()) ? Function.identity() : spec.getNaming().getFunction();
             List<String> columns = new ArrayList<>(columnCount);
+            List<ColumnMetadata> metadata = new ArrayList<>(columnCount);
             for (int i = 1; i <= columnCount; i++) {
                 columns.add(converter.apply(meta.getColumnLabel(i)));
+                metadata.add(readColumnMetadata(meta, i));
             }
-            channel.start(columns);
+            channel.start(columns, metadata);
 
             List<Object[]> buffer = new ArrayList<>(WRITE_BATCH_ROWS);
             long total = 0L;
@@ -383,10 +388,25 @@ public class DataTaskJobEngine {
         return cells;
     }
 
+    private static ColumnMetadata readColumnMetadata(ResultSetMetaData meta, int column) {
+        Integer jdbcType = null;
+        String className = null;
+        try {
+            jdbcType = meta.getColumnType(column);
+        } catch (SQLException ignore) {
+            // driver-dependent metadata access may throw; the slot stays null instead of failing the job
+        }
+        try {
+            className = meta.getColumnClassName(column);
+        } catch (SQLException ignore) {
+        }
+        return ColumnMetadata.builder().jdbcType(jdbcType).className(className).build();
+    }
+
     // ------------------------------------------------------------- collaborators
 
     public interface ResultChannel {
-        void start(List<String> columns) throws Exception;
+        void start(List<String> columns, List<ColumnMetadata> metadata) throws Exception;
 
         /** @return false to ask the reader to stop (sink request, capacity, cancellation) */
         boolean batch(List<Object[]> rows) throws Exception;
@@ -471,7 +491,7 @@ public class DataTaskJobEngine {
         }
 
         @Override
-        public void start(List<String> columns) throws Exception {
+        public void start(List<String> columns, List<ColumnMetadata> metadata) throws Exception {
             plan = buildPlan(spec, columns);
             SinkRequest request = SinkRequest.builder()
                     .jobId(jobId)
@@ -479,6 +499,7 @@ public class DataTaskJobEngine {
                     .sinkType(spec.getSinkType())
                     .sinkConfig(spec.getSinkConfig())
                     .columns(new ArrayList<>(plan.getOutputColumns()))
+                    .columnMetadata(new ArrayList<>(plan.select(metadata)))
                     .outputFormats(spec.getResponseFormat())
                     .submittedBy(job.getSubmittedBy())
                     .build();
@@ -537,7 +558,7 @@ public class DataTaskJobEngine {
         }
 
         @Override
-        public void start(List<String> columns) {
+        public void start(List<String> columns, List<ColumnMetadata> metadata) {
             plan = buildPlan(def, columns);
         }
 

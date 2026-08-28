@@ -188,7 +188,10 @@ public interface SinkSession extends Closeable {
 ```
 
 `SinkRequest` carries: `jobId / taskName / sinkType / sinkConfig` (the definition's opaque config JSON, verbatim),
-`columns` (headers **after reshaping**), `outputFormats` (patterns declared on the task), `submittedBy`.
+`columns` (headers **after reshaping**), `columnMetadata` (per-column JDBC type hints — `jdbcType` /
+`className` — parallel to `columns` and shaped through the same alias/order projection; entries may be null
+and the list may be empty on drivers without type metadata), `outputFormats` (patterns declared on the task),
+`submittedBy`.
 
 A complete example (CSV-file sink, contract illustration only — use a real CSV library and streaming writes in
 production):
@@ -269,7 +272,7 @@ Two auxiliary extension points:
   (`decorate(column, columnIndex, value)`) as a Spring bean; it runs after reshaping and before delivery — put
   masking, unit conversion or enrichment here instead of repeating it inside every sink.
 - **Completion push**: when a job reaches a terminal state, the executor node that ran it publishes the Spring event
-  `com.cs.core.datatask.DataTaskEvent` (fields: `jobId/defId/defName/status/totalRows/artifactUri/errorMessage`).
+  `com.cs.core.datatask.DataTaskEvent` (fields: `jobId/defId/defName/status/totalRows/artifactUri/errorMessage/sinkType`).
   Listen for it in the host application to wire WebSocket/SSE/webhooks; the default interaction remains frontend
   polling of `/job/{id}`.
 

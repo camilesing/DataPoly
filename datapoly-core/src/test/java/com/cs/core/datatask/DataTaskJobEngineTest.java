@@ -1,6 +1,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.datatask;
 
+import com.cs.common.datatask.ColumnMetadata;
 import com.cs.common.datatask.DataTaskSink;
 import com.cs.common.datatask.SinkOutcome;
 import com.cs.common.datatask.SinkRequest;
@@ -225,7 +226,12 @@ public class DataTaskJobEngineTest {
         DataTaskJobEngine localEngine = engine(jobDao, sink, new ChannelScript() {
             @Override
             public void drive(DataTaskJobEngine.ResultChannel channel) throws Exception {
-                channel.start(new ArrayList<>(Arrays.asList("raw_a", "raw_b")));
+                List<ColumnMetadata> metadata = new ArrayList<>();
+                metadata.add(ColumnMetadata.builder().jdbcType(java.sql.Types.VARCHAR)
+                        .className("java.lang.String").build());
+                metadata.add(ColumnMetadata.builder().jdbcType(java.sql.Types.INTEGER)
+                        .className("java.lang.Long").build());
+                channel.start(new ArrayList<>(Arrays.asList("raw_a", "raw_b")), metadata);
                 List<Object[]> first = new ArrayList<>();
                 first.add(new Object[]{"a1", 10});
                 channel.batch(first);
@@ -244,6 +250,13 @@ public class DataTaskJobEngineTest {
         Assert.assertEquals("tester", request.getSubmittedBy());
         // columns follow the declared order [raw_b, raw_a] with alias applied to raw_b
         Assert.assertEquals(Arrays.asList("B", "raw_a"), request.getColumns());
+        // type metadata travels in parallel with the shaped columns
+        Assert.assertEquals(Integer.valueOf(java.sql.Types.INTEGER),
+                request.getColumnMetadata().get(0).getJdbcType());
+        Assert.assertEquals("java.lang.Long", request.getColumnMetadata().get(0).getClassName());
+        Assert.assertEquals(Integer.valueOf(java.sql.Types.VARCHAR),
+                request.getColumnMetadata().get(1).getJdbcType());
+        Assert.assertEquals("java.lang.String", request.getColumnMetadata().get(1).getClassName());
 
         StubSession session = sink.sessions.get(0);
         Assert.assertTrue(session.completed);
@@ -263,6 +276,7 @@ public class DataTaskJobEngineTest {
         Assert.assertEquals(DataTaskStatus.SUCCESS, events.get(0).getStatus());
         Assert.assertEquals(2L, events.get(0).getTotalRows());
         Assert.assertEquals("stub://artifact", events.get(0).getArtifactUri());
+        Assert.assertEquals("stub", events.get(0).getSinkType());
     }
 
     @Test
@@ -299,7 +313,7 @@ public class DataTaskJobEngineTest {
         DataTaskJobEngine localEngine = engine(jobDao, sink, new ChannelScript() {
             @Override
             public void drive(DataTaskJobEngine.ResultChannel channel) throws Exception {
-                channel.start(new ArrayList<>(Arrays.asList("raw_a", "raw_b")));
+                channel.start(new ArrayList<>(Arrays.asList("raw_a", "raw_b")), Collections.<ColumnMetadata>emptyList());
                 throw new DataTaskJobEngine.CancelledException();
             }
         });
@@ -326,7 +340,7 @@ public class DataTaskJobEngineTest {
         DataTaskJobEngine localEngine = engine(jobDao, sink, new ChannelScript() {
             @Override
             public void drive(DataTaskJobEngine.ResultChannel channel) throws Exception {
-                channel.start(new ArrayList<>(Arrays.asList("raw_a", "raw_b")));
+                channel.start(new ArrayList<>(Arrays.asList("raw_a", "raw_b")), Collections.<ColumnMetadata>emptyList());
                 List<Object[]> all = new ArrayList<>();
                 for (int i = 0; i < 5; i++) {
                     all.add(new Object[]{"v" + i, i});

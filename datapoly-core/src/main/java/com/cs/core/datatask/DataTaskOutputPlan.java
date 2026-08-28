@@ -104,6 +104,19 @@ public class DataTaskOutputPlan {
         return out;
     }
 
+    /** Project a per-source-column parallel list (e.g. type metadata) to the shaped output order. */
+    public <T> List<T> select(List<T> source) {
+        if (null == source) {
+            return Collections.emptyList();
+        }
+        List<T> out = new ArrayList<>(keepIndex.length);
+        for (int i = 0; i < keepIndex.length; i++) {
+            int src = keepIndex[i];
+            out.add(src < source.size() ? source.get(src) : null);
+        }
+        return out;
+    }
+
     private Object stringify(Object value) {
         if (null == value) {
             return null;

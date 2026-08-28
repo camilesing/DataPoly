@@ -177,7 +177,9 @@ public interface SinkSession extends Closeable {
 ```
 
 `SinkRequest` 携带：`jobId / taskName / sinkType / sinkConfig`（定义里的私有配置 JSON，原样透传）、
-`columns`（**整形后**的列头）、`outputFormats`（任务声明的类型格式）、`submittedBy`。
+`columns`（**整形后**的列头）、`columnMetadata`（按列的 JDBC 类型提示——`jdbcType`/`className`，与 `columns`
+平行对齐并经同样的别名/顺序投影；驱动不支持时条目可为 null、列表可为空）、`outputFormats`（任务声明的类型
+格式）、`submittedBy`。
 
 完整示例（CSV 文件 sink，仅演示契约，生产请换真正的 CSV 库与流式写法）：
 
@@ -254,7 +256,7 @@ public class CsvFileSink implements DataTaskSink {
 - **逐格加工**：实现 `com.cs.common.datatask.CellDecorator`（`decorate(column, columnIndex, value)`）注册为
   Spring Bean，作用于列整形之后、投递之前——脱敏、单位换算、富化等横切需求放这里，不必侵入每个 sink。
 - **完成推送**：任务到达终态时，**执行它的 executor 节点**会发布 Spring 事件
-  `com.cs.core.datatask.DataTaskEvent`（字段：`jobId/defId/defName/status/totalRows/artifactUri/errorMessage`）。
+  `com.cs.core.datatask.DataTaskEvent`（字段：`jobId/defId/defName/status/totalRows/artifactUri/errorMessage/sinkType`）。
   在宿主应用监听即可对接 WebSocket/SSE/Webhook；默认交互仍是前端轮询 `/job/{id}`。
 
 ## 6、Worker 配置参考

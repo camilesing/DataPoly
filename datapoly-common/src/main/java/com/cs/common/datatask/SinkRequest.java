@@ -37,6 +37,14 @@ public class SinkRequest implements Serializable {
     /** Resolved (post naming-strategy/alias/order) column headers */
     private List<String> columns;
 
+    /**
+     * Per-column JDBC type hints, parallel to {@link #getColumns()} and shaped through
+     * the same projection; entries may be null and the list may be empty on drivers
+     * that expose no type metadata. Targets with typed rendering (spreadsheets,
+     * parameterized protocols) can use it to format columns whose sampled values are null.
+     */
+    private List<ColumnMetadata> columnMetadata;
+
     /** Per-type display patterns declared on the task (DATE/TIMESTAMP/BIG_DECIMAL ...) */
     private Map<DataTypeFormatEnum, String> outputFormats;
 

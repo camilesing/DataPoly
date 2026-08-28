@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- DataTask sink contract (net-neutral extension): `SinkRequest` now carries
+  `columnMetadata` (per-column JDBC type hints, shaped through the same
+  projection as the columns) and the terminal `DataTaskEvent` includes the
+  `sinkType`, so typed renderers (spreadsheet-style targets) can format columns
+  whose sampled values are null and push notifiers can filter per provider.
+- Documentation: `docs/{zh,en}/data-task.md` documents the extended sink
+  contract (`columnMetadata`, `DataTaskEvent.sinkType`).
+
+### Fixed
+
 - Asynchronous data task framework (DataTask): manager endpoints under
   `/datapoly/manager/api/v1/data-task/**` for task definitions (SQL + input parameter
   declarations + output reshaping: naming strategy / column aliases / column order /
