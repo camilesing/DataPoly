@@ -5,6 +5,7 @@ import com.cs.common.consts.Constants;
 import com.cs.common.dto.PageResult;
 import com.cs.common.dto.ResultEntity;
 import com.cs.core.datatask.DataTaskService;
+import com.cs.core.datatask.DataTaskSinkRegistry;
 import com.cs.core.dto.*;
 import com.cs.core.service.ApiAssignmentService;
 import com.cs.persistence.util.PageUtils;
@@ -33,6 +34,16 @@ public class DataTaskController {
     private DataTaskService dataTaskService;
     @Resource
     private ApiAssignmentService apiAssignmentService;
+    @Resource
+    private DataTaskSinkRegistry sinkRegistry;
+
+    @ApiOperation(value = "已注册的投递类型（sinkType 取值来源）")
+    @GetMapping(value = "/sink-types", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResultEntity sinkTypes() {
+        return ResultEntity.success(sinkRegistry.knownTypes().stream()
+                .sorted()
+                .collect(java.util.stream.Collectors.toList()));
+    }
 
     @ApiOperation(value = "解析SQL中的入参列表")
     @PostMapping(value = "/parse", produces = MediaType.APPLICATION_JSON_VALUE)

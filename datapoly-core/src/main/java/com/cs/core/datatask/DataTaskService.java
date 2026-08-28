@@ -97,6 +97,8 @@ public class DataTaskService {
 
     public java.util.List<DataTaskBaseResponse> list(DataTaskSearchRequest request) {
         return dataTaskDefDao.searchAll(request.getSearchText()).stream()
+                .filter(e -> null == request.getEnabled()
+                        || Objects.equals(e.getEnabled(), request.getEnabled()))
                 .map(this::toBase)
                 .collect(Collectors.toList());
     }

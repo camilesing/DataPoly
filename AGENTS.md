@@ -29,4 +29,5 @@ Groovy 沙箱默认启用但不是 JVM 隔离：勿把脚本编写权开放给�
 
 - 新增 JDBC 代码资源必须 try-with-resources；firewall 规则行被删时网关按"全拒绝"处理（fail-closed，属预期）。
 - DataTask 投递 Sink 仓库内置零实现，外部以 Spring Bean / `META-INF/services` 注册（SPI `com.cs.common.datatask.DataTaskSink`）；宿主可自行维护本地扩展模块（如 `datapoly-extension-*`，已被 .gitignore 排除、依赖钉版在模块自身 pom、构建后装配进 executor classpath）；`SinkRequest.columnMetadata`（按列 JDBC 类型提示，经整形投影）与 `DataTaskEvent.sinkType` 为 2026-08 配套契约扩展；`sink_config` 勿存明文口令；`${}` 替换默认禁止；行数上限与语句超时兜底不得移除。API 扩展点 `ApiAssignmentPostProcessor` 注册方式相同、须同步执行且保持轻量。详见 docs/*/data-task.md。
+- 本地前端扩展目录 `datapoly-extension-ui`（同被 .gitignore 排除）经 datapoly-manager-ui 编译期装配：webpack `@extension` 别名自动探测该目录、`src/extension-stub` 为缺省回退、扩展路由与 i18n 词条在 manager-ui 入口深合并——这四处钩子文件（build/webpack.base.conf.js、src/extension-stub、src/router、src/main.js）勿移除或改名；目录不存在时 CI 与普通构建不受影响。
 - 多 executor 下一次性 token 每节点各可用一次（有查库兜底，已知限制）。

@@ -7,6 +7,7 @@ import axios from './assets/axios.js';
 import ElementUI from 'element-ui';
 import VueI18n from 'vue-i18n'
 import messages from './lang'
+import extension from '@extension'
 import './assets/iconfont/iconfont.css'
 import './assets/dbicon/iconfont.css'
 import './assets/dbicon/iconfont.js'
@@ -30,10 +31,34 @@ const savedLocale = localStorage.getItem('locale') || defaultLocale
 
 Vue.use(VueI18n)
 
+// Deep-merge UI extension dictionaries into the base messages before the i18n instance
+// is created, so extension pages share the same $t() and locale handling while host keys
+// (including the shared `menu` namespace) are preserved. No-op when the '@extension'
+// entry is the in-repo stub.
+mergeExtensionI18n(messages, extension.i18n)
+
 const i18n = new VueI18n({
   locale: savedLocale,
   messages
 })
+
+function mergeExtensionI18n (target, ext) {
+  Object.keys(ext || {}).forEach(locale => {
+    deepMerge(target[locale] || (target[locale] = {}), ext[locale] || {})
+  })
+}
+
+function deepMerge (target, source) {
+  Object.keys(source).forEach(key => {
+    const value = source[key]
+    if (value && typeof value === 'object' && !Array.isArray(value)
+      && target[key] && typeof target[key] === 'object') {
+      deepMerge(target[key], value)
+    } else {
+      target[key] = value
+    }
+  })
+}
 
 Vue.prototype.$http = axios
 Vue.config.productionTip = false
