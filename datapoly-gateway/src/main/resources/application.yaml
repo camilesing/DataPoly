@@ -37,6 +37,10 @@ spring:
           uri: lb://datapoly-manager
           predicates:
             - Path=/dashboard/**
+        - id: manager_ui_route
+          uri: lb://datapoly-manager
+          predicates:
+            - Path=/,/index.html,/favicon.svg,/static/**
       # 网关身份头：清除客户端伪造值后注入真实密钥（executor 侧 GatewaySourceFilter 校验，S2）。
       # 注意：AddRequestHeader 的 value 不允许为空，未设置密钥时注入哨兵 UNSET（executor 未配置 auth-token 时忽略该头）
       default-filters:
