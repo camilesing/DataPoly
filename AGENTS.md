@@ -21,6 +21,11 @@
 **测试与 CI**：仅 common/template/core/executor/gateway/manager 六个模块有 `src/test`；`.github/workflows/ci.yml`
 跑的就是第六节那条 `mvn test -pl …` 命令（temurin JDK 8），新增测试放这六个模块内即可被 CI 覆盖。
 
+**许可头规范**：新增/修改的源码文件只保留 BSD 许可声明行
+（`// Use of this source code is governed by a BSD-style license`，或 SPDX `BSD-3-Clause` 标识），
+**不要写 `// Copyright SOMEBODY. ...` 之类的个人版权头**；`Init commit`（首个提交）中的旧文件是唯一例外，可保留原头。
+vendored / 第三方文件（如 `io.modelcontextprotocol.*`、MyBatis 源码）保留其原始版权声明，不得改动。
+
 **其他文档**：README / README.zh（精简入口，正文收敛于 docs/）、docs/en 与 docs/zh（双语镜像：产品介绍 →
 `overview.md`，构建部署 → `build-deploy.md`，使用教程 → `usage.md`，DataTask 完整指南 → `data-task.md`，
 两语内容须同步维护）、SECURITY.md（漏洞上报）、
@@ -95,7 +100,7 @@ NOTICE（第三方声明）、CHANGELOG.md。
 - 元数据库每请求查询（A2）已在三期以本地短 TTL 缓存收敛，见五C。
 - `DataSourceUtils` 的 `classLoaderMap` 与 `DriverLoadService` 的 drivers map 只增不减（进程生命周期内驻留，量级=驱动目录数，有界），属已知限制，无需清理。
 - firewall 规则行被删除（种子 id=1 不存在）时网关按"全拒绝"处理（fail-closed），属预期。
-- **异步数据任务（DataTask，2026-08 新增）**：manager 的 `/datapoly/manager/api/v1/data-task/**` 提供任务定义
+- **异步数据任务**：manager 的 `/datapoly/manager/api/v1/data-task/**` 提供任务定义
   （SQL + 入参声明 + 出参调整[命名策略/列别名/列顺序/类型格式化] + 投递目标）与执行记录的 CRUD/提交/取消/轮询；
   executor 以 worker 轮询认领元库表 `DATAPOLY_DATA_TASK_JOB`（事务内 `FOR UPDATE SKIP LOCKED` 原子抢占，
   租约超时由 reaper 记 FAILED），manager 与 executor 之间不新增任何直连。迁移在 Liquibase log-v1.1.0
@@ -107,7 +112,7 @@ NOTICE（第三方声明）、CHANGELOG.md。
   `${}` 替换默认禁止（定义级 `dollar_allowed` 显式开启才可用）；行数上限与语句超时兜底不得移除；
   运行中取消为协作式（worker 在进度心跳点识别 cancel_requested）。完整教程与扩展指南见 docs/*/data-task.md
   （usage.md「异步数据任务」为速查）。
-- **API 配置后置扩展点（2026-08 新增）**：管理端 `/assignment/debug`、`/assignment/update` 动作完成后调用
+- **API 配置后置扩展点**：管理端 `/assignment/debug`、`/assignment/update` 动作完成后调用
   `com.cs.core.extension.ApiAssignmentPostProcessor`（`postDebug` 携带完整调试产物 answer/logs/types/errorMessage/耗时，
   成功与失败终态均回调；`postUpdate` 携带通过校验的请求与落库实体快照，触发时 DAO 事务已提交）。注册通道同
   DataTaskSink（宿主 Spring Bean 或 `META-INF/services`，同名类以 Spring Bean 为准、Bean 间按 @Order 排序），
