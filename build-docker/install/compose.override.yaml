@@ -1,0 +1,11 @@
+# macOS 本地运行覆盖：Docker Desktop 不共享 /data 路径，改用命名卷存放 MySQL 数据。
+# 生产 Linux 服务器部署请忽略此文件（compose 会自动合并，但可用 -f 指定仅使用 docker-compose.yml）。
+services:
+  mysqldb:
+    # Apple Silicon 上 mysql:5.7 仅有 amd64 镜像，显式声明以保证在 arm64 主机上按模拟方式运行
+    platform: linux/amd64
+    volumes:
+      - "mysql-data:/var/lib/mysql"
+
+volumes:
+  mysql-data:
