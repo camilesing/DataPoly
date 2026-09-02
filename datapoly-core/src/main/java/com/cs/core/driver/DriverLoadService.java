@@ -105,11 +105,11 @@ public class DriverLoadService {
                                                 .driverVersion(k)
                                                 .driverClass(dbTypeEnum.getDriver())
                                                 .driverPath(v.getAbsolutePath())
-.jarFiles(
-                                                FileUtil.listFileNames(v.getAbsolutePath()).stream()
-                                                        .filter(n -> null != n && !n.startsWith("."))
-                                                        .collect(Collectors.toList())
-                                        )
+                                                .jarFiles(
+                                                        FileUtil.listFileNames(v.getAbsolutePath()).stream()
+                                                                .filter(n -> null != n && !n.startsWith("."))
+                                                                .collect(Collectors.toList())
+                                                )
                                                 .build()
                                 )
                 );
