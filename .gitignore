@@ -53,8 +53,6 @@ yarn-error.log*
 # 本机 jenv 工具链选择（第六节：本地构建统一 JDK 25）
 .java-version
 
-### 运行时驱动与大体积示例数据（不入库，部署时经 APP_DRIVERS_PATH 挂载/单独下载）
-drivers/
 docs/example/
 
 ### runtime logs (local smoke) ###
