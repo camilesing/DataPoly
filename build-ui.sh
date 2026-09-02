@@ -7,9 +7,14 @@ set -e
 
 cd "$(dirname "$0")"
 
+# 挂载整个仓库根目录：webpack 的 @extension 别名会探测 ../datapoly-extension-ui，
+# 只挂 datapoly-manager-ui 会让探测在容器内落空、扩展页面（导出中心）被静默回退成 stub。
+# -u + HOME 保证产物/node_modules 属主仍是宿主用户。
 docker run --rm \
-  -v "$PWD/datapoly-manager-ui":/app \
-  -w /app \
+  -u "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD":/opt/app \
+  -w /opt/app/datapoly-manager-ui \
   node:14-alpine \
   sh -c "npm config set registry https://registry.npmmirror.com && \
          npm install --no-audit --no-fund --no-package-lock --legacy-peer-deps && \
