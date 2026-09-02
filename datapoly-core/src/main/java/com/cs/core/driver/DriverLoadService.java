@@ -49,7 +49,10 @@ public class DriverLoadService {
             if (!ProductTypeEnum.exists(type.getName())) {
                 continue;
             }
-            File[] driverVersions = type.listFiles();
+            // Sync tools and macOS sidecars litter the tree with non-directory artifacts
+            // (._*, .DS_Store); only real subdirectories count as driver versions.
+            File[] driverVersions = type.listFiles(
+                    f -> null != f && f.isDirectory() && !f.getName().startsWith("."));
             if (ArrayUtils.isEmpty(driverVersions)) {
                 throw new IllegalArgumentException(
                         "No driver version found from path:" + type.getAbsolutePath());
@@ -102,9 +105,11 @@ public class DriverLoadService {
                                                 .driverVersion(k)
                                                 .driverClass(dbTypeEnum.getDriver())
                                                 .driverPath(v.getAbsolutePath())
-                                                .jarFiles(
-                                                        FileUtil.listFileNames(v.getAbsolutePath())
-                                                )
+.jarFiles(
+                                                FileUtil.listFileNames(v.getAbsolutePath()).stream()
+                                                        .filter(n -> null != n && !n.startsWith("."))
+                                                        .collect(Collectors.toList())
+                                        )
                                                 .build()
                                 )
                 );
