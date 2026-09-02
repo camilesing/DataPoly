@@ -12,6 +12,10 @@
 
   **maven**:>=3.6
 
+  **Docker**（或本机 Node 14）：`build.sh` / `docker-maven-build.sh` 会用 Docker 构建内置管理端 UI
+  （`datapoly-manager-ui`，Vue 2 + webpack 3 工程，仅 Node 14 可构建，故经 `node:14-alpine` 容器构建）。
+  UI 产物不随仓库提交，打包前由脚本自动生成。
+
 > Maven 仓库默认在国外， 国内使用难免很慢，可以更换为阿里云的仓库。
 >
 > 参考教程： [配置阿里云的仓库教程](https://www.runoob.com/maven/maven-repositories.html)
@@ -39,6 +43,11 @@ git clone https://github.com/camilesing/datapoly.git datapoly
 cd datapoly/
 sh ./docker-maven-build.sh
 ```
+
+> 打包前会先生成内置 UI：`build.sh` 与 `docker-maven-build.sh` 先执行 `build-ui.sh`，用容器内的 Node 14
+> 构建 `datapoly-manager-ui` 并把 `dist/index.html` + `dist/static/` 同步进
+> `datapoly-manager/src/main/resources/`（UI 产物不入库）。直接执行 `mvn package` 打出的 jar **不含管理界面**。
+> 手工构建 UI 的流程见 [CONTRIBUTING.md](../../CONTRIBUTING.md)。
 
 ## 2、安装部署
 

@@ -2,6 +2,10 @@
 
 # maven:3.6.3-jdk-8 只有 amd64 镜像，Apple Silicon 上无法运行；
 # 改用基于 Eclipse Temurin 8 的镜像（同为 JDK 8，与 CI 的 temurin 8 对齐，且支持 arm64）
+
+# 先构建内置 UI（node:14-alpine 容器，见 build-ui.sh）；maven 镜像不含 node，不单独跑 npm
+sh "$(dirname "$0")/build-ui.sh"
+
 docker run -it --rm \
 	--name my-maven-project \
 	-v ~/.m2:/opt/maven/localRepository \

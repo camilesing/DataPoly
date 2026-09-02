@@ -12,5 +12,5 @@
 ## Checklist
 
 - [ ] `mvn test` passes locally (`mvn -B -ntp test -pl datapoly-common,datapoly-template,datapoly-core,datapoly-executor,datapoly-gateway,datapoly-manager -am`)
-- [ ] If the built-in UI (`datapoly-manager-ui`) was changed, the dist assets were rebuilt and synced into `datapoly-manager/src/main/resources/`
+- [ ] If the built-in UI (`datapoly-manager-ui`) was changed, `sh build-ui.sh` was run and the built assets were verified; no generated files under `datapoly-manager/src/main/resources/` (index.html, static/) were committed
 - [ ] No new hardcoded credentials, internal IPs or personal namespaces were introduced
