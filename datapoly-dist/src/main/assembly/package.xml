@@ -290,6 +290,15 @@
             </includes>
         </fileSet>
 
+        <!-- 宿主扩展投放点：根目录 lib-extra/ 下的 jar 随发行版进入 lib/common（见 lib-extra/README.md） -->
+        <fileSet>
+            <directory>${project.parent.basedir}/lib-extra</directory>
+            <outputDirectory>lib/common</outputDirectory>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+
         <!-- 将模块drivers驱动等打包目录/drivers 下 -->
         <fileSet>
             <directory>${project.parent.basedir}/drivers/
