@@ -1,0 +1,4 @@
+# 本地构建/同步进镜像暂存目录的产物（build.sh、sync_release_dir.sh、build_and_push_image.sh 生成），不入库
+datapoly-release/lib/*
+datapoly-release/drivers/*
+datapoly-release.tar.gz

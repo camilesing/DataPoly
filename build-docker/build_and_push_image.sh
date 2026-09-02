@@ -14,12 +14,8 @@ DOCKER_DATAPOLY_DIR=$BUILD_DOCKER_DIR/datapoly
 # build project
 cd $PROJECT_ROOT_DIR && sh docker-maven-build.sh && cd -
 
-# copy files
-cd $BUILD_DOCKER_DIR \
- && tar zxvf $PROJECT_ROOT_DIR/target/datapoly-release-${DATAPOLY_VERSION}.tar.gz -C /tmp \
- && cp -r /tmp/datapoly-release-${DATAPOLY_VERSION}/lib/* ${BUILD_DOCKER_DIR}/datapoly/datapoly-release/lib/ \
- && cp -r /tmp/datapoly-release-${DATAPOLY_VERSION}/drivers/* ${BUILD_DOCKER_DIR}/datapoly/datapoly-release/drivers/ \
- && rm -rf /tmp/datapoly-release-*
+# sync release lib/ & drivers/ into image staging dir (shared with build.sh)
+sh $BUILD_DOCKER_DIR/sync_release_dir.sh
 
 # build image
 cd ${DOCKER_DATAPOLY_DIR} && tar zcvf datapoly-release.tar.gz datapoly-release/
