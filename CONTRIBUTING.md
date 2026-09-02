@@ -22,18 +22,36 @@ mvn -B -ntp test -pl datapoly-common,datapoly-template,datapoly-core,datapoly-ex
 
 The built-in UI (`datapoly-manager-ui`) is a Vue 2 project that requires
 Node 14. Because modern local Node versions cannot run its webpack 3 toolchain,
-build it with the provided container command (works on any host with Docker):
+build it with the provided script (works on any host with Docker, no local
+Node required):
+
+```bash
+sh ./build-ui.sh
+```
+
+This builds the UI inside a `node:14-alpine` container and syncs
+`dist/index.html` + `dist/static/` into `datapoly-manager/src/main/resources/`
+(wiping the previous copies first so stale hashed files do not linger).
+
+Those synced files are build artifacts: they are **not committed to git**
+(`.gitignore` excludes them). `build.sh` and `docker-maven-build.sh` run this
+step automatically before `mvn package`, so the release tarball and the Docker
+images always contain the UI. A bare `mvn package` does not build the UI — the
+jar then contains no management UI (or whatever UI was last synced locally).
+CI runs tests only and does not need the UI assets.
+
+To rebuild the UI without the wrapper script (for UI-only development), the
+raw container command is:
 
 ```bash
 docker run --rm -v $PWD/datapoly-manager-ui:/app -w /app node:14-alpine \
   sh -c "npm config set registry https://registry.npmmirror.com && \
-         npm install --no-audit --no-fund --legacy-peer-deps && npm run build"
+         npm install --no-audit --no-fund --no-package-lock --legacy-peer-deps && \
+         npm run build"
 ```
 
-Copy `dist/index.html` and `dist/static/` into
-`datapoly-manager/src/main/resources/` (replacing the old copies) before
-running `mvn package`. If you change UI source code without rebuilding,
-the jar still contains the old UI.
+If you build this way, copy `dist/index.html` and `dist/static/` into
+`datapoly-manager/src/main/resources/` before running `mvn package`.
 
 ## Local smoke testing
 

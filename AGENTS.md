@@ -4,7 +4,7 @@
 
 Maven 多模块，BSD-3-Clause。本机构建 JDK 25，产物必须编译为 Java 8 字节码；CI（temurin 8）只跑 common/template/core/executor/gateway/manager 六模块的测试。
 - lombok 1.18.46、groovy 4.0.33（org.apache.groovy）为 JDK 25 连带钉版勿回退；注解处理器依赖必须走 `annotationProcessorPaths`。
-- 三服务经 Eureka 互联：manager（8090，Liquibase 唯一迁移执行方）、executor（8092）、gateway（8091 唯一对外入口）。前端 datapoly-manager-ui 非 Maven，产物需重建后同步进 manager resources。
+- 三服务经 Eureka 互联：manager（8090，Liquibase 唯一迁移执行方）、executor（8092）、gateway（8091 唯一对外入口）。前端 datapoly-manager-ui 非 Maven：manager resources 下的 `index.html` 与 `static/` 为构建产物 **不入库**（已被 .gitignore 排除，勿提交/勿 git add -f），打包前由根目录 `build-ui.sh`（node:14-alpine 容器，本机无需 Node）生成——`build.sh` 与 `docker-maven-build.sh` 已前置该步骤；纯 `mvn package` 的 jar 不含 UI。
 - 许可头：新改文件只写 BSD 许可声明行，勿写个人 Copyright 头；vendored 文件（如 io.modelcontextprotocol.*）保留原版权声明。
 
 ## 一、网络分段（必须遵守）

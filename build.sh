@@ -30,4 +30,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     fi
 fi
 
+# 先构建内置 UI 产物（node:14-alpine 容器），再打包；mvn 本身不触发前端构建
+sh "$(dirname "$0")/build-ui.sh"
+
 mvn clean package -Dmaven.test.skip=true

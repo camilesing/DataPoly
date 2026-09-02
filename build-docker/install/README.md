@@ -11,9 +11,12 @@ compose 默认使用 Docker Hub 上的 `camilesing/datapoly-{manager,executor,ga
 如镜像不可用或你需要自行构建，可在项目根目录执行：
 
 ```
-sh build.sh                          # 生成 datapoly-dist/target/datapoly-release-x.x.x.tar.gz
-sh build-docker/build_and_push_image.sh   # 或按脚本内的 REGISTRY/命名空间自行调整后构建
+sh build-docker/build_and_push_image.sh   # 或按脚本内的命名空间自行调整后构建
 ```
+
+该脚本会先经 `docker-maven-build.sh` 完成打包（已内置 `build-ui.sh` 前端构建，无需另跑 npm），
+再构建三个服务镜像。若只想要本地的 `target/datapoly-release-x.x.x.tar.gz` 发行包（不构建镜像），
+执行 `sh build.sh` 即可。
 
 ## 二、一键启动
 

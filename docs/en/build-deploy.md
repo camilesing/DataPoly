@@ -12,6 +12,10 @@ This tool is developed in pure Java, with all dependencies from open-source proj
 
   **Maven**: >=3.6
 
+  **Docker** (or a local Node 14): `build.sh` / `docker-maven-build.sh` use Docker to build the built-in UI
+  (`datapoly-manager-ui`, a Vue 2 + webpack 3 project that only builds on Node 14, hence the `node:14-alpine`
+  container). UI assets are build artifacts and are not committed to git.
+
 > The Maven repository is hosted overseas by default, which can be slow in China. You can switch to the Alibaba Cloud
 > mirror.
 >
@@ -40,6 +44,11 @@ git clone https://github.com/camilesing/datapoly.git datapoly
 cd datapoly/
 sh ./docker-maven-build.sh
 ```
+
+> The built-in UI is generated before packaging: `build.sh` and `docker-maven-build.sh` run `build-ui.sh`
+> first, which builds `datapoly-manager-ui` (Node 14 inside a container) and syncs `dist/index.html` +
+> `dist/static/` into `datapoly-manager/src/main/resources/`. Running `mvn package` directly produces a jar
+> **without** the management UI. See [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for the manual UI build flow.
 
 ## 2. Installation & Deployment
 
