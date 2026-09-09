@@ -12,13 +12,18 @@ PROJECT_ROOT_DIR=$( dirname "$BUILD_DOCKER_DIR")
 DOCKER_DATAPOLY_DIR=$BUILD_DOCKER_DIR/datapoly
 
 # build project
-cd $PROJECT_ROOT_DIR && sh docker-maven-build.sh && cd -
+# 注意：不要写成 `cd X && sh Y && cd -` 单行链——macOS 自带 sh(bash 3.2)
+# 的 set -e 不会因 && 链中间命令失败而中止，Maven 失败会被静默吞掉继续出镜像。
+cd "$PROJECT_ROOT_DIR"
+sh docker-maven-build.sh
+cd "$BUILD_DOCKER_DIR"
 
 # sync release lib/, drivers/ & conf/ into image staging dir (shared with build.sh; bin/ 容器启动器入库维护，不同步)
 sh $BUILD_DOCKER_DIR/sync_release_dir.sh
 
 # build image
-cd ${DOCKER_DATAPOLY_DIR} && tar zcvf datapoly-release.tar.gz datapoly-release/
+cd "$DOCKER_DATAPOLY_DIR"
+tar zcvf datapoly-release.tar.gz datapoly-release/
 
 docker build -f Dockerfile-manager -t ${IMAGE_NAMESPACE}/datapoly-manager:${DATAPOLY_VERSION} .
 docker build -f Dockerfile-executor -t ${IMAGE_NAMESPACE}/datapoly-executor:${DATAPOLY_VERSION} .
@@ -31,7 +36,9 @@ for sub in lib drivers conf; do
 done
 
 # clean project
-cd $PROJECT_ROOT_DIR && sh docker-maven-clean.sh && cd -
+cd "$PROJECT_ROOT_DIR"
+sh docker-maven-clean.sh
+cd "$BUILD_DOCKER_DIR"
 
 # optionally push images (requires docker login first)
 if [ "${PUSH_IMAGES}" = "1" ]; then
