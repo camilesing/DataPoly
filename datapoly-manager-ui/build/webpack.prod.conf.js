@@ -11,7 +11,13 @@ const ExtractTextPlugin = require('extract-text-webpack-plugin')
 const OptimizeCSSPlugin = require('optimize-css-assets-webpack-plugin')
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
 
-const env = require('../config/prod.env')
+// DATAPOLY_UI_ENV=debug keeps NODE_ENV at "development" so the Vue devtools
+// hook survives (it is stripped when NODE_ENV is replaced with "production").
+// Debug builds are for local debugging only and must never be shipped.
+const isDebugBuild = process.env.DATAPOLY_UI_ENV === 'debug'
+const env = Object.assign({}, require('../config/prod.env'), {
+  NODE_ENV: JSON.stringify(isDebugBuild ? 'development' : 'production')
+})
 
 const webpackConfig = merge(baseWebpackConfig, {
   module: {

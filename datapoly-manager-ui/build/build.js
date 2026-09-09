@@ -11,7 +11,8 @@ const webpack = require('webpack')
 const config = require('../config')
 const webpackConfig = require('./webpack.prod.conf')
 
-const spinner = ora('building for production...')
+const isDebugBuild = process.env.DATAPOLY_UI_ENV === 'debug'
+const spinner = ora(isDebugBuild ? 'building debug bundle (devtools enabled, do not ship)...' : 'building for production...')
 spinner.start()
 
 rm(path.join(config.build.assetsRoot, config.build.assetsSubDirectory), err => {

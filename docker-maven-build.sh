@@ -5,8 +5,9 @@
 
 set -e
 
-# 先构建内置 UI（node:14-alpine 容器，见 build-ui.sh）；maven 镜像不含 node，不单独跑 npm
-sh "$(dirname "$0")/build-ui.sh"
+# 先构建内置 UI（node:14-alpine 容器，见 build-ui.sh）；maven 镜像不含 node，不单独跑 npm。
+# 传 "debug" 可构建 devtools 可用的调试版 UI（透传给 build-ui.sh），仅限本机联调。
+sh "$(dirname "$0")/build-ui.sh" "$1"
 
 docker run -it --rm \
 	--name my-maven-project \
