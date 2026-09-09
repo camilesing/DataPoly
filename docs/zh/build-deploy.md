@@ -46,6 +46,10 @@ cd datapoly/
 sh ./docker-maven-build.sh
 # Debug模式
 sh ./docker-maven-build.sh debug
+# Debug模式 + docker compose 部署：UI 打进 manager jar，须重建镜像再起容器
+# （docker compose up -d 本身不重建镜像，否则容器继续跑旧 jar）
+sh build-docker/build_and_push_image.sh debug
+cd build-docker/install && docker compose up -d
 ```
 
 
