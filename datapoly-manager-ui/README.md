@@ -52,5 +52,9 @@ npm run build --report
 
 ## 四、部署
 
-执行`npm run build`
-命令后，datapoly-ui\dist目录生成的所有文件拷贝（或替换）datapoly-manager\src\main\resources目录下。然后直接使用mvn对整个datapoly项目打包即可。
+执行`npm run build`后，`dist`目录会生成打包产物。产物需同步进后端资源目录后随 mvn 打包进入发行版：
+
+- 推荐在仓库根目录执行 `sh ./build-ui.sh` —— 它用 `node:14-alpine` 容器完成 `npm install`、`npm run build`，并自动把 `dist/index.html` 与 `dist/static/` 同步（先清后拷）进 `datapoly-manager/src/main/resources/`，本机无需安装 Node。`build.sh` 与 `docker-maven-build.sh` 打包前已内置该步骤。
+- 如本机已装 Node 14，也可手工执行 `npm run build`，再把 `dist` 目录下的 `index.html` 与 `static/` 拷贝（替换）到 `datapoly-manager/src/main/resources/`，然后对整个 datapoly 项目执行 mvn 打包。
+
+上述同步进 `datapoly-manager/src/main/resources/` 的文件（`index.html`、`static/`）为构建产物，不提交 git（已在仓库 .gitignore 排除）。

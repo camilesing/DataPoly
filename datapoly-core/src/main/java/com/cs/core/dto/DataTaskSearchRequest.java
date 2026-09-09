@@ -8,4 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @ApiModel("数据任务列表搜索")
 public class DataTaskSearchRequest extends EntitySearchRequest {
+
+    @ApiModelProperty("启用状态过滤（null 表示不过滤）")
+    private Boolean enabled;
 }

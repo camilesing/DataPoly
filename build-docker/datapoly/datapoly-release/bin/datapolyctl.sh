@@ -21,7 +21,10 @@ echo "Base Directory:${APP_HOME}"
 export APP_DRIVERS_PATH=$APP_HOME/drivers
 
 # JVM参数可以在这里设置
-JVMFLAGS="-server -Xms1024m -Xmx1024m -Xmn1024m -XX:+DisableExplicitGC -Djava.awt.headless=true -Dfile.encoding=UTF-8 "
+# -XX:+PerfDisableSharedMem: the JDK perfdata file lands in java.io.tmpdir; when the host
+# bind-mounts /tmp (macOS Docker Desktop virtiofs), zeroing that 32KB mmap SIGBUSes the JVM
+# at startup. Disabling shared-mem perfdata removes the mmap entirely.
+JVMFLAGS="-server -Xms1024m -Xmx1024m -Xmn1024m -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem -Djava.awt.headless=true -Dfile.encoding=UTF-8 "
 
 if [ "$JAVA_HOME" != "" ]; then
   JAVA="$JAVA_HOME/bin/java"
@@ -49,6 +52,15 @@ fi
 # 执行命令
 [ -d "${APP_HOME}/run" ] || mkdir -p "${APP_HOME}/run"
 echo "cd ${APP_HOME} && $JAVA -cp $CLASSPATH $JVMFLAGS $APP_MAIN_CLASS"
-cd ${APP_HOME} && $JAVA -cp $CLASSPATH $JVMFLAGS $APP_MAIN_CLASS
+runModule() {
+  cd ${APP_HOME} && $JAVA -cp $CLASSPATH $JVMFLAGS $APP_MAIN_CLASS
+}
+runModule || {
+  # one automatic retry: startup races (e.g. aarch64 first-boot SIGBUS) leave the
+  # container exited-0 otherwise; a single relaunch is enough to self-heal
+  echo "JVM exited abnormally (code $?), retrying once..."
+  sleep 2
+  runModule
+}
 
 echo "Finish start $module !"

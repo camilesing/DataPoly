@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Router from 'vue-router'
+import extension from '@extension'
 
 Vue.use(Router);
 
@@ -168,7 +169,10 @@ const constantRouter = new Router({
           name: 'menu.interfaceDetail',
           hidden: true,
           component: () => import('@/views/service/detail')
-        }
+        },
+        // Pages provided by the local UI extension (datapoly-extension-ui);
+        // the '@extension' entry is an empty stub when the directory is absent.
+        ...extension.routes
       ],
     },
 

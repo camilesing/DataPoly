@@ -47,6 +47,13 @@ services:
     depends_on:
       mysqldb:
         condition: service_healthy
+    # manager 就绪（含自身注册进 Eureka）后 gateway 才启动，消除启动期访问 8091 返回空 503 的窗口
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8090/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
   executor:
     container_name: datapoly_executor
     image: camilesing/datapoly-executor:latest
@@ -69,6 +76,20 @@ services:
       DATAPOLY_EXECUTOR_GATEWAY_ENABLED: "true"
       DATAPOLY_EXECUTOR_GATEWAY_TRUSTED_CIDRS: 127.0.0.1,::1,172.28.0.40
       DATAPOLY_EXECUTOR_GATEWAY_AUTH_TOKEN: ${DATAPOLY_GATEWAY_TOKEN:-}
+      # 内置 oss 投递 sink（经 relaxed binding 映射为 oss.*）：真实值由 install/.env 注入，勿写回本文件
+      OSS_REGION: ${OSS_REGION:-}
+      OSS_BUCKET: ${OSS_BUCKET:-}
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
+      OSS_INTERNAL_ENDPOINT: ${OSS_INTERNAL_ENDPOINT:-}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_PRESIGN_EXPIRE_SECONDS: ${OSS_PRESIGN_EXPIRE_SECONDS:-3600}
+      OSS_TMP_DIR: ${OSS_TMP_DIR:-}
+      OSS_ARTIFACT_BASE_URL: ${OSS_ARTIFACT_BASE_URL:-}
+      OSS_WEBHOOK_URL: ${OSS_WEBHOOK_URL:-}
+      OSS_WEBHOOK_TOKEN: ${OSS_WEBHOOK_TOKEN:-}
+      OSS_WEBHOOK_CONNECT_TIMEOUT_MS: ${OSS_WEBHOOK_CONNECT_TIMEOUT_MS:-5000}
+      OSS_WEBHOOK_READ_TIMEOUT_MS: ${OSS_WEBHOOK_READ_TIMEOUT_MS:-5000}
     volumes:
       - /tmp:/tmp
     depends_on:
@@ -101,6 +122,8 @@ services:
       - 8091:8091
     depends_on:
       mysqldb:
+        condition: service_healthy
+      manager:
         condition: service_healthy
 
 networks:
