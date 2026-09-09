@@ -34,6 +34,8 @@
 git clone https://github.com/camilesing/datapoly.git datapoly
 cd datapoly/
 sh ./build.sh
+# Debug模式
+sh ./build.sh debug
 ```
 
 **(3) Docker下:**
@@ -42,12 +44,12 @@ sh ./build.sh
 git clone https://github.com/camilesing/datapoly.git datapoly
 cd datapoly/
 sh ./docker-maven-build.sh
+# Debug模式
+sh ./docker-maven-build.sh debug
 ```
 
-> 打包前会先生成内置 UI：`build.sh` 与 `docker-maven-build.sh` 先执行 `build-ui.sh`，用容器内的 Node 14
-> 构建 `datapoly-manager-ui` 并把 `dist/index.html` + `dist/static/` 同步进
-> `datapoly-manager/src/main/resources/`（UI 产物不入库）。直接执行 `mvn package` 打出的 jar **不含管理界面**。
-> 手工构建 UI 的流程见 [CONTRIBUTING.md](../../CONTRIBUTING.md)。
+
+> 调试构建仅供本机联调，**勿随发行版发布**；不带参数重新构建即可恢复生产版 UI。
 
 ## 2、安装部署
 

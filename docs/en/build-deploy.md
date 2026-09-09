@@ -35,6 +35,8 @@ Double-click the build.cmd script to build and package
 git clone https://github.com/camilesing/datapoly.git datapoly
 cd datapoly/
 sh ./build.sh
+# Or debug the integrated environment: ship a debug UI in the jar, then use Vue.js devtools
+sh ./build.sh debug
 ```
 
 **(3) With Docker:**
@@ -43,12 +45,12 @@ sh ./build.sh
 git clone https://github.com/camilesing/datapoly.git datapoly
 cd datapoly/
 sh ./docker-maven-build.sh
+# Or debug the integrated environment: ship a debug UI in the jar, then use Vue.js devtools
+sh ./docker-maven-build.sh debug
 ```
 
-> The built-in UI is generated before packaging: `build.sh` and `docker-maven-build.sh` run `build-ui.sh`
-> first, which builds `datapoly-manager-ui` (Node 14 inside a container) and syncs `dist/index.html` +
-> `dist/static/` into `datapoly-manager/src/main/resources/`. Running `mvn package` directly produces a jar
-> **without** the management UI. See [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for the manual UI build flow.
+> Debug builds are for local debugging only and must never be published; rebuild without the argument to restore
+> the production UI.
 
 ## 2. Installation & Deployment
 
