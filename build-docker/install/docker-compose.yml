@@ -47,6 +47,13 @@ services:
     depends_on:
       mysqldb:
         condition: service_healthy
+    # manager 就绪（含自身注册进 Eureka）后 gateway 才启动，消除启动期访问 8091 返回空 503 的窗口
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8090/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
   executor:
     container_name: datapoly_executor
     image: camilesing/datapoly-executor:latest
@@ -115,6 +122,8 @@ services:
       - 8091:8091
     depends_on:
       mysqldb:
+        condition: service_healthy
+      manager:
         condition: service_healthy
 
 networks:

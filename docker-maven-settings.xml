@@ -1,0 +1,19 @@
+<!-- Use of this source code is governed by a BSD-style license -->
+<!--
+  docker-maven-build.sh / docker-maven-clean.sh 容器内 Maven 专用 settings：
+  maven 官方镜像的 entrypoint 会强制拷贝并使用自带的 settings-docker.xml（宿主
+  ~/.m2/settings.xml 不会被读取），故两脚本以覆盖 entrypoint 直调 mvn 后经 -s 显式使用本文件：
+  - localRepository 固定到镜像挂载的 /opt/maven/localRepository（即宿主 ~/.m2，保留缓存）
+  - central 走阿里云镜像，避免容器直连 repo.maven.apache.org 慢且易断链
+-->
+<settings>
+  <localRepository>/opt/maven/localRepository</localRepository>
+  <mirrors>
+    <mirror>
+      <id>aliyunmaven</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Aliyun Maven Mirror</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+    </mirror>
+  </mirrors>
+</settings>
