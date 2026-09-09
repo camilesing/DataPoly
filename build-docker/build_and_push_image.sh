@@ -14,8 +14,9 @@ DOCKER_DATAPOLY_DIR=$BUILD_DOCKER_DIR/datapoly
 # build project
 # 注意：不要写成 `cd X && sh Y && cd -` 单行链——macOS 自带 sh(bash 3.2)
 # 的 set -e 不会因 && 链中间命令失败而中止，Maven 失败会被静默吞掉继续出镜像。
+# 传 "debug" 可把 devtools 可用的调试版 UI 打进镜像（透传 docker-maven-build.sh → build-ui.sh），仅本机联调。
 cd "$PROJECT_ROOT_DIR"
-sh docker-maven-build.sh
+sh docker-maven-build.sh "$1"
 cd "$BUILD_DOCKER_DIR"
 
 # sync release lib/, drivers/ & conf/ into image staging dir (shared with build.sh; bin/ 容器启动器入库维护，不同步)
@@ -28,6 +29,12 @@ tar zcvf datapoly-release.tar.gz datapoly-release/
 docker build -f Dockerfile-manager -t ${IMAGE_NAMESPACE}/datapoly-manager:${DATAPOLY_VERSION} .
 docker build -f Dockerfile-executor -t ${IMAGE_NAMESPACE}/datapoly-executor:${DATAPOLY_VERSION} .
 docker build -f Dockerfile-gateway -t ${IMAGE_NAMESPACE}/datapoly-gateway:${DATAPOLY_VERSION} .
+
+# install/docker-compose.yml 消费的是 :latest；本地构建后立即打标，
+# 否则 `docker compose up -d` 不会重建容器、继续跑旧镜像里的旧 jar
+for svc in manager executor gateway; do
+  docker tag ${IMAGE_NAMESPACE}/datapoly-${svc}:${DATAPOLY_VERSION} ${IMAGE_NAMESPACE}/datapoly-${svc}:latest
+done
 
 # 清理同步进暂存目录的构建产物（隐藏占位文件保留）
 rm -f datapoly-release.tar.gz

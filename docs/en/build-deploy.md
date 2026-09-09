@@ -47,6 +47,10 @@ cd datapoly/
 sh ./docker-maven-build.sh
 # Or debug the integrated environment: ship a debug UI in the jar, then use Vue.js devtools
 sh ./docker-maven-build.sh debug
+# Or debug with docker compose: the UI is baked into the manager jar, so rebuild the images
+# before recreating the containers (docker compose up -d alone does not rebuild images)
+sh build-docker/build_and_push_image.sh debug
+cd build-docker/install && docker compose up -d
 ```
 
 > Debug builds are for local debugging only and must never be published; rebuild without the argument to restore
