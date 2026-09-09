@@ -14,7 +14,7 @@ DOCKER_DATAPOLY_DIR=$BUILD_DOCKER_DIR/datapoly
 # build project
 cd $PROJECT_ROOT_DIR && sh docker-maven-build.sh && cd -
 
-# sync release lib/ & drivers/ into image staging dir (shared with build.sh)
+# sync release lib/, drivers/ & conf/ into image staging dir (shared with build.sh; bin/ 容器启动器入库维护，不同步)
 sh $BUILD_DOCKER_DIR/sync_release_dir.sh
 
 # build image
@@ -24,7 +24,11 @@ docker build -f Dockerfile-manager -t ${IMAGE_NAMESPACE}/datapoly-manager:${DATA
 docker build -f Dockerfile-executor -t ${IMAGE_NAMESPACE}/datapoly-executor:${DATAPOLY_VERSION} .
 docker build -f Dockerfile-gateway -t ${IMAGE_NAMESPACE}/datapoly-gateway:${DATAPOLY_VERSION} .
 
-rm -f datapoly-release.tar.gz && rm -rf datapoly-release/lib/* && rm -rf datapoly-release/drivers/*
+# 清理同步进暂存目录的构建产物（隐藏占位文件保留）
+rm -f datapoly-release.tar.gz
+for sub in lib drivers conf; do
+    find "datapoly-release/$sub" -mindepth 1 -maxdepth 1 ! -name '.*' -exec rm -rf {} +
+done
 
 # clean project
 cd $PROJECT_ROOT_DIR && sh docker-maven-clean.sh && cd -

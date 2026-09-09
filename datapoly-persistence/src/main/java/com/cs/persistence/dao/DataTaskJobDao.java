@@ -12,6 +12,7 @@ import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -31,8 +32,11 @@ public class DataTaskJobDao {
 
     /**
      * Claim up to {@code limit} PENDING jobs for one worker inside a single
-     * transaction: candidates are locked via SKIP LOCKED, then flipped to RUNNING
-     * before commit so no other instance can take them.
+     * transaction. Candidates from the plain scan are only a hint: each id is
+     * flipped to RUNNING guarded by {@code status = PENDING}, and only the ids this
+     * worker actually flipped are returned, so concurrent workers racing on the
+     * same candidates resolve to a single claimant. Portable on MySQL 5.7, which
+     * does not support SELECT ... FOR UPDATE SKIP LOCKED.
      */
     @Transactional(rollbackFor = Exception.class)
     public List<Long> claimPending(int limit, String workerAddr, Timestamp startTime, Timestamp leaseExpireAt) {
@@ -40,13 +44,16 @@ public class DataTaskJobDao {
         if (CollectionUtils.isEmpty(ids)) {
             return ids;
         }
+        List<Long> claimed = new ArrayList<>();
         for (Long id : ids) {
             UpdateWrapper<DataTaskJobEntity> wrapper = new UpdateWrapper<>();
             wrapper.lambda().eq(DataTaskJobEntity::getId, id)
                     .eq(DataTaskJobEntity::getStatus, DataTaskStatus.PENDING);
-            dataTaskJobMapper.update(newRunning(workerAddr, startTime, leaseExpireAt), wrapper);
+            if (dataTaskJobMapper.update(newRunning(workerAddr, startTime, leaseExpireAt), wrapper) > 0) {
+                claimed.add(id);
+            }
         }
-        return ids;
+        return claimed;
     }
 
     private DataTaskJobEntity newRunning(String workerAddr, Timestamp startTime, Timestamp leaseExpireAt) {

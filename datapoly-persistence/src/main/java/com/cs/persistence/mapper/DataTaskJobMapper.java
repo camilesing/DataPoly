@@ -10,13 +10,14 @@ import java.util.List;
 public interface DataTaskJobMapper extends BaseMapper<DataTaskJobEntity> {
 
     /**
-     * Atomic candidate scan for worker claiming. Called inside the claim transaction
-     * so selected rows are locked (SKIP LOCKED keeps concurrent workers off each
-     * other's candidates); the UPDATE to RUNNING happens on these ids before commit.
-     * LIMIT-before-FOR-UPDATE order is valid on both MySQL 8 and PostgreSQL 9.5+.
+     * Candidate scan for worker claiming, kept deliberately plain: MySQL 5.7 has no
+     * FOR UPDATE SKIP LOCKED (8.0+ only), so exclusion between concurrent workers is
+     * enforced instead by the conditional PENDING->RUNNING flip in
+     * {@code DataTaskJobDao#claimPending}, which returns only the ids this worker
+     * actually flipped.
      */
     @Select("SELECT id FROM DATAPOLY_DATA_TASK_JOB "
-            + "WHERE status = 'PENDING' ORDER BY id ASC LIMIT #{limit} FOR UPDATE SKIP LOCKED")
+            + "WHERE status = 'PENDING' ORDER BY id ASC LIMIT #{limit}")
     List<Long> selectClaimableIds(@Param("limit") Integer limit);
 
     /**
