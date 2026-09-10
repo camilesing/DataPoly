@@ -20,7 +20,7 @@ else
   echo '[build-ui.sh] UI build mode: production'
 fi
 
-# 挂载整个仓库根目录：webpack 的 @extension 别名会探测 ../datapoly-extension-ui，
+# 挂载整个仓库根目录：webpack 的 @extension 别名会探测仓库根下的 datapoly-extension/front/src，
 # 只挂 datapoly-manager-ui 会让探测在容器内落空、扩展页面（导出中心）被静默回退成 stub。
 # -u + HOME 保证产物/node_modules 属主仍是宿主用户。
 docker run --rm \

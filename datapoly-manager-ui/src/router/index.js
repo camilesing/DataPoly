@@ -170,7 +170,7 @@ const constantRouter = new Router({
           hidden: true,
           component: () => import('@/views/service/detail')
         },
-        // Pages provided by the local UI extension (datapoly-extension-ui);
+        // Pages provided by the local UI extension (datapoly-extension/front/src);
         // the '@extension' entry is an empty stub when the directory is absent.
         ...extension.routes
       ],
