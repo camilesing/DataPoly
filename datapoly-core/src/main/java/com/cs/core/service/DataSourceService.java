@@ -73,9 +73,18 @@ public class DataSourceService {
 
     private void testConnection(HikariDataSource ds, ProductTypeEnum type) {
         try (Connection connection = ds.getConnection()) {
-            if (StringUtils.isNotBlank(type.getSql())) {
+            String testSql = type.getSql();
+            if (ProductTypeEnum.ODPS == type) {
+                // The ODPS driver authenticates lazily on the first query, so the test must run a real statement
+                testSql = "SELECT 1 FROM dual";
+            }
+            if (StringUtils.isNotBlank(testSql)) {
                 try (Statement statement = connection.createStatement()) {
-                    statement.execute(type.getSql());
+                    if (ProductTypeEnum.ODPS == type) {
+                        // A cold MaxCompute instance takes far longer than an ordinary JDBC roundtrip
+                        statement.setQueryTimeout(120);
+                    }
+                    statement.execute(testSql);
                 }
             } else {
                 if (!connection.isValid(2)) {
