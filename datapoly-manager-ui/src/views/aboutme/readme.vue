@@ -131,6 +131,8 @@
                 </li>
                 <li>{{ $t('about.elasticsearch') }}
                 </li>
+                <li>{{ $t('about.odps') }}
+                </li>
                 <li>{{ $t('about.httpRestful') }}
                 </li>
               </ul>

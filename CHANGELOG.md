@@ -19,6 +19,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   whose sampled values are null and push notifiers can filter per provider.
 - Documentation: `docs/{zh,en}/data-task.md` documents the extended sink
   contract (`columnMetadata`, `DataTaskEvent.sinkType`).
+- New data source type ODPS (Alibaba Cloud MaxCompute): `ProductTypeEnum`
+  registers `ODPS` (driver `com.aliyun.odps.jdbc.OdpsDriver`, URL template
+  `jdbc:odps:http(s)://{host}/api?project=...`, the project name serving as the
+  schema). Connections carry the MaxCompute 2.0 data type setting
+  (`odps.sql.type.system.odps2=true`) via connection properties, and the
+  connection pre-test issues a real `SELECT 1 FROM dual` so AccessKey
+  authentication is verified eagerly. No SQL-level pagination rewrite is
+  applied: MaxCompute supports `LIMIT m OFFSET n` only together with
+  `ORDER BY`, so `apiPageNum`/`apiPageSize` fall through to the driver-side
+  result cap (10k rows by default). Driver artifacts live under
+  `drivers/odps/odps-3/`; the UI gains an ODPS type icon and About entry.
 
 ### Fixed
 

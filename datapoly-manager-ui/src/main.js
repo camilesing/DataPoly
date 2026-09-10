@@ -62,6 +62,10 @@ function deepMerge (target, source) {
 
 Vue.prototype.$http = axios
 Vue.config.productionTip = false
+if (process.env.NODE_ENV !== 'production') {
+  // Debug builds (npm run build:debug) keep Vue devtools functional.
+  Vue.config.devtools = true
+}
 Vue.prototype.$echarts = echarts
 
 

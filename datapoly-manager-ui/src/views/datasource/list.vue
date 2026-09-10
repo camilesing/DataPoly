@@ -266,14 +266,14 @@
                       auto-complete="off">
             </el-input>
           </el-form-item>
-          <el-form-item :label="$t('datasource.username')"
+          <el-form-item :label="createform.type == 'ODPS' ? $t('datasource.accessId') : $t('datasource.username')"
                         label-width="120px"
                         prop="username"
                         style="width:85%">
             <el-input v-model="createform.username"
                       auto-complete="off"></el-input>
           </el-form-item>
-          <el-form-item :label="$t('datasource.password')"
+          <el-form-item :label="createform.type == 'ODPS' ? $t('datasource.accessKeySecret') : $t('datasource.password')"
                         label-width="120px"
                         prop="password"
                         style="width:85%">
@@ -390,13 +390,13 @@
                       v-model="updateform.url"
                       auto-complete="off"></el-input>
           </el-form-item>
-          <el-form-item :label="$t('datasource.username')"
+          <el-form-item :label="updateform.type == 'ODPS' ? $t('datasource.accessId') : $t('datasource.username')"
                         label-width="120px"
                         style="width:85%">
             <el-input v-model="updateform.username"
                       auto-complete="off"></el-input>
           </el-form-item>
-          <el-form-item :label="$t('datasource.password')"
+          <el-form-item :label="updateform.type == 'ODPS' ? $t('datasource.accessKeySecret') : $t('datasource.password')"
                         label-width="120px"
                         style="width:85%">
             <el-input type="password"

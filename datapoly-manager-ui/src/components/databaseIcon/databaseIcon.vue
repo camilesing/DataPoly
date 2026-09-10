@@ -80,6 +80,10 @@
          v-else-if="type == 'ELASTICSEARCH'">
       <use xlink:href="#icon-elasticsearch"></use>
     </svg>
+    <svg class="svg-icon colored_db" aria-hidden="true"
+         v-else-if="type == 'ODPS'">
+      <use xlink:href="#icon-odps"></use>
+    </svg>
     <!-- Default icon -->
     <i class="iconfont icon-OTHER colored_db"
        v-else></i>

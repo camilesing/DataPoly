@@ -9,11 +9,11 @@ function resolve (dir) {
   return path.join(__dirname, '..', dir)
 }
 
-// Compile-time assembly of the local UI extension (../datapoly-extension-ui, gitignored).
+// Compile-time assembly of the local UI extension (../../datapoly-extension/front/src, gitignored).
 // When its entry file exists, its sources are bundled through the '@extension' alias and
 // transpiled by babel; otherwise the in-repo stub below keeps an empty extension, so
 // builds without the extension stay byte-for-byte unaffected.
-const extensionUiSrc = path.resolve(__dirname, '../../datapoly-extension-ui/src')
+const extensionUiSrc = path.resolve(__dirname, '../../datapoly-extension/front/src')
 const extensionUiEntry = path.join(extensionUiSrc, 'index.js')
 const hasExtensionUi = fs.existsSync(extensionUiEntry)
 

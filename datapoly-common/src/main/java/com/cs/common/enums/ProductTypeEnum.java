@@ -614,6 +614,33 @@ public enum ProductTypeEnum {
                     ).build()),
 
     /**
+     * Alibaba Cloud MaxCompute (ODPS) database type.
+     * testSql is intentionally null: the connection is a stateless REST handle, so a Hikari connection-test
+     * query would submit a real MaxCompute instance job on every borrow; the authoritative liveness check
+     * runs in DataSourceService#testConnection instead.
+     */
+    ODPS(
+            ProductContext.builder()
+                    .id(24)
+                    .quote("`")
+                    .name("odps")
+                    .driver("com.aliyun.odps.jdbc.OdpsDriver")
+                    .defaultPort(80)
+                    .testSql(null)
+                    .urlPrefix("jdbc:odps:")
+                    .tplUrls(new String[]{"jdbc:odps:http://{host}/api[\\?{params}]",
+                            "jdbc:odps:https://{host}/api[\\?{params}]"})
+                    .urlSample("jdbc:odps:http://service.cn-hangzhou.maxcompute.aliyun.com/api?project=your_project_name")
+                    .sqlSchemaList(null)
+                    .adapter(database -> Pair.of(null, database))
+                    .pageConsumer(
+                            (page, size, parameters) -> {
+                                // MaxCompute supports LIMIT m OFFSET n only together with ORDER BY, so pagination
+                                // is left to user SQL; this no-op keeps the paging call path free of NPEs
+                            }
+                    ).build()),
+
+    /**
      * RESTful HTTP type
      */
     HTTP(
@@ -681,7 +708,7 @@ public enum ProductTypeEnum {
     }
 
     public boolean hasDatabaseName() {
-        return !Arrays.asList(DM, SQLITE3, MYSQL, MARIADB, GBASE8A, MONGODB, ELASTICSEARCH, HTTP).contains(this);
+        return !Arrays.asList(DM, SQLITE3, MYSQL, MARIADB, GBASE8A, MONGODB, ELASTICSEARCH, ODPS, HTTP).contains(this);
     }
 
     public boolean isNoViewTables() {
@@ -697,7 +724,7 @@ public enum ProductTypeEnum {
     }
 
     public boolean offTransactional() {
-        return this == SYBASE || this == HIVE || this == INCEPTOR || this == IMPALA;
+        return this == SYBASE || this == HIVE || this == INCEPTOR || this == IMPALA || this == ODPS;
     }
 
 //  public String quoteName(String name) {
