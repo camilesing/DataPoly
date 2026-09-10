@@ -63,6 +63,11 @@ cd build-docker/install && docker compose up -d
 
 文档详见: [build-docker/install/README.md](../../build-docker/install)
 
+> 时区约定：部署环境统一使用北京时间（Asia/Shanghai）。compose 中的 MySQL 以
+> `--default-time-zone=+08:00` 启动，与本应用 JDBC 的 `serverTimezone=Asia/Shanghai` 及容器
+> `TZ=Asia/Shanghai` 对齐；使用自建数据库时请保持同样对齐（MySQL 会话时区设为 `+08:00`），
+> 否则 `TIMESTAMP` 列读回会偏移 8 小时。
+
 (3) 物理机方式部署
 
 - 步骤1：准备好一个MySQL5.7+或PostgreSQL11+的数据库
@@ -70,6 +75,9 @@ cd build-docker/install && docker compose up -d
 > 当使用MySQL数据库时，config.ini里的DB_TYPE配置mysql,并需要配置 MYSQLDB_ 前缀的参数;
 >
 > 当使用PostgreSQL数据库时，config.ini里的DB_TYPE配置postgres,并需要配置 PGDB_ 前缀的参数
+>
+> 数据库会话时区需要与应用保持一致：MySQL 设置 `default-time-zone='+08:00'`（PostgreSQL 设置
+> `timezone = 'Asia/Shanghai'`），与 JDBC 接口 `serverTimezone=Asia/Shanghai` 对齐为北京时间。
 
 - 步骤2：修改datapoly-release-x.x.x/conf/config.ini配置文件
 

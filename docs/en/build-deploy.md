@@ -64,6 +64,11 @@ directory. Copy it to a machine with JRE installed and extract it.
 (2) A docker-compose based one-click installation is available for networked Linux environments (x86; for ARM you need
 to build the images yourself). See: [build-docker/install/README.md](../../build-docker/install)
 
+> Timezone convention: the deployment uses Beijing time (Asia/Shanghai) everywhere. The compose MySQL starts with
+> `--default-time-zone=+08:00`, matching the JDBC `serverTimezone=Asia/Shanghai` and the container `TZ=Asia/Shanghai`.
+> Keep the same alignment with a self-managed database (MySQL session timezone `+08:00`); otherwise `TIMESTAMP`
+> columns read back with an 8-hour shift.
+
 (3) Bare-metal deployment:
 
 - Step 1: Prepare a MySQL 5.7+ or PostgreSQL 11+ database
@@ -71,6 +76,9 @@ to build the images yourself). See: [build-docker/install/README.md](../../build
 > When using MySQL, set `DB_TYPE` to `mysql` in `config.ini` and configure the `MYSQLDB_` prefixed parameters;
 >
 > When using PostgreSQL, set `DB_TYPE` to `postgres` in `config.ini` and configure the `PGDB_` prefixed parameters.
+>
+> The database session timezone must match the application: set `default-time-zone='+08:00'` on MySQL
+> (`timezone = 'Asia/Shanghai'` on PostgreSQL), aligned with the JDBC `serverTimezone=Asia/Shanghai` as Beijing time.
 
 - Step 2: Modify the `datapoly-release-x.x.x/conf/config.ini` configuration file
 

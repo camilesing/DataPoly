@@ -39,6 +39,10 @@ compose 会启动 5 个容器（专用 bridge 网络 `datapoly-net`，仅 gatewa
 启动完成后访问 `http://<主机IP>:8091`（经 gateway 代理进入管理页面），
 登录账号 `admin`，默认口令 `123456`（出厂演示口令，请立即修改）。
 
+> 时区约定：MySQL 容器以 `--default-time-zone=+08:00` 启动，会话时区与应用的 JDBC
+> `serverTimezone=Asia/Shanghai`（及容器 `TZ=Asia/Shanghai`）对齐为北京时间；自建数据库时
+> 请做同样对齐，否则 `TIMESTAMP` 列读回会偏移 8 小时。
+
 ## 三、安全相关变量
 
 | 变量 | 默认 | 说明 |
