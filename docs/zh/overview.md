@@ -59,6 +59,7 @@ DataPoly作为微服务架构下的数据访问中间件，适合以下场景：
 - TDEngine
 - MongoDB
 - ElasticSearch
+- 阿里云MaxCompute(ODPS)
 - Http(RESTful)
 
 ## 3、模块结构功能

@@ -60,6 +60,7 @@ To date, the supported databases include:
 - TDEngine
 - MongoDB
 - ElasticSearch
+- Alibaba Cloud MaxCompute (ODPS)
 - Http (RESTful)
 
 ## 3. Module Structure

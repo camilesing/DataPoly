@@ -118,6 +118,9 @@ public final class DataSourceUtils {
             System.getProperties().setProperty("oracle.jdbc.J2EE13Compliant", "true");
             // Oracle jdbc connections need an extra parameter to control whether remarks are fetched
             parameters.put("remarksReporting", "true");
+        } else if (ProductTypeEnum.ODPS == properties.getType()) {
+            // MaxCompute 2.0 data type system (official recommendation); properties take precedence over URL params
+            parameters.put("settings", "{\"odps.sql.type.system.odps2\":\"true\"}");
         } else if (StringUtils.isNotBlank(properties.getType().getTestSql())) {
             ds.setConnectionTestQuery(properties.getType().getTestSql());
         }
