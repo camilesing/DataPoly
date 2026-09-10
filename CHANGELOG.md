@@ -33,6 +33,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Deployment timezone alignment: the compose MySQL now starts with
+  `--default-time-zone=+08:00` (`build-docker/install`, `.devcontainer`) and the devcontainer
+  PostgreSQL sets `timezone=Asia/Shanghai`, matching the JDBC `serverTimezone=Asia/Shanghai`
+  and the container `TZ=Asia/Shanghai`. Previously the MySQL session timezone defaulted to UTC,
+  so `TIMESTAMP` columns (e.g. `DATAPOLY_DATA_TASK_DEF.create_time`/`update_time`) read back
+  with an 8-hour shift.
 - Asynchronous data task framework (DataTask): manager endpoints under
   `/datapoly/manager/api/v1/data-task/**` for task definitions (SQL + input parameter
   declarations + output reshaping: naming strategy / column aliases / column order /
