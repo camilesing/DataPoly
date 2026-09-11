@@ -3,7 +3,7 @@
     <el-aside :width="isCollapse?'64px':'250px'">
       <!-- Left logo -->
       <div class="title">
-        <img src="../assets/logo.svg" />
+        <img src="../assets/LOGO.svg" />
         <span class="title-text"
               v-if="!isCollapse">{{title}}</span>
       </div>
