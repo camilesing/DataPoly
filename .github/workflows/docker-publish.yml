@@ -85,17 +85,14 @@ jobs:
           for svc in manager executor gateway; do
             TAGS=""
             if [ "$HUB" = "1" ]; then
-              TAGS="$TAGS
-camilesing/datapoly-$svc:$V"
-              [ "$PRE" = "false" ] && TAGS="$TAGS
-camilesing/datapoly-$svc:latest"
+              TAGS="$(printf '%s\n' "$TAGS" "camilesing/datapoly-$svc:$V")"
+              if [ "$PRE" = "false" ]; then TAGS="$(printf '%s\n' "$TAGS" "camilesing/datapoly-$svc:latest")"; fi
             fi
             if [ "$ALI" = "1" ]; then
-              TAGS="$TAGS
-$ALI_REGISTRY/datapoly-$svc:$V"
-              [ "$PRE" = "false" ] && TAGS="$TAGS
-$ALI_REGISTRY/datapoly-$svc:latest"
+              TAGS="$(printf '%s\n' "$TAGS" "$ALI_REGISTRY/datapoly-$svc:$V")"
+              if [ "$PRE" = "false" ]; then TAGS="$(printf '%s\n' "$TAGS" "$ALI_REGISTRY/datapoly-$svc:latest")"; fi
             fi
+            TAGS="$(printf '%s' "$TAGS" | sed '/^$/d')"
             {
               echo "tags_$svc<<EOF"
               echo "$TAGS" | sed '/^$/d'
