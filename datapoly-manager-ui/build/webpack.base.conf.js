@@ -13,7 +13,12 @@ function resolve (dir) {
 // When its entry file exists, its sources are bundled through the '@extension' alias and
 // transpiled by babel; otherwise the in-repo stub below keeps an empty extension, so
 // builds without the extension stay byte-for-byte unaffected.
-const extensionUiSrc = path.resolve(__dirname, '../../datapoly-extension/front/src')
+// DATAPOLY_EXTENSION_UI_SRC overrides the probe location so out-of-tree extension
+// projects (e.g. the standalone datapoly-extension front) can point the assembly at
+// their own src; unset keeps the sibling-layout default untouched.
+const extensionUiSrc = process.env.DATAPOLY_EXTENSION_UI_SRC
+  ? path.resolve(process.env.DATAPOLY_EXTENSION_UI_SRC)
+  : path.resolve(__dirname, '../../datapoly-extension/front/src')
 const extensionUiEntry = path.join(extensionUiSrc, 'index.js')
 const hasExtensionUi = fs.existsSync(extensionUiEntry)
 

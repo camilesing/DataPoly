@@ -14,6 +14,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-123456}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
       MYSQL_ROOT_HOST: '%'
+    # 会话时区对齐 +08:00（北京时间）：与应用 JDBC serverTimezone=Asia/Shanghai 一致，
+    # 否则 TIMESTAMP 读回会按 UTC 壁钟 + 上海解释偏移 8 小时
+    command: --default-time-zone=+08:00
     healthcheck:
       test: [ "CMD", "mysql", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-123456}" ,"-e"," select 1 " ]
       interval: 10s

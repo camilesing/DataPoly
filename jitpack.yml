@@ -1,0 +1,11 @@
+# Use of this source code is governed by a BSD-style license.
+#
+# JitPack 构建配置：供以 Maven 依赖方式消费核心链的宿主扩展（如 datapoly-extension）使用。
+# 默认会由 JitPack 全量构建本仓库（含 manager/executor/gateway 测试，缓慢且易受环境差异影响）；
+# 本文件把工作收敛为仅安装核心链 6 构件（parent + common/template/persistence/cache/core）
+# 并跳过测试，构建快且稳定。详见 https://jitpack.io/docs/BUILDING/
+jdk:
+  - openjdk21
+install:
+  - mvn -B -ntp install -N
+  - mvn -B -ntp install -pl datapoly-common,datapoly-template,datapoly-persistence,datapoly-cache,datapoly-core -am -Dmaven.test.skip=true
