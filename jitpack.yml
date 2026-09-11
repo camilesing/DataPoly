@@ -4,8 +4,8 @@
 # 默认会由 JitPack 全量构建本仓库（含 manager/executor/gateway 测试，缓慢且易受环境差异影响）；
 # 本文件把工作收敛为仅安装核心链 6 构件（parent + common/template/persistence/cache/core）
 # 并跳过测试，构建快且稳定。详见 https://jitpack.io/docs/BUILDING/
-jdk:
-  - openjdk21
+# 注意：不 pin jdk——JitPack 的部分 JDK 镜像自带过旧 Maven，跑不了 maven-compiler-plugin
+# 3.15.0（要求 Maven ≥ 3.6.3）；沿用 JitPack 默认工具链即可（仓库 CI 同款 JDK 8 语义）。
 install:
   - mvn -B -ntp install -N
   - mvn -B -ntp install -pl datapoly-common,datapoly-template,datapoly-persistence,datapoly-cache,datapoly-core -am -Dmaven.test.skip=true
