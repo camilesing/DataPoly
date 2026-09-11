@@ -81,6 +81,8 @@ jobs:
           printf '%s' "$V" | grep -Eq 'SNAPSHOT|-(rc|beta|alpha)' && PRE=true
           [ -n "$HUB_USERNAME" ] && HUB=1 || HUB=0
           [ -n "$ALI_REGISTRY" ] && ALI=1 || ALI=0
+          # 登录域名与镜像前缀不同：ALI_REGISTRY 含命名空间（用于 tag），登录用其主机部分
+          ALI_HOST="${ALI_REGISTRY%%/*}"
           [ "$HUB" = "1" ] || [ "$ALI" = "1" ] || {
             echo "未配置任何镜像站：请设置 ALI_REGISTRY（与 ALI_USERNAME/ALI_PASSWORD）或 DOCKERHUB_USERNAME/TOKEN" >&2
             exit 1
@@ -103,6 +105,7 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           done
           echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "ali_host=$ALI_HOST" >> "$GITHUB_OUTPUT"
 
       - name: Login Docker Hub（可选项，配置了才执行）
         if: env.HUB_USERNAME != ''
@@ -112,12 +115,15 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login 阿里云 ACR（本期）
+        # 用 docker CLI 登录（login-action 的 registry 参数需纯主机名，
+        # 而 ALI_REGISTRY 含命名空间，故这里用 tags 步骤推导出的主机部分）
         if: vars.ALI_REGISTRY != ''
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ vars.ALI_REGISTRY }}
-          username: ${{ secrets.ALI_USERNAME }}
-          password: ${{ secrets.ALI_PASSWORD }}
+        env:
+          ALI_USER: ${{ secrets.ALI_USERNAME }}
+          ALI_PWD: ${{ secrets.ALI_PASSWORD }}
+          ALI_HOST: ${{ steps.tags.outputs.ali_host }}
+        run: |
+          echo "$ALI_PWD" | docker login -u "$ALI_USER" --password-stdin "$ALI_HOST"
 
       - name: Publish manager
         uses: docker/build-push-action@v6
