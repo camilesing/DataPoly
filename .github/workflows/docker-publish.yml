@@ -1,0 +1,147 @@
+# Use of this source code is governed by a BSD-style license.
+#
+# 镜像发布流水线：推送 v* 标签或手工触发（workflow_dispatch）时，
+# 构建并发布 manager/executor/gateway 三张服务镜像（多架构 linux/amd64 + linux/arm64）。
+#
+# 支持两套镜像站、按阶段独立开关，配置哪套发哪套（本期阿里云 ACR，下期 Docker Hub）：
+#   阿里云 ACR：variables.ALI_REGISTRY + secrets.ALI_USERNAME / ALI_PASSWORD
+#   Docker Hub：secrets.DOCKERHUB_USERNAME / DOCKERHUB_TOKEN
+#   两套可同时配置（同一份构建产物分别推送）；都未配置时流水线报错终止。
+#
+# 前置配置（GitHub 仓库 Settings → Secrets and variables → Actions）：
+#   - ACR（本期）：
+#       Variable: ALI_REGISTRY = registry.cn-hangzhou.aliyuncs.com/<命名空间>
+#       Secrets:  ALI_USERNAME / ALI_PASSWORD（阿里云 ACR 控制台 → 访问凭证 → 固定密码）
+#   - Docker Hub（下期）：
+#       Secrets:  DOCKERHUB_USERNAME / DOCKERHUB_TOKEN（建议用 Access Token）
+#
+# 版本与 :latest 策略：
+#   - 标签触发：v1.9.0 → 版本 1.9.0；手动触发：版本取根 pom.xml 的 <version>
+#   - :latest 仅在非预发布版本（无 -rc/-beta/-alpha/-SNAPSHOT 后缀）时打
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU（arm64 仿真）
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 缓存 Maven 依赖
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: maven-${{ hashFiles('**/pom.xml') }}
+
+      # 与 build.sh / build_and_push_image.sh 相同的前置：先烘 UI 进 manager resources，再全量打包
+      - name: 构建内置管理端 UI
+        run: sh build-ui.sh
+
+      - name: 全量打包（含测试门禁与发行版装配）
+        # 等同 docker-maven-build.sh，但去掉其 docker run -it（CI 无 TTY 会失败）
+        run: |
+          docker run --rm \
+            -v ~/.m2:/opt/maven/localRepository \
+            -v "$PWD":/usr/src/mymaven \
+            -w /usr/src/mymaven \
+            --entrypoint /usr/share/maven/bin/mvn \
+            maven:3.9-eclipse-temurin-8 \
+            -s /usr/src/mymaven/docker-maven-settings.xml clean package
+
+      - name: 同步镜像暂存目录并打 tarball
+        run: |
+          sh build-docker/sync_release_dir.sh
+          tar zcf datapoly-release.tar.gz -C build-docker/datapoly datapoly-release
+          mv datapoly-release.tar.gz build-docker/datapoly/datapoly-release.tar.gz
+
+      - name: 计算版本与镜像 tag 列表（按已配置的镜像站生成）
+        id: tags
+        env:
+          HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          ALI_REGISTRY: ${{ vars.ALI_REGISTRY }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"                                     # v1.9.0 → 1.9.0
+          else
+            V=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
+          fi
+          PRE=false
+          printf '%s' "$V" | grep -Eq 'SNAPSHOT|-(rc|beta|alpha)' && PRE=true
+          [ -n "$HUB_USERNAME" ] && HUB=1 || HUB=0
+          [ -n "$ALI_REGISTRY" ] && ALI=1 || ALI=0
+          [ "$HUB" = "1" ] || [ "$ALI" = "1" ] || {
+            echo "未配置任何镜像站：请设置 ALI_REGISTRY（与 ALI_USERNAME/ALI_PASSWORD）或 DOCKERHUB_USERNAME/TOKEN" >&2
+            exit 1
+          }
+          for svc in manager executor gateway; do
+            TAGS=""
+            if [ "$HUB" = "1" ]; then
+              TAGS="$TAGS
+camilesing/datapoly-$svc:$V"
+              [ "$PRE" = "false" ] && TAGS="$TAGS
+camilesing/datapoly-$svc:latest"
+            fi
+            if [ "$ALI" = "1" ]; then
+              TAGS="$TAGS
+$ALI_REGISTRY/datapoly-$svc:$V"
+              [ "$PRE" = "false" ] && TAGS="$TAGS
+$ALI_REGISTRY/datapoly-$svc:latest"
+            fi
+            {
+              echo "tags_$svc<<EOF"
+              echo "$TAGS" | sed '/^$/d'
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          done
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Login Docker Hub（可选项，配置了才执行）
+        if: secrets.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login 阿里云 ACR（本期）
+        if: vars.ALI_REGISTRY != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ALI_REGISTRY }}
+          username: ${{ secrets.ALI_USERNAME }}
+          password: ${{ secrets.ALI_PASSWORD }}
+
+      - name: Publish manager
+        uses: docker/build-push-action@v6
+        with:
+          context: build-docker/datapoly
+          file: build-docker/datapoly/Dockerfile-manager
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags_manager }}
+
+      - name: Publish executor
+        uses: docker/build-push-action@v6
+        with:
+          context: build-docker/datapoly
+          file: build-docker/datapoly/Dockerfile-executor
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags_executor }}
+
+      - name: Publish gateway
+        uses: docker/build-push-action@v6
+        with:
+          context: build-docker/datapoly
+          file: build-docker/datapoly/Dockerfile-gateway
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags_gateway }}
