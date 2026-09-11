@@ -132,6 +132,10 @@ jobs:
           file: build-docker/datapoly/Dockerfile-manager
           platforms: linux/amd64,linux/arm64
           push: true
+          # ACR 不识别 attestation 产生的 OCI empty manifest（vnd.oci.empty.v1+json），
+          # 关闭 provenance/sbom 回退纯 docker-v2 清单
+          provenance: false
+          sbom: false
           tags: ${{ steps.tags.outputs.tags_manager }}
 
       - name: Publish executor
@@ -141,6 +145,8 @@ jobs:
           file: build-docker/datapoly/Dockerfile-executor
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ steps.tags.outputs.tags_executor }}
 
       - name: Publish gateway
@@ -150,4 +156,6 @@ jobs:
           file: build-docker/datapoly/Dockerfile-gateway
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ steps.tags.outputs.tags_gateway }}
