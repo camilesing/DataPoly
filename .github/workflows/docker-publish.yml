@@ -26,6 +26,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      # 仅为让步骤 if 判断可用（secrets 上下文不允许直接出现在步骤 if 表达式中）
+      HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,7 +69,7 @@ jobs:
       - name: 计算版本与镜像 tag 列表（按已配置的镜像站生成）
         id: tags
         env:
-          HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          # HUB_USERNAME 已由 job 级 env 注入；ALI_REGISTRY 直接读 vars
           ALI_REGISTRY: ${{ vars.ALI_REGISTRY }}
         run: |
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
@@ -102,7 +105,7 @@ jobs:
           echo "version=$V" >> "$GITHUB_OUTPUT"
 
       - name: Login Docker Hub（可选项，配置了才执行）
-        if: secrets.DOCKERHUB_USERNAME != ''
+        if: env.HUB_USERNAME != ''
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
