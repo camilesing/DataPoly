@@ -38,10 +38,12 @@ module.exports = {
 
   build: {
     // Template for index.html
-    index: path.resolve(__dirname, '../dist/index.html'),
+    // DATAPOLY_UI_DIST / DATAPOLY_UI_DIST_INDEX redirect outputs away from this repo's
+    // dist/ for embedding builds (e.g. extension-only projects); unset keeps defaults.
+    index: process.env.DATAPOLY_UI_DIST_INDEX || path.resolve(__dirname, '../dist/index.html'),
 
     // Paths
-    assetsRoot: path.resolve(__dirname, '../dist'),
+    assetsRoot: process.env.DATAPOLY_UI_DIST || path.resolve(__dirname, '../dist'),
     assetsSubDirectory: 'static',
     assetsPublicPath: '/',
 
