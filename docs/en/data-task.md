@@ -289,7 +289,7 @@ variable in `application.yaml`):
 | `reap-interval-ms` | `30000` | lost-worker reap cadence |
 | `lease-seconds` | `600` | run lease length, renewed via heartbeats; expired leases are reaped to FAILED |
 | `flush-interval-ms` | `5000` | minimum interval between progress/cancel-check/lease-renewal ticks |
-| `fetch-size` | `1000` | JDBC fetchSize (MySQL dialects switch to streaming `Integer.MIN_VALUE`) |
+| `fetch-size` | `1000` | per-fetch row bound: the engine executes the single statement in an explicit transaction (DML is committed afterwards) so PostgreSQL-family drivers (incl. Hologres) honor it and pull rows in bounded batches instead of buffering the whole result set under autocommit; MySQL dialects switch to streaming `Integer.MIN_VALUE` |
 | `query-timeout-seconds` | `1800` | statement-level timeout backstop |
 | `max-rows-default` | `1000000` | global row cap when a definition sets no `maxRows` (or ≤ 0) |
 
@@ -323,4 +323,5 @@ nodes; jobs of lost workers are marked FAILED once the lease expires and callers
 | `artifactInfo.truncated=true` | output hit the row cap (definition `maxRows` or `max-rows-default`); raise the cap or split the SQL into batches for full extracts |
 | Cancellation is slow to take effect | cancelling a RUNNING job is cooperative and lands within ≤ `flush-interval-ms` (5 s by default); PENDING jobs cancel immediately |
 | Preview works but the submitted job fails | preview never touches the sink — the failure is almost certainly on the delivery side (sink missing, invalid `sinkConfig`, target-side auth); check `errorMessage` and executor logs |
+| FAILED with `Java heap space` / executor repeated `GC overhead limit exceeded` | first check executor heap vs host memory overcommit (the release script `datapolyctl.sh` defaults to a 4G heap per service — leave headroom when co-locating); the engine now keeps PostgreSQL-family drivers fetching in `fetch-size` batches, while the row cap (`maxRows`) and the sink's own memory behavior stay under your control |
 | Duplicate deliveries after deploying multiple executors? | Not possible: claiming is an atomic `FOR UPDATE SKIP LOCKED` operation in the meta store — a job is RUNNING on at most one node |

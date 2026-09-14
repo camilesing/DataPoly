@@ -33,6 +33,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Data task streaming memory and completeness: the single statement now executes
+  in an explicit transaction (auto-commit restored when handing the connection
+  back, DML committed first) so PostgreSQL-family drivers — including Hologres —
+  honor `fetch-size` and pull rows in bounded batches instead of buffering the
+  whole result set in heap, which caused `Java heap space` / repeated
+  `GC overhead limit exceeded` failures on large exports. Also fixed a dropped
+  trailing partial batch (fewer than 1000 rows) whenever a result set ended
+  normally; both are locked by `DataTaskJobEngineStreamQueryTest`.
 - Deployment timezone alignment: the compose MySQL now starts with
   `--default-time-zone=+08:00` (`build-docker/install`, `.devcontainer`) and the devcontainer
   PostgreSQL sets `timezone=Asia/Shanghai`, matching the JDBC `serverTimezone=Asia/Shanghai`
