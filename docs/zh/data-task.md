@@ -271,7 +271,7 @@ executor 侧前缀 `datapoly.data-task.*`（`application.yaml` 均可用 `DATAPO
 | `reap-interval-ms` | `30000` | 失联任务回收检查周期 |
 | `lease-seconds` | `600` | 运行租约时长，随心跳续期；到期未续即被 reaper 记 FAILED |
 | `flush-interval-ms` | `5000` | 进度刷新/取消检测/租约续期的最小间隔 |
-| `fetch-size` | `1000` | JDBC fetchSize（MySQL 方言自动改用流式 `Integer.MIN_VALUE`）|
+| `fetch-size` | `1000` | JDBC 单次网络抓取行数上限：引擎把单条语句放进显式事务执行（DML 事后自动提交），PostgreSQL 系驱动（含 Hologres）才会真正按该值分批拉取，而不是 autocommit 下把整个结果集缓冲进堆；MySQL 方言自动改用流式 `Integer.MIN_VALUE`|
 | `query-timeout-seconds` | `1800` | 语句级超时兜底 |
 | `max-rows-default` | `1000000` | 定义未显式设置 `maxRows`（或 ≤0）时生效的全局行数上限 |
 
@@ -303,4 +303,5 @@ executor 侧前缀 `datapoly.data-task.*`（`application.yaml` 均可用 `DATAPO
 | `artifactInfo.truncated=true` | 命中行数上限被截断（定义 `maxRows` 或 `max-rows-default`）；需要全量就调大上限或改写 SQL 分批 |
 | 取消迟迟不生效 | RUNNING 任务的取消是协作式的，生效延迟 ≤ `flush-interval-ms`（默认 5 秒）；PENDING 任务取消立即生效 |
 | preview 正常但正式任务失败 | preview 不触碰 sink——失败几乎必然在投递侧（sink 未部署、`sinkConfig` 不合法、目标端鉴权失败），看 `errorMessage` 与 executor 日志 |
+| FAILED，`Java heap space` / executor 反复 `GC overhead limit exceeded` | 先核对 executor 堆与宿主内存是否超配（发行脚本 `datapolyctl.sh` 默认每服务 4G 堆，同机多服务需留余量）；引擎已保证 PostgreSQL 系驱动按 `fetch-size` 分批拉取，行数上限（`maxRows`）与 sink 自身内存行为仍需控制 |
 | 多 executor 部署后任务重复投递？ | 不会。认领是元库事务内 `FOR UPDATE SKIP LOCKED` 原子操作，一条任务只会被一个节点置为 RUNNING |

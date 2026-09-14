@@ -267,9 +267,19 @@ public class DataTaskJobEngine {
      */
     protected StreamResult streamQuery(StreamSpec spec, ResultChannel channel) throws Exception {
         Connection connection = spec.getDataSource().getConnection();
+        boolean autoCommitChanged = false;
         try {
             Consumer<Connection> executeBeforeQuery = spec.getProduct().getContext().getExecuteBeforeQuery();
             LambdaUtils.ifDo(null != executeBeforeQuery, () -> executeBeforeQuery.accept(connection));
+
+            // PostgreSQL-family drivers (including Hologres) ignore the ResultSet fetch
+            // size while autocommit is on and buffer the whole result set in heap. Move
+            // the single statement into an explicit transaction so setFetchSize below
+            // bounds every network fetch to that many rows.
+            if (connection.getAutoCommit()) {
+                connection.setAutoCommit(false);
+                autoCommitChanged = true;
+            }
 
             PreparedStatement statement = connection.prepareStatement(spec.getSqlMeta().getSql());
             try {
@@ -281,6 +291,9 @@ public class DataTaskJobEngine {
                 }
                 boolean hasResult = statement.execute();
                 if (!hasResult) {
+                    // DML ran outside autocommit: commit it, otherwise handing the
+                    // connection back rolls the transaction (and the rows) away.
+                    connection.commit();
                     return StreamResult.update(statement.getUpdateCount());
                 }
                 return drainResultSet(statement.getResultSet(), spec, channel);
@@ -288,6 +301,13 @@ public class DataTaskJobEngine {
                 statement.close();
             }
         } finally {
+            if (autoCommitChanged) {
+                try {
+                    connection.setAutoCommit(true);
+                } catch (SQLException e) {
+                    // the connection is about to be closed; nothing left to salvage
+                }
+            }
             connection.close();
         }
     }
@@ -338,8 +358,10 @@ public class DataTaskJobEngine {
                     }
                 }
             }
-            if (!reachedEnd && !stoppedByChannel && !truncated && !buffer.isEmpty()) {
-                // trailing partial batch smaller than WRITE_BATCH_ROWS
+            if (!stoppedByChannel && !truncated && !buffer.isEmpty()) {
+                // trailing partial batch smaller than WRITE_BATCH_ROWS: this also fires
+                // when the result set ends normally, otherwise the final rows < batch
+                // size are silently dropped from the delivery
                 if (channel.batch(buffer)) {
                     tickProgress(spec, total, lastFlush);
                 }
