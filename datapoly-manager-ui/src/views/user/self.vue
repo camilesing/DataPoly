@@ -4,7 +4,7 @@
       <el-tabs v-model="activeName"
                @tab-click="handleClick">
         <image style="width: 100px; height: 100px"
-               src="../../assets/logo.svg" />
+               src="../../assets/LOGO.svg" />
         <el-tab-pane :label="$t('user.accountInfo')"
                      name="userinfo">
           <el-card>
