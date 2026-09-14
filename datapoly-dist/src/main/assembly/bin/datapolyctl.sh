@@ -56,7 +56,10 @@ export DATAPOLY_MANAGER_URL=$(get_config_value "DATAPOLY_MANAGER_URL" "${APP_CON
 export DATAPOLY_GATEWAY_URL=$(get_config_value "DATAPOLY_GATEWAY_URL" "${APP_CONF_PATH}/config.ini")
 
 # JVM参数可以在这里设置
-JVMFLAGS="-server -Xms1024m -Xmx1024m -Xmn1024m -XX:+DisableExplicitGC -Djava.awt.headless=true -Dfile.encoding=UTF-8 "
+# 堆 4G、年轻代/老年代 1:3：长驻对象（Hazelcast token/API 响应缓存、Eureka、Spring 框架
+# 对象）占堆内大头，老年代空间优先；年轻代 1G 足以容纳数据任务流式批次与 ≤200 行的
+# 调试/预览结果集（线上观测：16 分钟仅 7 次 minor GC，老年代却 30 秒内 5→25 次 major GC）。
+JVMFLAGS="-server -Xms4096m -Xmx4096m -Xmn1024m -XX:+DisableExplicitGC -Djava.awt.headless=true -Dfile.encoding=UTF-8 "
 
 if [ "$JAVA_HOME" != "" ]; then
   JAVA="$JAVA_HOME/bin/java"

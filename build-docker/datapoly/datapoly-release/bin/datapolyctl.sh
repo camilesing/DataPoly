@@ -21,10 +21,13 @@ echo "Base Directory:${APP_HOME}"
 export APP_DRIVERS_PATH=$APP_HOME/drivers
 
 # JVM参数可以在这里设置
+# 堆 4G、年轻代/老年代 1:3：长驻对象（Hazelcast token/API 响应缓存、Eureka、Spring 框架
+# 对象）占堆内大头，老年代空间优先；年轻代 1G 足以容纳数据任务流式批次与 ≤200 行的
+# 调试/预览结果集（线上观测：16 分钟仅 7 次 minor GC，老年代却 30 秒内 5→25 次 major GC）。
 # -XX:+PerfDisableSharedMem: the JDK perfdata file lands in java.io.tmpdir; when the host
 # bind-mounts /tmp (macOS Docker Desktop virtiofs), zeroing that 32KB mmap SIGBUSes the JVM
 # at startup. Disabling shared-mem perfdata removes the mmap entirely.
-JVMFLAGS="-server -Xms1024m -Xmx1024m -Xmn1024m -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem -Djava.awt.headless=true -Dfile.encoding=UTF-8 "
+JVMFLAGS="-server -Xms4096m -Xmx4096m -Xmn1024m -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem -Djava.awt.headless=true -Dfile.encoding=UTF-8 "
 
 if [ "$JAVA_HOME" != "" ]; then
   JAVA="$JAVA_HOME/bin/java"

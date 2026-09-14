@@ -24,8 +24,8 @@ for /f "delims=" %%i in ('type "%APP_HOME%\conf\config.ini"^| find /i "="') do s
 
 ::设置DEBUG端口
 set DEBUG_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=18091
-::java虚拟机启动参数
-set JAVA_OPTS=-server -Xms4096m -Xmx4096m -Xmn2048m -XX:+DisableExplicitGC %DEBUG_OPTS% -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Doracle.jdbc.J2EE13Compliant=true
+::java虚拟机启动参数（堆 4G、年轻代/老年代 1:3，理由见 datapolyctl.sh 注释）
+set JAVA_OPTS=-server -Xms4096m -Xmx4096m -Xmn1024m -XX:+DisableExplicitGC %DEBUG_OPTS% -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Doracle.jdbc.J2EE13Compliant=true
 
 ::打印环境信息
 echo System Information:
