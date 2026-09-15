@@ -1,0 +1,27 @@
+# 构建上下文裁剪与机密排除(根目录多阶段 Dockerfile 专用)
+# 关键:本地真实凭据只存在于 install/.env 与 dev-local/,泄露进镜像层即等于泄露到 registry
+
+# ---- 机密 ----
+**/.env
+/dev-local/
+/logs/
+
+# ---- SCM / 工具 / 系统噪音 ----
+**/.git
+**/.idea
+/.zcode/
+**/.vscode
+**/*.iml
+.DS_Store
+
+# ---- 构建产物:由 Dockerfile 各阶段重新生成,本地旧产物勿混入 ----
+**/node_modules
+**/target
+/datapoly-manager/src/main/resources/static
+/datapoly-manager/src/main/resources/index.html
+
+# ---- build-docker 脚本暂存产物(bin/ 容器启动器保留在上下文) ----
+/build-docker/datapoly/datapoly-release.tar.gz
+/build-docker/datapoly/datapoly-release/lib
+/build-docker/datapoly/datapoly-release/conf
+/build-docker/datapoly/datapoly-release/drivers
