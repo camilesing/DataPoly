@@ -8,7 +8,7 @@
 #   DATAPOLY_EXTENSION_GIT_REF      拉取的 ref（分支/标签），默认 master
 #   DATAPOLY_EXTENSION_FORCE_SYNC=1 目录已存在时强制 fetch+reset 到 REF（丢弃本地未提交改动，慎用）
 #
-# 后端模块构建沿用 dev-local/dev.sh 原约定：宿主机 JDK 25、扩展模块不进根 reactor、
+# 后端模块构建沿用 dev-local/dev.sh 原约定：宿主机 JDK 8、扩展模块不进根 reactor、
 # 依赖经 <relativePath> 解析根 pom、产物投放 lib-extra/ 后由 package.xml 打进 lib/common。
 # 参数：--skip-tests 用 -DskipTests 替代默认 -Dmaven.test.skip=true（仅作用于扩展侧构建）。
 
@@ -65,29 +65,29 @@ if [ "$(wc -l < "$POM_LIST")" -eq 0 ]; then
     exit 0
 fi
 
-# ---------- ③ 宿主机 JDK 25（与 build.sh/dev.sh 同约定：本机构建统一 JDK 25） ----------
+# ---------- ③ 宿主机 JDK 8（与 build.sh/dev.sh 同约定：本机构建统一 JDK 8） ----------
 jdkmajor() {
-    "$1/bin/java" -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p'
+    "$1/bin/java" -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | sed 's/^1$/8/'
 }
 if [ "$(uname -s)" = "Darwin" ]; then
-    java_home_25=""
+    java_home_8=""
     if [ -x /usr/libexec/java_home ]; then
-        java_home_25=$(/usr/libexec/java_home -v 25 2>/dev/null || true)
+        java_home_8=$(/usr/libexec/java_home -v 8 2>/dev/null || true)
     fi
     for candidate in \
         "${JAVA_HOME:-}" \
-        /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home \
-        /usr/local/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home \
-        "$java_home_25"; do
-        if [ -n "$candidate" ] && [ "$(jdkmajor "$candidate" 2>/dev/null)" = "25" ]; then
+        /opt/homebrew/opt/openjdk@8/libexec/openjdk.jdk/Contents/Home \
+        /usr/local/opt/openjdk@8/libexec/openjdk.jdk/Contents/Home \
+        "$java_home_8"; do
+        if [ -n "$candidate" ] && [ "$(jdkmajor "$candidate" 2>/dev/null)" = "8" ]; then
             export JAVA_HOME="$candidate"
             echo "[ext] JAVA_HOME=$JAVA_HOME"
             break
         fi
     done
 fi
-if [ -z "${JAVA_HOME:-}" ] || [ "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" != "25" ]; then
-    echo "[ext] 未找到 JDK 25（AGENTS.md 约定本机构建统一 JDK 25）；如需强制沿用当前环境 mvn，请先 export JAVA_HOME" >&2
+if [ -z "${JAVA_HOME:-}" ] || [ "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" != "8" ]; then
+    echo "[ext] 未找到 JDK 8（AGENTS.md 约定本机构建统一 JDK 8）；如需强制沿用当前环境 mvn，请先 export JAVA_HOME" >&2
     exit 1
 fi
 

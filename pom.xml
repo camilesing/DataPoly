@@ -114,9 +114,9 @@
                 <version>2.0.1</version>
             </dependency>
 
-            <!-- 工具链升 25：groovy 3.0.20 的 ASM 不支持 classfile 69（JDK 25），脚本编译/沙箱测试会报
-                 Unsupported class file major version；升 4.0.33（4.x 起 groupId 为 org.apache.groovy，
-                 最低要求仍为 JDK 8，CI temurin 8 不受影响） -->
+            <!-- 钉版勿回退（见 AGENTS.md）：groovy 3.0.20 的 ASM 不支持新 classfile（如 JDK 25 的 69），
+                 脚本编译/沙箱测试会报 Unsupported class file major version；升 4.0.33
+                 （4.x 起 groupId 为 org.apache.groovy），本地构建 JDK 8 与 CI temurin 8 均不受影响 -->
             <dependency>
                 <groupId>org.apache.groovy</groupId>
                 <artifactId>groovy</artifactId>

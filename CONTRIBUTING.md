@@ -20,16 +20,16 @@ mvn -B -ntp test -pl datapoly-common,datapoly-template,datapoly-core,datapoly-ex
 
 ## Front-end (built-in manager UI)
 
-The built-in UI (`datapoly-manager-ui`) is a Vue 2 project that requires
-Node 14. Because modern local Node versions cannot run its webpack 3 toolchain,
-build it with the provided script (works on any host with Docker, no local
-Node required):
+The built-in UI (`datapoly-manager-ui`) is a Vue 2 project built with a
+webpack 3 toolchain. The canonical toolchain is the pinned `node:23-alpine`
+container (the production build is verified on Node 23), so build it with
+the provided script (works on any host with Docker, no local Node required):
 
 ```bash
 sh ./build-ui.sh
 ```
 
-This builds the UI inside a `node:14-alpine` container and syncs
+This builds the UI inside a `node:23-alpine` container and syncs
 `dist/index.html` + `dist/static/` into `datapoly-manager/src/main/resources/`
 (wiping the previous copies first so stale hashed files do not linger).
 
@@ -44,7 +44,7 @@ To rebuild the UI without the wrapper script (for UI-only development), the
 raw container command is:
 
 ```bash
-docker run --rm -v $PWD/datapoly-manager-ui:/app -w /app node:14-alpine \
+docker run --rm -v $PWD/datapoly-manager-ui:/app -w /app node:23-alpine \
   sh -c "npm config set registry https://registry.npmmirror.com && \
          npm install --no-audit --no-fund --no-package-lock --legacy-peer-deps && \
          npm run build"
