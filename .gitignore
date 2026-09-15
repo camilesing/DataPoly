@@ -50,7 +50,7 @@ yarn-error.log*
 .codex
 .opencode
 .zcode
-# 本机 jenv 工具链选择（第六节：本地构建统一 JDK 25）
+# 本机 jenv 工具链选择（第六节：本地构建统一 JDK 8）
 .java-version
 
 docs/example/

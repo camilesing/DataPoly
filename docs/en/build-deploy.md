@@ -12,9 +12,9 @@ This tool is developed in pure Java, with all dependencies from open-source proj
 
   **Maven**: >=3.6
 
-  **Docker** (or a local Node 14): `build.sh` / `docker-maven-build.sh` use Docker to build the built-in UI
-  (`datapoly-manager-ui`, a Vue 2 + webpack 3 project that only builds on Node 14, hence the `node:14-alpine`
-  container). UI assets are build artifacts and are not committed to git.
+  **Docker** (or a local Node): `build.sh` / `docker-maven-build.sh` use Docker to build the built-in UI
+  (`datapoly-manager-ui`, a Vue 2 + webpack 3 project built in a `node:23-alpine` container; the build is
+  verified on Node 23). UI assets are build artifacts and are not committed to git.
 
 > The Maven repository is hosted overseas by default, which can be slow in China. You can switch to the Alibaba Cloud
 > mirror.
