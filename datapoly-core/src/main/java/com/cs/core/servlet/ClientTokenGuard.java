@@ -67,13 +67,17 @@ public class ClientTokenGuard {
     public void recordFailure(String clientId, String remoteAddr) {
         long now = System.currentTimeMillis();
         String key = buildKey(clientId, remoteAddr);
-        FailState state = failStates.compute(key, (k, s) -> (null == s) ? new FailState() : s);
-        int fails = state.incrementFails();
-        if (fails >= failLockThreshold) {
-            state.lockUntil(now + failLockSeconds * 1000L);
-            state.resetFails();
-            log.warn("Token generate locked for [{}] seconds, key:{}", failLockSeconds, key);
-        }
+        // Single compute so concurrent failures cannot lose counts or double-lock
+        failStates.compute(key, (k, s) -> {
+            FailState state = (null == s) ? new FailState() : s;
+            state.recordFail(now);
+            if (state.getFails() >= failLockThreshold) {
+                state.lockUntil(now + failLockSeconds * 1000L);
+                state.resetFails();
+                log.warn("Token generate locked for [{}] seconds, key:{}", failLockSeconds, key);
+            }
+            return state;
+        });
     }
 
     public void recordSuccess(String clientId, String remoteAddr) {
@@ -96,7 +100,7 @@ public class ClientTokenGuard {
             }
         }
         for (Iterator<Map.Entry<String, FailState>> it = failStates.entrySet().iterator(); it.hasNext(); ) {
-            if (it.next().getValue().isExpired(now)) {
+            if (it.next().getValue().isExpired(now, failLockSeconds * 1000L)) {
                 it.remove();
             }
         }
@@ -124,9 +128,15 @@ public class ClientTokenGuard {
 
         private final AtomicInteger fails = new AtomicInteger(0);
         private volatile long lockedUntilMs = 0L;
+        private volatile long lastFailAtMs = 0L;
 
-        private int incrementFails() {
-            return fails.incrementAndGet();
+        private void recordFail(long now) {
+            lastFailAtMs = now;
+            fails.incrementAndGet();
+        }
+
+        private int getFails() {
+            return fails.get();
         }
 
         private void resetFails() {
@@ -141,8 +151,12 @@ public class ClientTokenGuard {
             return now < lockedUntilMs;
         }
 
-        private boolean isExpired(long now) {
-            return now >= lockedUntilMs && 0 == fails.get();
+        /**
+         * Expired once the lock is over AND no failure arrived within the lock window —
+         * sub-threshold entries (1..threshold-1 failures) also expire after the quiet window.
+         */
+        private boolean isExpired(long now, long windowMillis) {
+            return now >= lockedUntilMs && now - lastFailAtMs >= windowMillis;
         }
     }
 

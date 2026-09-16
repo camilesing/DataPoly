@@ -35,6 +35,9 @@ public class ApiGroupService {
 
     public void updateGroup(Long id, String newName) {
         ApiGroupEntity apiGroupEntity = apiGroupDao.getById(id);
+        if (null == apiGroupEntity) {
+            throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "common.id.not.found", id);
+        }
         apiGroupEntity.setName(newName);
         try {
             apiGroupDao.updateById(apiGroupEntity);

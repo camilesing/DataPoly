@@ -9,6 +9,7 @@ import com.cs.manager.service.McpManageService;
 import com.cs.persistence.entity.McpClientEntity;
 import io.swagger.annotations.*;
 import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -16,6 +17,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 
 @Api(tags = {"MCP令牌管理接口"})
+@Validated
 @RestController
 @RequestMapping(value = Constants.MANAGER_API_V1 + "/mcp/client")
 public class McpClientController {
@@ -55,5 +57,11 @@ public class McpClientController {
     @PostMapping(value = "/listAll", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<McpClientEntity> listAll(@RequestBody EntitySearchRequest request) {
         return mcpManageService.listClientAll(request);
+    }
+
+    @ApiOperation(value = "获取令牌明文（唯一出口，需已认证会话）")
+    @GetMapping(value = "/token/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResultEntity<String> getToken(@PathVariable("id") Long id) {
+        return ResultEntity.success(mcpManageService.getClientToken(id));
     }
 }

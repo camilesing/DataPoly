@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -29,6 +30,20 @@ public class ExceptionController {
 
         String errorMessage = e.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+
+        return respond(ResponseErrorCode.ERROR_INVALID_ARGUMENT,
+                ResultEntity.failed(ResponseErrorCode.ERROR_INVALID_ARGUMENT, errorMessage));
+    }
+
+    /**
+     * Method-level validation (@Validated on controllers): parameter constraint violations
+     * are client errors, not 500s.
+     */
+    @ExceptionHandler(value = {ConstraintViolationException.class})
+    public ResponseEntity<ResultEntity> constraintViolationException(ConstraintViolationException e) {
+        String errorMessage = e.getConstraintViolations().stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
                 .collect(Collectors.joining("; "));
 
         return respond(ResponseErrorCode.ERROR_INVALID_ARGUMENT,

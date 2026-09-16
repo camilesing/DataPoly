@@ -25,11 +25,11 @@ public class ResultEntity<T> implements Serializable {
     private T data;
 
     public static <T> ResultEntity success() {
-        return new ResultEntity(0, SUCCESS, null);
+        return new ResultEntity(ResponseErrorCode.SUCCESS.getCode(), SUCCESS, null);
     }
 
     public static <T> ResultEntity success(T data) {
-        return new ResultEntity<>(0, SUCCESS, data);
+        return new ResultEntity<>(ResponseErrorCode.SUCCESS.getCode(), SUCCESS, data);
     }
 
     public static ResultEntity failed(ResponseErrorCode code) {

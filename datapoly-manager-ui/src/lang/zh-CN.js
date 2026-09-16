@@ -66,7 +66,8 @@ export default {
     methodRatio: '接口方法占比',
     moduleApiCount: '模块接口占比',
     callOverview: '调用概览',
-    devOverview: '接口概览'
+    devOverview: '接口概览',
+    loadFailed: '加载数据失败'
   },
   menu: {
     dashboard: '仪表盘',

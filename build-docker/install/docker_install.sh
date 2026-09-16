@@ -1,10 +1,13 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 curl -sSL https://get.docker.com/ | sh
 docker --version
 mkdir -p /etc/docker/
+if [ -f /etc/docker/daemon.json ]; then
+    cp /etc/docker/daemon.json /etc/docker/daemon.json.bak
+fi
 cat > /etc/docker/daemon.json <<EOF
 {
     "registry-mirrors":[

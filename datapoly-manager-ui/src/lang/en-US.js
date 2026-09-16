@@ -66,7 +66,8 @@ export default {
     methodRatio: 'Method Ratio',
     moduleApiCount: 'Module API Count',
     callOverview: 'Call Overview',
-    devOverview: 'API Overview'
+    devOverview: 'API Overview',
+    loadFailed: 'Failed to load data'
   },
   menu: {
     dashboard: 'Dashboard',

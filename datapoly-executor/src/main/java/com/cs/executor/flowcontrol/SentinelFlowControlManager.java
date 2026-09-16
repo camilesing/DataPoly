@@ -60,11 +60,10 @@ public class SentinelFlowControlManager implements FlowControlManger {
             rule.setCount(assignmentEntity.getFlowCount());
             rules.add(rule);
         }
-        if (rules.size() > 0) {
-            FlowRuleManager.loadRules(rules);
-            if (log.isDebugEnabled()) {
-                log.debug("Success refresh flow rules count: {}", rules.size());
-            }
+        // loadRules with the full list also clears rules that were deleted since the last refresh
+        FlowRuleManager.loadRules(rules);
+        if (!rules.isEmpty() && log.isDebugEnabled()) {
+            log.debug("Success refresh flow rules count: {}", rules.size());
         }
     }
 

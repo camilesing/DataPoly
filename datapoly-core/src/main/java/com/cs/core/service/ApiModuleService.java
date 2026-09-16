@@ -35,6 +35,9 @@ public class ApiModuleService {
 
     public void updateModule(Long id, String newName) {
         ApiModuleEntity moduleEntity = apiModuleDao.getById(id);
+        if (null == moduleEntity) {
+            throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "common.id.not.found", id);
+        }
         moduleEntity.setName(newName);
         try {
             apiModuleDao.updateById(moduleEntity);

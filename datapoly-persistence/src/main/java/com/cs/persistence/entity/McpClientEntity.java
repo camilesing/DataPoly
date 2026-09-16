@@ -4,6 +4,7 @@ package com.cs.persistence.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 import java.sql.Timestamp;
@@ -21,6 +22,8 @@ public class McpClientEntity {
     @TableField("name")
     private String name;
 
+    // Never serialized in bulk list responses; plaintext is only returned by the dedicated reveal endpoint
+    @JsonIgnore
     @TableField("token")
     private String token;
 

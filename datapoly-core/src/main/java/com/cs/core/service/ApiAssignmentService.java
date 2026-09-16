@@ -760,6 +760,9 @@ public class ApiAssignmentService {
 
     public List<VersionCommitResponse> listVersions(Long bizId) {
         ApiAssignmentEntity assignmentEntity = apiAssignmentDao.getById(bizId, false);
+        if (null == assignmentEntity) {
+            throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "common.id.not.found", bizId);
+        }
         Long commitId = apiOnlineDao.getCommitIdByUk(assignmentEntity.getMethod(), assignmentEntity.getPath());
         return versionCommitDao.getVersionList(bizId, false)
                 .stream().map(one -> buildVersionCommitResponse(one, commitId))

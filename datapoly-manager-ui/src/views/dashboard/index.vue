@@ -163,6 +163,7 @@ export default {
       ],
       selectDays: 7,
       topNum: 6,
+      loadRequestId: 0,
       barChart: null,
       pieChart: null,
       topPathChart: null,
@@ -383,7 +384,7 @@ export default {
         series: [
           {
             type: 'bar',
-            data: [12, 44, 55, 67, 89, 112]
+            data: []
           }
         ]
       },
@@ -416,7 +417,7 @@ export default {
         series: [
           {
             type: 'bar',
-            data: [12, 44, 55, 67, 89, 112]
+            data: []
           }
         ]
       },
@@ -449,13 +450,16 @@ export default {
         series: [
           {
             type: 'bar',
-            data: [12, 44, 55, 67, 89, 112]
+            data: []
           }
         ]
       }
     };
   },
   methods: {
+    handleLoadError: function () {
+      this.$message.error(this.$t('dashboard.loadFailed'));
+    },
     loadTotal: function () {
       this.$http.get("/datapoly/manager/api/v1/overview/counter")
         .then(
@@ -464,82 +468,69 @@ export default {
               this.statistics = res.data.data;
             }
           }
-        );
+        ).catch(() => this.handleLoadError());
+    },
+    // Drops responses from requests that were superseded by a newer selection
+    guardedGet: function (url, apply) {
+      var requestId = this.loadRequestId;
+      return this.$http.get(url).then(res => {
+        if (requestId !== this.loadRequestId) {
+          return;
+        }
+        if (0 === res.data.code) {
+          apply(res.data.data);
+        }
+      }).catch(() => {
+        if (requestId === this.loadRequestId) {
+          this.handleLoadError();
+        }
+      });
     },
     loadData: function () {
-      this.$http.get("/datapoly/manager/api/v1/overview/trend/" + this.selectDays)
-        .then(
-          res => {
-            if (0 === res.data.code) {
-              var lists = res.data.data;
-              var xAxisData = [];
-              var y1AxisData = [];
-              var y2AxisData = [];
-              for (var i = 0; i < lists.length; i++) {
-                xAxisData.push(lists[i].ofDate);
-                y1AxisData.push(lists[i].total);
-                y2AxisData.push(lists[i].success);
-              }
-              this.barChartData.xAxis.data = xAxisData;
-              this.barChartData.series[0].data = y1AxisData;
-              this.barChartData.series[1].data = y2AxisData;
+      ++this.loadRequestId;
+      this.guardedGet("/datapoly/manager/api/v1/overview/trend/" + this.selectDays, lists => {
+        var xAxisData = [];
+        var y1AxisData = [];
+        var y2AxisData = [];
+        for (var i = 0; i < lists.length; i++) {
+          xAxisData.push(lists[i].ofDate);
+          y1AxisData.push(lists[i].total);
+          y2AxisData.push(lists[i].success);
+        }
+        this.barChartData.xAxis.data = xAxisData;
+        this.barChartData.series[0].data = y1AxisData;
+        this.barChartData.series[1].data = y2AxisData;
 
-              this.barChart.setOption(this.barChartData, true);
-            }
-          }
-        );
+        this.barChart.setOption(this.barChartData, true);
+      });
 
-      this.$http.get("/datapoly/manager/api/v1/overview/ratio/" + this.selectDays)
-        .then(
-          res => {
-            if (0 === res.data.code) {
-              var result = res.data.data;
-              var list = []
-              result.forEach(item => list.push({ name: item.name, value: item.count }))
-              this.pieChartData.series[0].data = list
-              this.pieChart.setOption(this.pieChartData, true);
-            }
-          }
-        );
+      this.guardedGet("/datapoly/manager/api/v1/overview/ratio/" + this.selectDays, result => {
+        var list = []
+        result.forEach(item => list.push({ name: item.name, value: item.count }))
+        this.pieChartData.series[0].data = list
+        this.pieChart.setOption(this.pieChartData, true);
+      });
 
-      this.$http.get("/datapoly/manager/api/v1/overview/top/path/" + this.selectDays + "?n=" + this.topNum)
-        .then(
-          res => {
-            if (0 === res.data.code) {
-              var result = res.data.data;
-              this.topPathData.yAxis.data = result.map(t => t.name).reverse()
-              this.topPathData.series[0].data = result.map(t => t.count).reverse()
-              this.topPathData.title.text = 'TOP' + this.topNum + this.$t('dashboard.topInterface')
-              this.topPathChart.setOption(this.topPathData, true);
-            }
-          }
-        );
+      this.guardedGet("/datapoly/manager/api/v1/overview/top/path/" + this.selectDays + "?n=" + this.topNum, result => {
+        this.topPathData.yAxis.data = result.map(t => t.name).reverse()
+        this.topPathData.series[0].data = result.map(t => t.count).reverse()
+        this.topPathData.title.text = 'TOP' + this.topNum + this.$t('dashboard.topInterface')
+        this.topPathChart.setOption(this.topPathData, true);
+      });
 
-      this.$http.get("/datapoly/manager/api/v1/overview/top/client/" + this.selectDays + "?n=" + this.topNum)
-        .then(
-          res => {
-            if (0 === res.data.code) {
-              var result = res.data.data;
-              this.topAppData.yAxis.data = result.map(t => t.name).reverse()
-              this.topAppData.series[0].data = result.map(t => t.count).reverse()
-              this.topAppData.title.text = 'TOP' + this.topNum + this.$t('dashboard.topApp')
-              this.topAppChart.setOption(this.topAppData, true);
-            }
-          }
-        );
+      this.guardedGet("/datapoly/manager/api/v1/overview/top/client/" + this.selectDays + "?n=" + this.topNum, result => {
+        this.topAppData.yAxis.data = result.map(t => t.name).reverse()
+        this.topAppData.series[0].data = result.map(t => t.count).reverse()
+        this.topAppData.title.text = 'TOP' + this.topNum + this.$t('dashboard.topApp')
+        this.topAppChart.setOption(this.topAppData, true);
+      });
 
-      this.$http.get("/datapoly/manager/api/v1/overview/top/addr/" + this.selectDays + "?n=" + this.topNum)
-        .then(
-          res => {
-            if (0 === res.data.code) {
-              var result = res.data.data;
-              this.topAddrData.yAxis.data = result.map(t => t.name).reverse()
-              this.topAddrData.series[0].data = result.map(t => t.count).reverse()
-              this.topAddrData.title.text = 'TOP' + this.topNum + this.$t('dashboard.topAddr')
-              this.topAddrChart.setOption(this.topAddrData, true);
-            }
-          }
-        );
+      this.guardedGet("/datapoly/manager/api/v1/overview/top/addr/" + this.selectDays + "?n=" + this.topNum, result => {
+        this.topAddrData.yAxis.data = result.map(t => t.name).reverse()
+        this.topAddrData.series[0].data = result.map(t => t.count).reverse()
+        this.topAddrData.title.text = 'TOP' + this.topNum + this.$t('dashboard.topAddr')
+        this.topAddrChart.setOption(this.topAddrData, true);
+      });
 
     },
     loadDashboardStats: function () {
@@ -550,7 +541,7 @@ export default {
             this.dsTypeData.series[0].data = list;
             this.dsTypeChart.setOption(this.dsTypeData, true);
           }
-        });
+        }).catch(() => this.handleLoadError());
 
       this.$http.get("/datapoly/manager/api/v1/overview/engine-ratio")
         .then(res => {
@@ -559,7 +550,7 @@ export default {
             this.engineData.series[0].data = list;
             this.engineChart.setOption(this.engineData, true);
           }
-        });
+        }).catch(() => this.handleLoadError());
 
       this.$http.get("/datapoly/manager/api/v1/overview/method-ratio")
         .then(res => {
@@ -568,7 +559,7 @@ export default {
             this.methodData.series[0].data = list;
             this.methodChart.setOption(this.methodData, true);
           }
-        });
+        }).catch(() => this.handleLoadError());
 
       this.$http.get("/datapoly/manager/api/v1/overview/datasource-api-count")
         .then(res => {
@@ -578,7 +569,7 @@ export default {
             this.dsApiData.series[0].data = result.map(t => t.count).reverse();
             this.dsApiChart.setOption(this.dsApiData, true);
           }
-        });
+        }).catch(() => this.handleLoadError());
 
       this.$http.get("/datapoly/manager/api/v1/overview/module-api-count")
         .then(res => {
@@ -588,7 +579,7 @@ export default {
             this.moduleData.series[0].data = result.map(t => t.count).reverse();
             this.moduleChart.setOption(this.moduleData, true);
           }
-        });
+        }).catch(() => this.handleLoadError());
     },
     selectChangedRangeTime: function () {
       this.loadData();
@@ -676,6 +667,17 @@ export default {
     window.addEventListener('resize', this.resizeAllCharts);
     this.$nextTick(() => this.resizeAllCharts());
     setTimeout(() => this.resizeAllCharts(), 300);
+  },
+  beforeDestroy () {
+    window.removeEventListener('resize', this.resizeAllCharts);
+    var charts = [this.barChart, this.pieChart, this.topPathChart,
+      this.topAppChart, this.topAddrChart, this.dsTypeChart,
+      this.engineChart, this.methodChart, this.moduleChart, this.dsApiChart];
+    for (var i = 0; i < charts.length; i++) {
+      if (charts[i]) {
+        charts[i].dispose();
+      }
+    }
   }
 };
 </script>

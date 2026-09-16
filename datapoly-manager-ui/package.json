@@ -12,17 +12,18 @@
     "build:debug": "DATAPOLY_UI_ENV=debug node build/build.js"
   },
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.4",
     "echarts": "^5.4.1",
     "element-ui": "^2.15.6",
     "mxgraph-js": "^1.0.1",
     "urlencode": "^1.1.0",
-    "vue": "^2.5.2",
+    "vue": "^2.6.14",
     "vue-codemirror": "^4.0.6",
     "vue-count-to": "^1.0.13",
     "vue-json-viewer": "^2.2.22",
     "vue-router": "^3.0.1",
-    "vue-i18n": "^8.28.0"
+    "vue-i18n": "^8.28.0",
+    "vue2-ace-editor": "^0.0.15"
   },
   "devDependencies": {
     "autoprefixer": "^7.1.2",
@@ -58,8 +59,7 @@
     "url-loader": "^0.5.8",
     "vue-loader": "^13.3.0",
     "vue-style-loader": "^3.0.1",
-    "vue-template-compiler": "^2.5.2",
-    "vue2-ace-editor": "^0.0.15",
+    "vue-template-compiler": "^2.6.14",
     "webpack": "^3.6.0",
     "webpack-bundle-analyzer": "^2.9.0",
     "webpack-dev-server": "^2.9.1",

@@ -9,6 +9,7 @@ import com.cs.common.enums.*;
 import com.cs.common.exception.*;
 import com.cs.common.util.TokenUtils;
 import com.cs.core.exec.ExecutorMetadataCache;
+import com.cs.core.util.ParamMaskUtils;
 import com.cs.persistence.dao.AppClientDao;
 import com.cs.persistence.entity.AppClientEntity;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.annotation.Resource;
 import java.nio.charset.StandardCharsets;
@@ -77,12 +80,12 @@ public class ClientTokenService {
             throw new CommonException(ResponseErrorCode.ERROR_CLIENT_FORBIDDEN, "client.secret.invalid");
         }
         if (DurationTimeEnum.TIME_VALUE == appClient.getExpireDuration()) {
-            Boolean isExpired = getCurrentTimestamp() > appClient.getExpireAt();
-            if (isExpired) {
+            Long expireAt = appClient.getExpireAt();
+            if (null == expireAt || expireAt <= getCurrentTimestamp()) {
                 throw new CommonException(ResponseErrorCode.ERROR_CLIENT_FORBIDDEN, "client.id.expired");
             }
         } else if (DurationTimeEnum.ONLY_ONCE == appClient.getExpireDuration()) {
-            if (!appClient.getCreateTime().equals(appClient.getUpdateTime())) {
+            if (!Objects.equals(appClient.getCreateTime(), appClient.getUpdateTime())) {
                 throw new CommonException(ResponseErrorCode.ERROR_CLIENT_FORBIDDEN, "client.id.expired");
             }
         }
@@ -108,19 +111,42 @@ public class ClientTokenService {
         }
 
         // Persist the token to the database so it remains valid after a server restart
-        if (!isEqualsConstantTime(token, appClient.getAccessToken())) {
+        String previousToken = appClient.getAccessToken();
+        if (!isEqualsConstantTime(token, previousToken)) {
             appClientDao.updateTokenByAppKey(clientId, token);
         }
 
-        Map<String, AccessToken> tokenClientMap = cacheFactory
-                .getCacheMap(Constants.CACHE_KEY_TOKEN_CLIENT, AccessToken.class);
-        if (clientToken.getExpireSeconds() == 0L) {
-            tokenClientMap.remove(token);
-        } else {
-            tokenClientMap.put(token, clientToken);
-        }
+        // Rotation revokes the old token; cache writes run only after the transaction commits so a rollback
+        // cannot leave the distributed cache diverging from the database
+        String finalToken = token;
+        registerAfterCommitOrRun(() -> {
+            Map<String, AccessToken> tokenClientMap = cacheFactory
+                    .getCacheMap(Constants.CACHE_KEY_TOKEN_CLIENT, AccessToken.class);
+            if (StringUtils.isNotBlank(previousToken) && !previousToken.equals(finalToken)) {
+                tokenClientMap.remove(previousToken);
+            }
+            Long expireSeconds = clientToken.getExpireSeconds();
+            if (expireSeconds != null && expireSeconds == 0L) {
+                tokenClientMap.remove(finalToken);
+            } else {
+                tokenClientMap.put(finalToken, clientToken);
+            }
+        });
 
         return clientToken;
+    }
+
+    private void registerAfterCommitOrRun(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
     }
 
     public String verifyTokenAndGetAppKey(String tokenStr) {
@@ -145,25 +171,37 @@ public class ClientTokenService {
                 clientToken = buildAccessTokenFromPersistence(appClient, currentTimestamp);
                 if (!isOneTimeToken(appClient)) {
                     tokenClientMap.put(tokenStr, clientToken);
+                } else {
+                    // One-shot tokens are consumed by this verification; the previous fallback path returned
+                    // without consuming, making the token replayable for its whole DB lifetime
+                    appClientDao.clearTokenByAppKey(appClient.getAppKey());
+                    log.warn("token [{}] only can use once, clientId: {}", ParamMaskUtils.maskValue(tokenStr),
+                            appClient.getAppKey());
                 }
                 return clientToken.getAppKey();
             }
             return null;
         }
-        long durationTimestamp = currentTimestamp - clientToken.getCreateTimestamp();
-        long expireTimestamp = clientToken.getExpireSeconds();
+        Long createTimestampBoxed = clientToken.getCreateTimestamp();
+        long durationTimestamp = createTimestampBoxed == null ? 0L : currentTimestamp - createTimestampBoxed;
+        Long expireSecondsBoxed = clientToken.getExpireSeconds();
+        if (expireSecondsBoxed == null) {
+            return null;
+        }
+        long expireTimestamp = expireSecondsBoxed;
         if (expireTimestamp <= 0) {
             if (0 == expireTimestamp) {
                 // One-shot application client
                 tokenClientMap.remove(tokenStr);
                 appClientDao.clearTokenByAppKey(clientToken.getAppKey());
-                log.warn("token [{}] only can use once, clientId: {}", tokenStr, clientToken.getAppKey());
+                log.warn("token [{}] only can use once, clientId: {}", ParamMaskUtils.maskValue(tokenStr),
+                        clientToken.getAppKey());
             } else {
                 // Long-lived application client using a long-term token
                 return clientToken.getAppKey();
             }
         } else if (durationTimestamp > expireTimestamp) {
-            log.warn("token [{}] expired, clientId: {}", tokenStr, clientToken.getAppKey());
+            log.warn("token [{}] expired, clientId: {}", ParamMaskUtils.maskValue(tokenStr), clientToken.getAppKey());
             return null;
         }
         return clientToken.getAppKey();
@@ -233,6 +271,9 @@ public class ClientTokenService {
                     long basedOnCreate = expireAt - createTimestamp;
                     return Math.max(basedOnCreate, 0L);
                 }
+                if (null == appClient.getTokenAlive()) {
+                    return 0L;
+                }
                 return Math.min(secondsLeft, appClient.getTokenAlive().getValue());
             }
             if (expireAt == 0) {
@@ -243,7 +284,7 @@ public class ClientTokenService {
         if (AliveTimeEnum.LONGEVITY.equals(appClient.getTokenAlive())) {
             return -1L;
         }
-        return appClient.getTokenAlive().getValue();
+        return null == appClient.getTokenAlive() ? 0L : appClient.getTokenAlive().getValue();
     }
 
     private long toEpochSeconds(Timestamp timestamp) {

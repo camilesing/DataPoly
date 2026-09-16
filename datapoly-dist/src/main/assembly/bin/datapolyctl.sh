@@ -17,7 +17,7 @@ echo "Begin $operator $module......"
 APP_HOME="${BASH_SOURCE-$0}"
 APP_HOME="$(dirname "${APP_HOME}")"
 APP_HOME="$(cd "${APP_HOME}"; pwd)"
-APP_HOME="$(cd "$(dirname ${APP_HOME})"; pwd)"
+APP_HOME="$(cd "$(dirname "${APP_HOME}")"; pwd)"
 APP_BIN_PATH=$APP_HOME/bin
 APP_CONF_PATH=$APP_HOME/conf
 APP_LIB_COMMON_PATH=$APP_HOME/lib/common
@@ -88,16 +88,16 @@ fi
 case $operator in
   (start)
     [ -d "${APP_HOME}/run" ] || mkdir -p "${APP_HOME}/run"
-    cd ${APP_HOME}
-    echo -n `date +'%Y-%m-%d %H:%M:%S'`            >>${APP_RUN_LOG}
-    echo "---- Start service [${module}] process. ">>${APP_RUN_LOG}
-    res=`ps aux|grep java|grep $APP_HOME|grep $APP_MAIN_CLASS |grep -v grep|awk '{print $2}'`
+    cd "${APP_HOME}"
+    echo -n `date +'%Y-%m-%d %H:%M:%S'`            >>"${APP_RUN_LOG}"
+    echo "---- Start service [${module}] process. ">>"${APP_RUN_LOG}"
+    res=`ps aux|grep java|grep "$APP_HOME"|grep $APP_MAIN_CLASS |grep -v grep|awk '{print $2}'`
     if [ -n "$res"  ]; then
        echo "$res program  [${module}] is already running"
        exit 1
     fi
-    nohup $JAVA -cp $CLASSPATH $JVMFLAGS $APP_MAIN_CLASS >>${APP_RUN_LOG} 2>&1 &
-    echo $! > ${APP_PID_FILE}
+    nohup "$JAVA" -cp "$CLASSPATH" $JVMFLAGS "$APP_MAIN_CLASS" >>"${APP_RUN_LOG}" 2>&1 &
+    echo $! > "${APP_PID_FILE}"
     ;;
 
   (stop)
@@ -108,21 +108,30 @@ case $operator in
     fi
     printf "Stopping the module server ..."
     for PID in $PID_LIST ; do
-      kill $PID > /dev/null 2>&1
+        kill $PID > /dev/null 2>&1
     done
 
-    COUNT=0
-    while [ $COUNT -lt 1 ]; do
+    TIMEOUT=60
+    ELAPSED=0
+    ALIVE=1
+    while [ $ELAPSED -lt $TIMEOUT ] && [ $ALIVE -eq 1 ]; do
         printf "."
         sleep 1
-        COUNT=1
+        ELAPSED=$((ELAPSED + 1))
+        ALIVE=0
         for PID in $PID_LIST ; do
-          PID_EXIST=`ps -f -p $PID | grep java`
-          if [ -n "$PID_EXIST" ]; then
-              COUNT=0
+          if ps -p $PID > /dev/null 2>&1; then
+              ALIVE=1
               break
           fi
         done
+    done
+    echo ""
+    for PID in $PID_LIST ; do
+      if ps -p $PID > /dev/null 2>&1; then
+          echo "WARN: process $PID did not exit within ${TIMEOUT}s, sending SIGKILL"
+          kill -9 $PID > /dev/null 2>&1
+      fi
     done
     echo "Stop OK, and PID: $PID_LIST"
     ;;
@@ -146,5 +155,3 @@ case $operator in
     ;;
 
 esac
-
-echo "Finish $operator $module !"

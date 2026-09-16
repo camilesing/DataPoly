@@ -57,4 +57,28 @@ public class LoginGuardTest {
         guard.recordSuccess("admin", "10.0.0.1");
         guard.checkAllowed("admin", "10.0.0.1");
     }
+
+    /**
+     * Regression: pruning must delete EXPIRED entries and keep ACTIVE lockouts.
+     * The old inverted condition (!isExpired) let an attacker flush live locks by
+     * pushing the tracking maps over max-track-size with junk usernames.
+     */
+    @Test
+    public void pruneKeepsActiveLocks() {
+        guard.failLockThreshold = 3;
+        guard.maxTrackSize = 2;
+        for (int i = 0; i < 3; i++) {
+            guard.recordFailure("victim", "10.0.0.1");
+        }
+        // junk keys push failStates over maxTrackSize so the next checkAllowed triggers pruning
+        for (int i = 0; i < 5; i++) {
+            guard.recordFailure("junk" + i, "10.0.0.2");
+        }
+        try {
+            guard.checkAllowed("victim", "10.0.0.1");
+            Assert.fail("active lock must survive pruning");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_TOO_MANY_REQUESTS, e.getCode());
+        }
+    }
 }

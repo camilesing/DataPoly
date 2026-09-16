@@ -118,12 +118,14 @@ public class AuthenticationFilter implements Filter {
                 String appKey = clientTokenService.verifyTokenAndGetAppKey(tokenStr);
                 accessRecordEntity.setClientKey(appKey);
                 if (null == appKey) {
-                    log.error("Failed get app key from token [{}], maybe is invalid or expired. ", tokenStr);
+                    log.error("Failed get app key from token [{}], maybe is invalid or expired. ",
+                            ParamMaskUtils.maskValue(tokenStr));
                     throw new UnAuthorizedException("Invalid or Expired Token.");
                 } else {
                     boolean verify = clientTokenService.verifyAuthGroup(appKey, apiConfigEntity.getGroupId());
                     if (!verify) {
-                        log.error("Failed verify group from token [{}] , app key [{}].", tokenStr, appKey);
+                        log.error("Failed verify group from token [{}] , app key [{}].",
+                                ParamMaskUtils.maskValue(tokenStr), appKey);
                         String message = String.format("/%s/%s[%s]", Constants.API_PATH_PREFIX, path, method.name());
                         throw new UnPermissionException(I18nUtils.getMessage("auth.no.permission", message));
                     }

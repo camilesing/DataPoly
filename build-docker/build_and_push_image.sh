@@ -26,9 +26,9 @@ sh $BUILD_DOCKER_DIR/sync_release_dir.sh
 cd "$DOCKER_DATAPOLY_DIR"
 tar zcvf datapoly-release.tar.gz datapoly-release/
 
-docker build -f Dockerfile-manager -t ${IMAGE_NAMESPACE}/datapoly-manager:${DATAPOLY_VERSION} .
-docker build -f Dockerfile-executor -t ${IMAGE_NAMESPACE}/datapoly-executor:${DATAPOLY_VERSION} .
-docker build -f Dockerfile-gateway -t ${IMAGE_NAMESPACE}/datapoly-gateway:${DATAPOLY_VERSION} .
+docker build -f Dockerfile-manager -t "${IMAGE_NAMESPACE}/datapoly-manager:${DATAPOLY_VERSION}" .
+docker build -f Dockerfile-executor -t "${IMAGE_NAMESPACE}/datapoly-executor:${DATAPOLY_VERSION}" .
+docker build -f Dockerfile-gateway -t "${IMAGE_NAMESPACE}/datapoly-gateway:${DATAPOLY_VERSION}" .
 
 # install/docker-compose.yml 消费的是 :latest；本地构建后立即打标，
 # 否则 `docker compose up -d` 不会重建容器、继续跑旧镜像里的旧 jar
@@ -50,9 +50,9 @@ cd "$BUILD_DOCKER_DIR"
 # optionally push images (requires docker login first)
 if [ "${PUSH_IMAGES}" = "1" ]; then
   for svc in manager executor gateway; do
-    docker tag ${IMAGE_NAMESPACE}/datapoly-${svc}:${DATAPOLY_VERSION} ${IMAGE_NAMESPACE}/datapoly-${svc}:latest
-    docker push ${IMAGE_NAMESPACE}/datapoly-${svc}:${DATAPOLY_VERSION}
-    docker push ${IMAGE_NAMESPACE}/datapoly-${svc}:latest
+    docker tag "${IMAGE_NAMESPACE}/datapoly-${svc}:${DATAPOLY_VERSION}" "${IMAGE_NAMESPACE}/datapoly-${svc}:latest"
+    docker push "${IMAGE_NAMESPACE}/datapoly-${svc}:${DATAPOLY_VERSION}"
+    docker push "${IMAGE_NAMESPACE}/datapoly-${svc}:latest"
   done
 fi
 

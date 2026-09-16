@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 
 @Api(tags = {"防火墙管理接口"})
 @RestController
@@ -27,7 +28,7 @@ public class FirewallController {
     }
 
     @PostMapping(value = "/save", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResultEntity saveFirewallRules(@RequestBody UpdateFirewallRulesRequest request) {
+    public ResultEntity saveFirewallRules(@Valid @RequestBody UpdateFirewallRulesRequest request) {
         firewallFilterService.updateFirewallRules(request);
         return ResultEntity.success();
     }

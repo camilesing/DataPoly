@@ -64,7 +64,6 @@
         }
         OAuth2.prototype.authorizationCode = function () {
             var that = this;
-            console.log(this.cacheValue);
             var url = this.cacheValue.tokenUrl;
             var params = {
                 "grant_type": "authorization_code",
