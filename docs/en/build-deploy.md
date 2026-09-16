@@ -53,6 +53,32 @@ sh build-docker/build_and_push_image.sh debug
 cd build-docker/install && docker compose up -d
 ```
 
+**(4) Host extension assembly (optional):**
+
+Host-specific extensions can be maintained under the top-level `datapoly-extension/` directory (a standalone
+git repository, excluded by .gitignore and never committed to the host repo): `backend/` holds Maven extension
+modules and `front/` holds extension UI (bundled into the management UI via the webpack `@extension` alias).
+
+```
+# Either point the build at the extension repository — it is shallow-cloned / refreshed under datapoly-extension/
+export DATAPOLY_EXTENSION_GIT_URL=<extension-repository-url>   # git-clone-able URL
+export DATAPOLY_EXTENSION_GIT_REF=master                       # branch/tag, defaults to master
+# -- or skip the env vars and clone the repository under datapoly-extension/ by hand once
+
+# Assemble extensions only: build backend modules (host JDK 8 preferred, 8+ works too, compile target 1.8)
+# and drop the jars into lib-extra/
+sh build-extension.sh
+
+# Or run the regular build: extension assembly runs first, then the UI build and mvn package
+sh build.sh
+# Build the three images with the extension baked in and retag them :latest
+sh build-docker/build_and_push_image.sh
+```
+
+The assembly step runs when `DATAPOLY_EXTENSION_GIT_URL` is set or `datapoly-extension/` already exists: the
+extension jars then ship with the release into `lib/common`, on the runtime classpath of manager / executor /
+gateway; otherwise the step is skipped and pure OSS builds are unaffected.
+
 > Debug builds are for local debugging only and must never be published; rebuild without the argument to restore
 > the production UI.
 
