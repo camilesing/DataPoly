@@ -30,11 +30,14 @@ public class ApiModuleDao {
     }
 
     public List<ApiModuleEntity> listAll(String searchText) {
-        return apiModuleMapper.selectList(
+        List<ApiModuleEntity> rows = apiModuleMapper.selectList(
                 Wrappers.<ApiModuleEntity>lambdaQuery()
                         .like(StringUtils.hasText(searchText), ApiModuleEntity::getName, searchText)
                         .orderByDesc(ApiModuleEntity::getId)
+                        .last(ListGuard.LIMIT_SQL)
         );
+        ListGuard.warnIfHit("api module", rows.size());
+        return rows;
     }
 
     public void updateById(ApiModuleEntity entity) {

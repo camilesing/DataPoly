@@ -3,6 +3,7 @@
 package com.cs.persistence.dao;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.cs.common.enums.HttpMethodEnum;
 import com.cs.persistence.entity.*;
 import com.cs.persistence.mapper.ApiAssignmentMapper;
@@ -101,7 +102,10 @@ public class ApiAssignmentDao {
     }
 
     public List<ApiAssignmentEntity> listAll() {
-        return apiAssignmentMapper.selectList(null);
+        List<ApiAssignmentEntity> rows = apiAssignmentMapper.selectList(
+                Wrappers.<ApiAssignmentEntity>lambdaQuery().last(ListGuard.LIMIT_SQL));
+        ListGuard.warnIfHit("api assignment", rows.size());
+        return rows;
     }
 
     public boolean existsDataSourceById(Long dataSourceId) {

@@ -97,6 +97,13 @@ public class WebMvcSseServerTransportProvider implements McpServerTransportProvi
     private volatile boolean isClosing = false;
 
     /**
+     * Upper bound for processing a single message while parked on an MVC request
+     * thread; the previous unbounded block() let one hung handler pin the worker
+     * thread forever.
+     */
+    private static final Duration MESSAGE_HANDLING_TIMEOUT = Duration.ofSeconds(60);
+
+    /**
      * Constructs a new WebMvcSseServerTransportProvider instance.
      *
      * @param objectMapper    The ObjectMapper to use for JSON serialization/deserialization
@@ -244,11 +251,16 @@ public class WebMvcSseServerTransportProvider implements McpServerTransportProvi
             return ServerResponse.sse(sseBuilder -> {
                 sseBuilder.onComplete(() -> {
                     logger.debug("SSE connection completed for session: {}", sessionId);
-                    sessions.remove(sessionId);
+                    removeSession(sessionId);
                 });
                 sseBuilder.onTimeout(() -> {
                     logger.debug("SSE connection timed out for session: {}", sessionId);
-                    sessions.remove(sessionId);
+                    removeSession(sessionId);
+                });
+                sseBuilder.onError(ex -> {
+                    // a broken/aborted connection does not always run onComplete/onTimeout
+                    logger.debug("SSE connection errored for session: {}: {}", sessionId, ex.getMessage());
+                    removeSession(sessionId);
                 });
 
                 WebMvcMcpSessionTransport sessionTransport = new WebMvcMcpSessionTransport(sessionId, sseBuilder);
@@ -268,6 +280,22 @@ public class WebMvcSseServerTransportProvider implements McpServerTransportProvi
             logger.error("Failed to send initial endpoint event to session {}: {}", sessionId, e.getMessage());
             sessions.remove(sessionId);
             return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Removes a session from the active map and closes it so its pending request
+     * waiters are failed instead of waiting out their timeouts.
+     */
+    private void removeSession(String sessionId) {
+        McpServerSession removed = this.sessions.remove(sessionId);
+        if (removed != null) {
+            try {
+                removed.close();
+            }
+            catch (Exception e) {
+                logger.warn("Failed to close session {} on SSE termination: {}", sessionId, e.getMessage());
+            }
         }
     }
 
@@ -303,8 +331,9 @@ public class WebMvcSseServerTransportProvider implements McpServerTransportProvi
             String body = request.body(String.class);
             McpSchema.JSONRPCMessage message = McpSchema.deserializeJsonRpcMessage(objectMapper, body);
 
-            // Process the message through the session's handle method
-            session.handle(message).block(); // Block for WebMVC compatibility
+            // Process the message through the session's handle method; bound the wait so a
+            // hung handler cannot pin the MVC worker thread forever
+            session.handle(message).block(MESSAGE_HANDLING_TIMEOUT); // Block for WebMVC compatibility
 
             return ServerResponse.ok().build();
         } catch (IllegalArgumentException | IOException e) {

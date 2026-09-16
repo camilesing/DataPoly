@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.2.0-access-record-index
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: pg/migration/V1_2_0__access-record-index.sql

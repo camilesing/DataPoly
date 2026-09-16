@@ -91,8 +91,10 @@ public class ApiOnlineDao {
     }
 
     public List<ApiAssignmentEntity> listAll() {
-        return apiOnlineMapper.selectList(null)
-                .stream().map(this::buildAssignmentEntity)
+        List<ApiOnlineEntity> rows = apiOnlineMapper.selectList(
+                Wrappers.<ApiOnlineEntity>lambdaQuery().last(ListGuard.LIMIT_SQL));
+        ListGuard.warnIfHit("api online", rows.size());
+        return rows.stream().map(this::buildAssignmentEntity)
                 .collect(Collectors.toList());
     }
 

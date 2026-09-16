@@ -21,7 +21,7 @@ mvn -B -ntp test -pl datapoly-common,datapoly-template,datapoly-core,datapoly-ex
 ## Front-end (built-in manager UI)
 
 The built-in UI (`datapoly-manager-ui`) is a Vue 2 project built with a
-webpack 3 toolchain. The canonical toolchain is the pinned `node:23-alpine`
+webpack 5 toolchain. The canonical toolchain is the pinned `node:23-alpine`
 container (the production build is verified on Node 23), so build it with
 the provided script (works on any host with Docker, no local Node required):
 

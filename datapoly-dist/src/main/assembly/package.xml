@@ -265,6 +265,11 @@
                 <exclude>spring-webflux-*.jar</exclude>
                 <exclude>spring-cloud-starter-gateway-*.jar</exclude>
                 <exclude>spring-cloud-gateway-server-*.jar</exclude>
+
+                <!-- netty belongs to the webflux stack only: leaving it in lib/common puts
+                     the whole netty family on the tomcat-based manager/executor classpath -->
+                <exclude>netty-*.jar</exclude>
+                <exclude>reactor-netty-*.jar</exclude>
             </excludes>
             <includes>
                 <include>*.jar</include>
@@ -279,6 +284,8 @@
                 <include>spring-webflux-*.jar</include>
                 <include>spring-cloud-starter-gateway-*.jar</include>
                 <include>spring-cloud-gateway-server-*.jar</include>
+                <include>netty-*.jar</include>
+                <include>reactor-netty-*.jar</include>
             </includes>
         </fileSet>
         <fileSet>

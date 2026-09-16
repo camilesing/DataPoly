@@ -27,11 +27,14 @@ public class McpToolDao {
     }
 
     public List<McpToolEntity> listAll(String searchText) {
-        return mcpToolMapper.selectList(
+        List<McpToolEntity> rows = mcpToolMapper.selectList(
                 Wrappers.<McpToolEntity>lambdaQuery()
                         .like(StringUtils.isNotBlank(searchText), McpToolEntity::getName, searchText)
                         .orderByDesc(McpToolEntity::getCreateTime)
+                        .last(ListGuard.LIMIT_SQL)
         );
+        ListGuard.warnIfHit("mcp tool", rows.size());
+        return rows;
     }
 
     public void updateById(McpToolEntity entity) {

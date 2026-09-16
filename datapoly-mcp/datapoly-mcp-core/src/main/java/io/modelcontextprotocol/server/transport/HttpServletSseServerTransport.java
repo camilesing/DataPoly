@@ -13,6 +13,7 @@ import javax.servlet.*;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.*;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -424,7 +425,7 @@ public class HttpServletSseServerTransport extends HttpServlet implements Server
      */
     @Override
     public void destroy() {
-        closeGracefully().block();
+        closeGracefully().block(Duration.ofSeconds(10));
         super.destroy();
     }
 

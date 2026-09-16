@@ -24,8 +24,8 @@ sh $BUILD_DOCKER_DIR/sync_release_dir.sh
 
 # build image
 cd "$DOCKER_DATAPOLY_DIR"
-tar zcvf datapoly-release.tar.gz datapoly-release/
 
+# Dockerfile 直接 COPY 装配目录（tar 包方式会多留一层双倍体积的层）
 docker build -f Dockerfile-manager -t "${IMAGE_NAMESPACE}/datapoly-manager:${DATAPOLY_VERSION}" .
 docker build -f Dockerfile-executor -t "${IMAGE_NAMESPACE}/datapoly-executor:${DATAPOLY_VERSION}" .
 docker build -f Dockerfile-gateway -t "${IMAGE_NAMESPACE}/datapoly-gateway:${DATAPOLY_VERSION}" .
@@ -37,7 +37,6 @@ for svc in manager executor gateway; do
 done
 
 # 清理同步进暂存目录的构建产物（隐藏占位文件保留）
-rm -f datapoly-release.tar.gz
 for sub in lib drivers conf; do
     find "datapoly-release/$sub" -mindepth 1 -maxdepth 1 ! -name '.*' -exec rm -rf {} +
 done
