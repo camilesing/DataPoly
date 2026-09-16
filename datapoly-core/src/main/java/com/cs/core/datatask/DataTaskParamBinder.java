@@ -44,7 +44,7 @@ public final class DataTaskParamBinder {
     private static Object bindScalarRoot(ItemParam decl, Map<String, Object> body, boolean isArray) {
         Object raw = body.get(decl.getName());
         if (!isArray) {
-            return coerceOrNull(decl, raw, decl.getName(), true);
+            return coerceOrNull(decl, raw, decl.getName(), Boolean.TRUE.equals(decl.getRequired()));
         }
         List<Object> values = raw instanceof List ? (List<Object>) raw : null;
         if (null == values || values.isEmpty()) {
