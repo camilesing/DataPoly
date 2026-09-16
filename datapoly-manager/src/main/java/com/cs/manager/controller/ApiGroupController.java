@@ -9,6 +9,7 @@ import com.cs.core.service.ApiGroupService;
 import com.cs.persistence.entity.ApiGroupEntity;
 import io.swagger.annotations.*;
 import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -16,6 +17,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 
 @Api(tags = {"分组管理接口"})
+@Validated
 @RestController
 @RequestMapping(value = Constants.MANAGER_API_V1 + "/group")
 public class ApiGroupController {

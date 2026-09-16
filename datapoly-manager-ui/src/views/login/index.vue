@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="login-container">
     <div class="login-form">
@@ -134,7 +133,10 @@ export default {
               }
               this.resetLoading();
             }
-          );
+          ).catch(() => {
+            // Version check failure must not leave the login button disabled forever
+            this.resetLoading();
+          });
         } else {
           this.showMessageBox(this.$t('login.loginError') + res.data.message);
           this.resetLoading();

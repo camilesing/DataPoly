@@ -25,6 +25,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.annotation.Resource;
 import java.util.*;
@@ -52,7 +54,12 @@ public class McpManageService {
     public void loadMcpTools() {
         try {
             List<McpToolEntity> lists = mcpToolDao.listAll(null);
-            lists.forEach(this::addMcpTool);
+            if (!lists.isEmpty()) {
+                // One query for all online assignments instead of one per tool
+                Map<Long, ApiAssignmentEntity> onlineByApiId = apiOnlineDao.listAll().stream()
+                        .collect(Collectors.toMap(ApiAssignmentEntity::getId, Function.identity()));
+                lists.forEach(toolEntity -> addMcpTool(toolEntity, onlineByApiId.get(toolEntity.getApiId())));
+            }
             log.info("Finish load total count [{}] mcp tools to memory.", lists.size());
         } catch (Exception e) {
             log.error("Failed load mcp tools to memory: {}", e.getMessage(), e);
@@ -69,6 +76,10 @@ public class McpManageService {
         if (StringUtils.isNotBlank(datapolyUrlConfiguration.getManager())) {
             log.info("Configured Manager Address found :{},Skip auto self discover", datapolyUrlConfiguration.getManager());
             return datapolyUrlConfiguration.getManager();
+        }
+        if (null == instance) {
+            throw new CommonException(ResponseErrorCode.ERROR_INTERNAL_ERROR,
+                    "manager server address unavailable: no discovered instance and no configured address");
         }
         return String.format("http://%s:%d", instance.getHost(), instance.getPort());
     }
@@ -99,12 +110,26 @@ public class McpManageService {
 
     public void updateClient(Long id, String newName) {
         McpClientEntity clientEntity = mcpClientDao.getById(id);
+        if (null == clientEntity) {
+            throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "common.id.not.found", id);
+        }
         clientEntity.setName(newName);
         try {
             mcpClientDao.updateById(clientEntity);
         } catch (DuplicateKeyException e) {
             throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_ALREADY_EXISTS, "module name already exists");
         }
+    }
+
+    /**
+     * Plaintext token reveal — the only place tokens leave the server; requires the authenticated manager session.
+     */
+    public String getClientToken(Long id) {
+        McpClientEntity clientEntity = mcpClientDao.getById(id);
+        if (null == clientEntity) {
+            throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "common.id.not.found", id);
+        }
+        return clientEntity.getToken();
     }
 
     public void deleteClient(Long id) {
@@ -140,7 +165,8 @@ public class McpManageService {
                 .build();
         try {
             mcpToolDao.insert(toolEntity);
-            addMcpTool(toolEntity);
+            // Registry mutation runs after commit so a rollback cannot diverge memory from the database
+            registerAfterCommitOrRun(() -> addMcpTool(toolEntity));
         } catch (DuplicateKeyException e) {
             throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_ALREADY_EXISTS, "tool name already exists");
         }
@@ -175,7 +201,7 @@ public class McpManageService {
                 .build();
         try {
             mcpToolDao.updateById(newToolEntity);
-            updateMcpTool(exists.getName(), newToolEntity);
+            registerAfterCommitOrRun(() -> updateMcpTool(exists.getName(), newToolEntity));
         } catch (DuplicateKeyException e) {
             throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_ALREADY_EXISTS, "mcp.tool.name.exists");
         }
@@ -189,7 +215,7 @@ public class McpManageService {
         }
 
         mcpToolDao.deleteById(id);
-        deleteMcpTool(toolEntity.getName());
+        registerAfterCommitOrRun(() -> deleteMcpTool(toolEntity.getName()));
     }
 
     public PageResult<McpToolResponse> listToolAll(EntitySearchRequest request) {
@@ -211,15 +237,19 @@ public class McpManageService {
                         .id(toolEntity.getId())
                         .name(toolEntity.getName())
                         .description(toolEntity.getDescription())
-                        .moduleId(config.getModuleId())
-                        .moduleName(apiModuleIdNameMap.get(config.getModuleId()))
                         .apiId(toolEntity.getApiId())
-                        .apiName(config.getName())
-                        .apiMethod(config.getMethod().name())
-                        .apiPath(ApiPathUtils.getFullPath(config.getPath()))
                         .createTime(toolEntity.getCreateTime())
                         .updateTime(toolEntity.getUpdateTime())
                         .build();
+                if (null != config) {
+                    response.setModuleId(config.getModuleId());
+                    response.setModuleName(apiModuleIdNameMap.get(config.getModuleId()));
+                    response.setApiName(config.getName());
+                    response.setApiMethod(config.getMethod().name());
+                    response.setApiPath(ApiPathUtils.getFullPath(config.getPath()));
+                } else {
+                    log.warn("Mcp tool {} references missing api assignment id={}", toolEntity.getName(), toolEntity.getApiId());
+                }
                 responseList.add(response);
             }
         }
@@ -230,7 +260,10 @@ public class McpManageService {
     }
 
     private void addMcpTool(McpToolEntity toolEntity) {
-        ApiAssignmentEntity config = apiOnlineDao.getByApiId(toolEntity.getApiId());
+        addMcpTool(toolEntity, apiOnlineDao.getByApiId(toolEntity.getApiId()));
+    }
+
+    private void addMcpTool(McpToolEntity toolEntity, ApiAssignmentEntity config) {
         if (null == config) {
             log.warn("Can't find online api assignment failed by id={}, skip add mcp tool.", toolEntity.getApiId());
             return;
@@ -245,6 +278,19 @@ public class McpManageService {
                         toolCallHandler::executeTool
                 )
         );
+    }
+
+    private void registerAfterCommitOrRun(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
     }
 
     private void updateMcpTool(String oldToolName, McpToolEntity toolEntity) {

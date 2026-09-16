@@ -33,24 +33,45 @@ public class OverviewService {
         return accessRecordMapper.selectCount();
     }
 
+    /**
+     * Clamps the "last N days" selector (null → default, range [1, 365]) and converts the inclusive
+     * UI value ("last 7 days") to the exclusive SQL offset (CURDATE - 6). Negative values previously
+     * flowed straight into the SQL as "future interval".
+     */
+    private int toInclusiveDays(Integer days) {
+        int value = null == days ? 7 : days;
+        if (value < 1) {
+            value = 1;
+        }
+        return Math.min(value, 365) - 1;
+    }
+
+    private int normalizeTopN(Integer n) {
+        int value = null == n ? 6 : n;
+        if (value < 1) {
+            value = 1;
+        }
+        return Math.min(value, 100);
+    }
+
     public List<DateCount> trend(Integer days) {
-        return accessRecordMapper.getDailyTrend(days > 0 ? days - 1 : days);
+        return accessRecordMapper.getDailyTrend(toInclusiveDays(days));
     }
 
     public List<NameCount> httpStatus(Integer days) {
-        return accessRecordMapper.getHttpStatusCount(days > 0 ? days - 1 : days);
+        return accessRecordMapper.getHttpStatusCount(toInclusiveDays(days));
     }
 
     public List<NameCount> topPath(Integer days, Integer n) {
-        return accessRecordMapper.getTopPathAccess(days > 0 ? days - 1 : days, n);
+        return accessRecordMapper.getTopPathAccess(toInclusiveDays(days), normalizeTopN(n));
     }
 
     public List<NameCount> topAddr(Integer days, Integer n) {
-        return accessRecordMapper.getTopIpAddrAccess(days > 0 ? days - 1 : days, n);
+        return accessRecordMapper.getTopIpAddrAccess(toInclusiveDays(days), normalizeTopN(n));
     }
 
     public List<NameCount> topClient(Integer days, Integer n) {
-        return accessRecordMapper.getTopAppClientAccess(days > 0 ? days - 1 : days, n);
+        return accessRecordMapper.getTopAppClientAccess(toInclusiveDays(days), normalizeTopN(n));
     }
 
     public List<NameCount> datasourceTypeRatio() {
@@ -74,11 +95,11 @@ public class OverviewService {
     }
 
     public List<NameCount> apiStatusRatio(Long apiId, Integer days) {
-        return accessRecordMapper.getApiHttpStatusCount(apiId, days > 0 ? days - 1 : days);
+        return accessRecordMapper.getApiHttpStatusCount(apiId, toInclusiveDays(days));
     }
 
     public List<DateCount> apiDailyTrend(Long apiId, Integer days) {
-        return accessRecordMapper.getApiDailyTrend(apiId, days > 0 ? days - 1 : days);
+        return accessRecordMapper.getApiDailyTrend(apiId, toInclusiveDays(days));
     }
 
     public List<HourCount> apiHourlyTrend(Long apiId, String date) {

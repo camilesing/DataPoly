@@ -270,6 +270,7 @@ export default {
     },
     handleSizeChange: function (pageSize) {
       this.currentPageSize = pageSize;
+      this.currentPageNum = 1;
       this.loadData();
     },
     handleCurrentChange: function (currentPage) {
@@ -277,7 +278,7 @@ export default {
       this.loadData();
     },
     searchByKeyword: function () {
-      this.currentPage = 1;
+      this.currentPageNum = 1;
       this.loadData();
     },
   },

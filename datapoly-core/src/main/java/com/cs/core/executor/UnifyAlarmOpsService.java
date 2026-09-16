@@ -4,6 +4,8 @@ package com.cs.core.executor;
 
 import cn.hutool.json.JSONUtil;
 import com.cs.common.enums.OnOffEnum;
+import com.cs.common.exception.CommonException;
+import com.cs.common.exception.ResponseErrorCode;
 import com.cs.core.dto.*;
 import com.cs.core.util.AlarmModelUtils;
 import com.cs.persistence.dao.UnifyAlarmDao;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
+import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -96,6 +99,12 @@ public class UnifyAlarmOpsService {
     }
 
     private ResponseEntity<String> sentAlarm(UnifyAlarmEntity config, String bodyStr) {
+        // Defense in depth for config rows written before the DTO scheme validation existed
+        String scheme = null == config.getEndpoint() ? null : URI.create(config.getEndpoint()).getScheme();
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT,
+                    "alarm endpoint must be an http(s) URL: " + config.getEndpoint());
+        }
         HttpHeaders headers = new HttpHeaders();
         MediaType type = MediaType.parseMediaType(config.getContentType().replace(";", "") + "; charset=UTF-8");
         headers.setContentType(type);

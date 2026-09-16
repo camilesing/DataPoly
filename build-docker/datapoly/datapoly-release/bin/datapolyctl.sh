@@ -5,7 +5,7 @@ module=$1
 APP_HOME="${BASH_SOURCE-$0}"
 APP_HOME="$(dirname "${APP_HOME}")"
 APP_HOME="$(cd "${APP_HOME}"; pwd)"
-APP_HOME="$(cd "$(dirname ${APP_HOME})"; pwd)"
+APP_HOME="$(cd "$(dirname "${APP_HOME}")"; pwd)"
 APP_BIN_PATH=$APP_HOME/bin
 APP_CONF_PATH=$APP_HOME/conf
 APP_LIB_COMMON_PATH=$APP_HOME/lib/common
@@ -52,11 +52,12 @@ else
   exit 1
 fi
 
-# 执行命令
+# 执行命令：保留一次自动重试（aarch64 首启 SIGBUS 等竞态可自愈），
+# 但结尾必须以 JVM 的真实退出码退出——勿再加会吞掉失败状态的收尾 echo
 [ -d "${APP_HOME}/run" ] || mkdir -p "${APP_HOME}/run"
 echo "cd ${APP_HOME} && $JAVA -cp $CLASSPATH $JVMFLAGS $APP_MAIN_CLASS"
 runModule() {
-  cd ${APP_HOME} && $JAVA -cp $CLASSPATH $JVMFLAGS $APP_MAIN_CLASS
+  cd "${APP_HOME}" && "$JAVA" -cp "$CLASSPATH" $JVMFLAGS "$APP_MAIN_CLASS"
 }
 runModule || {
   # one automatic retry: startup races (e.g. aarch64 first-boot SIGBUS) leave the
@@ -66,4 +67,4 @@ runModule || {
   runModule
 }
 
-echo "Finish start $module !"
+exit $?

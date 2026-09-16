@@ -105,12 +105,20 @@ axios.interceptors.response.use(res => {
 })
 
 function redirectToLoginIfAuthError(body) {
-  if (body && (body.code === 401 || body.code === 403 || body.code === 404)) {
+  if (!body) {
+    return;
+  }
+  if (body.code === 401 || body.code === 403) {
     // Only redirect when not already on the login page
     if (router.currentRoute.path !== '/login') {
       router.push({path: "/login"}).catch(() => {
       });
     }
+    return;
+  }
+  if (body.code === 404 && router.currentRoute.path !== '/login') {
+    // Business 404 is not an auth failure — surfacing it instead of silently logging out
+    ElementUI.Message.error(body.message || 'Not Found');
   }
 }
 

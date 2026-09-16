@@ -37,5 +37,6 @@ fi
 sh "$(dirname "$0")/build-extension.sh"
 sh "$(dirname "$0")/build-ui.sh" "$1"
 
-mvn clean package -Dmaven.test.skip=true \
+# -DskipTests（而非 -Dmaven.test.skip=true）：跳过执行但保留测试编译，尽早暴露测试源断裂
+mvn clean package -DskipTests \
     && sh "$(dirname "$0")/build-docker/sync_release_dir.sh"

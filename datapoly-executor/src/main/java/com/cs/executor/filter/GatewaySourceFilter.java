@@ -99,6 +99,9 @@ public class GatewaySourceFilter implements Filter {
         return false;
     }
 
+    private static final java.util.concurrent.atomic.AtomicBoolean CIDR_MISCONFIG_WARNED =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+
     static boolean matches(String pattern, String addr) {
         if (StringUtils.isBlank(pattern) || StringUtils.isBlank(addr)) {
             return false;
@@ -111,6 +114,15 @@ public class GatewaySourceFilter implements Filter {
         }
         if (pattern.contains("/")) {
             String[] parts = pattern.split("/");
+            // "10.0.0.0/" (no prefix length) previously caused ArrayIndexOutOfBoundsException —
+            // malformed entries fail closed and are reported once
+            if (2 != parts.length || StringUtils.isBlank(parts[0])) {
+                if (CIDR_MISCONFIG_WARNED.compareAndSet(false, true)) {
+                    log.error("Malformed trusted-cidrs entry [{}] in datapoly.executor.gateway.trusted-cidrs; entry ignored (fail-closed)",
+                            pattern);
+                }
+                return false;
+            }
             int prefix;
             try {
                 prefix = Integer.parseInt(parts[1]);

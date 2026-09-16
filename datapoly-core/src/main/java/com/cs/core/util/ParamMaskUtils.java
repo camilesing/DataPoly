@@ -59,6 +59,17 @@ public final class ParamMaskUtils {
         return false;
     }
 
+    /**
+     * Masks a standalone sensitive value (token/secret) for logs: keeps first/last 4 characters for correlation,
+     * anything too short collapses to the fixed mask.
+     */
+    public static String maskValue(String value) {
+        if (StringUtils.isBlank(value) || value.length() <= 8) {
+            return MASK;
+        }
+        return value.substring(0, 4) + "****" + value.substring(value.length() - 4);
+    }
+
     private static String[] getMaskKeys() {
         if (null != maskKeys) {
             return maskKeys;

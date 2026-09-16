@@ -60,6 +60,37 @@ public final class ScriptSandboxConfiguration {
                     + "}";
 
     /**
+     * Runtime reflection backstop (S1): {@code receiversBlackList} cannot see through untyped (def) variables whose
+     * compile-time type is Object, so reflection entry points are additionally disabled on the concrete metaclasses of
+     * {@code java.lang.Class}/{@code java.lang.reflect.Method}/{@code java.lang.reflect.Constructor} at runtime.
+     */
+    private static final String RUNTIME_REFLECTION_GUARD_SCRIPT =
+            "[[clazz:'java.lang.Class', methods:['getDeclaredMethod','getMethod','getMethods','getDeclaredMethods',\n"
+                    + "   'getDeclaredField','getField','getFields','getDeclaredFields','getConstructor','getDeclaredConstructor',\n"
+                    + "   'getConstructors','newInstance','getClassLoader','getResource','getResourceAsStream']],\n"
+                    + " [clazz:'java.lang.reflect.Method', methods:['invoke']],\n"
+                    + " [clazz:'java.lang.reflect.Constructor', methods:['newInstance']]].each { entry ->\n"
+                    + "  def clazz = Class.forName(entry.clazz)\n"
+                    + "  def mc = new groovy.lang.ExpandoMetaClass(clazz, false, true)\n"
+                    + "  entry.methods.each { name ->\n"
+                    + "    mc.registerInstanceMethod(name) { ->\n"
+                    + "      throw new SecurityException(\"Script reflection (${name}) is not allowed\")\n"
+                    + "    }\n"
+                    + "    mc.registerInstanceMethod(name) { a ->\n"
+                    + "      throw new SecurityException(\"Script reflection (${name}) is not allowed\")\n"
+                    + "    }\n"
+                    + "    mc.registerInstanceMethod(name) { a, b ->\n"
+                    + "      throw new SecurityException(\"Script reflection (${name}) is not allowed\")\n"
+                    + "    }\n"
+                    + "    mc.registerInstanceMethod(name) { a, b, c ->\n"
+                    + "      throw new SecurityException(\"Script reflection (${name}) is not allowed\")\n"
+                    + "    }\n"
+                    + "  }\n"
+                    + "  mc.initialize()\n"
+                    + "  groovy.lang.GroovySystem.getMetaClassRegistry().setMetaClass(clazz, mc)\n"
+                    + "}";
+
+    /**
      * Types scripts must not reference (matched by fully qualified name, covering imports, FQ references, constructors and method/property receivers).
      */
     private static final Set<String> DISALLOWED_CLASS_TYPES = Collections.unmodifiableSet(
@@ -82,6 +113,10 @@ public final class ScriptSandboxConfiguration {
                     "java.lang.reflect.Proxy",
                     "java.lang.reflect.InvocationHandler",
                     "java.lang.invoke.MethodHandles",
+                    // JNDI (external code loading via directory services)
+                    "javax.naming.InitialContext",
+                    "javax.naming.Context",
+                    "javax.naming.directory.InitialDirContext",
                     // File and IO
                     "java.io.File",
                     "java.io.FileInputStream",
@@ -133,10 +168,20 @@ public final class ScriptSandboxConfiguration {
                     "org.codehaus.groovy.runtime")));
 
     /**
-     * Reflection entry method names: forbidden regardless of receiver type.
+     * Reflection entry method names: forbidden regardless of receiver type — the only way a script can obtain
+     * reflective handles when direct Class/ClassLoader receivers are already blacklisted is an untyped (def)
+     * variable whose compile-time type is Object, and the name check does not depend on the receiver.
      */
     private static final Set<String> DISALLOWED_REFLECTION_METHODS = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList("forName", "loadClass")));
+            new HashSet<>(Arrays.asList(
+                    "forName", "loadClass",
+                    "getMethod", "getDeclaredMethod",
+                    "getConstructor", "getDeclaredConstructor",
+                    "getField", "getDeclaredField",
+                    "newInstance", "getClassLoader",
+                    // These two collide with real same-signature methods on Class and can slip past the
+                    // runtime metaclass guard, so they are banned at compile time instead
+                    "getResource", "getResourceAsStream")));
 
     /**
      * Command-execution vectors: execute()/exec() offered by Groovy DGM on String/collection receivers.
@@ -193,11 +238,11 @@ public final class ScriptSandboxConfiguration {
         if (!isSandboxEnabled()) {
             return new GroovyShell(binding);
         }
-        installRuntimeCommandGuard();
+        installRuntimeGuards();
         return new GroovyShell(binding, buildCompilerConfiguration());
     }
 
-    private static void installRuntimeCommandGuard() {
+    private static void installRuntimeGuards() {
         if (runtimeCommandGuardInstalled) {
             return;
         }
@@ -206,6 +251,7 @@ public final class ScriptSandboxConfiguration {
                 return;
             }
             new GroovyShell().evaluate(RUNTIME_COMMAND_GUARD_SCRIPT);
+            new GroovyShell().evaluate(RUNTIME_REFLECTION_GUARD_SCRIPT);
             runtimeCommandGuardInstalled = true;
         }
     }
@@ -245,7 +291,8 @@ public final class ScriptSandboxConfiguration {
             MethodCallExpression call = (MethodCallExpression) expression;
             String methodName = call.getMethodAsString();
             if (null == methodName) {
-                return true;
+                // Dynamic (GString) method names cannot be checked statically — fail closed
+                return false;
             }
             if (DISALLOWED_REFLECTION_METHODS.contains(methodName)) {
                 return false;

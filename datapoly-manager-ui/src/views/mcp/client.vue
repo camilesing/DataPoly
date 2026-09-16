@@ -195,6 +195,7 @@ export default {
       currentPageNum: 1,
       currentPageSize: 10,
       totalItemCount: 0,
+      loadRequestId: 0,
       searchText: '',
       ShowTokenDialog: false,
       clientTokenValue: '',
@@ -222,18 +223,22 @@ export default {
   },
   methods: {
     loadData: function () {
+      const requestId = ++this.loadRequestId;
       this.$http({
         method: "POST",
         headers: {
           'Content-Type': 'application/json'
         },
-        url: "/datapoly/manager/api/v1//mcp/client/listAll",
+        url: "/datapoly/manager/api/v1/mcp/client/listAll",
         data: JSON.stringify({
           page: this.currentPageNum,
           size: this.currentPageSize,
           searchText: this.searchText
         })
       }).then(res => {
+        if (requestId !== this.loadRequestId) {
+          return;
+        }
         if (0 === res.data.code) {
           this.totalItemCount = res.data.pagination.total
           this.tableData = res.data.data;
@@ -241,7 +246,11 @@ export default {
           alert(this.$t('mcp.loadFailed') + res.data.message);
         }
       }
-      );
+      ).catch(() => {
+        if (requestId === this.loadRequestId) {
+          alert(this.$t('mcp.loadFailed'));
+        }
+      });
     },
     loadManagerAddress: function (token) {
       this.$http({
@@ -317,9 +326,20 @@ export default {
       });
     },
     handleShowToken: function (index, row) {
-      this.loadManagerAddress(row.token);
-      this.clientTokenValue = row.token;
-      this.ShowTokenDialog = true
+      this.$http({
+        method: "GET",
+        url: "/datapoly/manager/api/v1/mcp/client/token/" + row.id
+      }).then(res => {
+        if (0 === res.data.code) {
+          this.loadManagerAddress(res.data.data);
+          this.clientTokenValue = res.data.data;
+          this.ShowTokenDialog = true;
+        } else {
+          alert(this.$t('mcp.loadFailed') + res.data.message);
+        }
+      }).catch(() => {
+        alert(this.$t('mcp.loadFailed'));
+      });
     },
     handleCopyTokenText: function () {
       document.getElementById("tokenTextInput").select()
@@ -369,6 +389,7 @@ export default {
     },
     handleSizeChange: function (pageSize) {
       this.currentPageSize = pageSize;
+      this.currentPageNum = 1;
       this.loadData();
     },
     handleCurrentChange: function (currentPage) {
@@ -376,7 +397,7 @@ export default {
       this.loadData();
     },
     searchByKeyword: function () {
-      this.currentPage = 1;
+      this.currentPageNum = 1;
       this.loadData();
     },
   },

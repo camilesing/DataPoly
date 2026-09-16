@@ -11,6 +11,7 @@ import com.cs.common.util.JdbcUrlUtils;
 import com.cs.core.driver.DriverLoadService;
 import com.cs.core.dto.*;
 import com.cs.core.util.DataSourceUtils;
+import com.cs.core.util.ParamMaskUtils;
 import com.cs.persistence.dao.*;
 import com.cs.persistence.entity.DataSourceEntity;
 import com.cs.persistence.util.PageUtils;
@@ -54,8 +55,8 @@ public class DataSourceService {
             List<DataSourceEntity> list = dataSourceDao.listAll(request.getSearchText());
             return list.stream().map(dataSourceEntity -> {
                 DatasourceDetailResponse response = new DatasourceDetailResponse();
-                DataSourceUtils.decrypt(dataSourceEntity);
                 BeanUtil.copyProperties(dataSourceEntity, response);
+                response.setPassword(ParamMaskUtils.MASK);
                 return response;
             }).collect(Collectors.toList());
         };
@@ -66,8 +67,8 @@ public class DataSourceService {
     public DatasourceDetailResponse getDetailById(Long id) {
         DataSourceEntity dataSourceEntity = dataSourceDao.getById(id);
         DatasourceDetailResponse response = new DatasourceDetailResponse();
-        DataSourceUtils.decrypt(dataSourceEntity);
         BeanUtil.copyProperties(dataSourceEntity, response);
+        response.setPassword(ParamMaskUtils.MASK);
         return response;
     }
 
@@ -161,8 +162,15 @@ public class DataSourceService {
         DataSourceEntity dataSourceEntity = new DataSourceEntity();
         BeanUtil.copyProperties(request, dataSourceEntity);
 
+        // A masked round-trip means "keep the stored credential": the DB value is already in
+        // encrypted form, so it must bypass the encrypt step to avoid double encryption
+        boolean keepStoredPassword = ParamMaskUtils.MASK.equals(dataSourceEntity.getPassword());
         validJdbcUrlFormat(dataSourceEntity);
         DataSourceUtils.encrypt(dataSourceEntity);
+        if (keepStoredPassword) {
+            DataSourceEntity current = dataSourceDao.getById(request.getId());
+            dataSourceEntity.setPassword(current.getPassword());
+        }
         dataSourceDao.updateById(dataSourceEntity);
         DataSourceUtils.dropHikariDataSource(request.getId());
     }

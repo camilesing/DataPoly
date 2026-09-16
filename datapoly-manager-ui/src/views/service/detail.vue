@@ -526,7 +526,7 @@ export default {
       this.$router.go(-1);
     },
     loadGetwayApiPrefix: function () {
-      this.$http({
+      return this.$http({
         method: "GET",
         url: "/datapoly/manager/api/v1/node/prefix"
       }).then(
@@ -540,32 +540,35 @@ export default {
       );
     },
     reloadIntefaceDetail: function () {
-      if (!this.gatewayApiPrefix) {
-        this.loadGetwayApiPrefix();
-      }
-      this.$http.get(
-        "/datapoly/manager/api/v1/version/show/" + this.currentCommitId
-      ).then(res => {
-        if (0 === res.data.code) {
-          let detail = res.data.data.detail;
-          this.interfaceDetail = {
-            id: detail.id,
-            version: detail.version,
-            commitId: detail.commitId,
-            name: detail.name,
-            description: detail.description,
-            method: detail.method,
-            path: this.gatewayApiPrefix + detail.path,
-            contentType: detail.contentType,
-            open: detail.open,
-            group: detail.groupId,
-            module: detail.moduleId,
-            dataSourceId: detail.datasourceId,
-            engine: detail.engine,
-            inputParams: detail.params,
-            outputParams: detail.outputs || [],
+      // Wait for the prefix before composing the path — otherwise it renders as "null/xxx"
+      var prefixReady = this.gatewayApiPrefix
+        ? Promise.resolve()
+        : this.loadGetwayApiPrefix();
+      prefixReady.then(() => {
+        this.$http.get(
+          "/datapoly/manager/api/v1/version/show/" + this.currentCommitId
+        ).then(res => {
+          if (0 === res.data.code) {
+            let detail = res.data.data.detail;
+            this.interfaceDetail = {
+              id: detail.id,
+              version: detail.version,
+              commitId: detail.commitId,
+              name: detail.name,
+              description: detail.description,
+              method: detail.method,
+              path: this.gatewayApiPrefix + detail.path,
+              contentType: detail.contentType,
+              open: detail.open,
+              group: detail.groupId,
+              module: detail.moduleId,
+              dataSourceId: detail.datasourceId,
+              engine: detail.engine,
+              inputParams: detail.params,
+              outputParams: detail.outputs || [],
+            }
           }
-        }
+        });
       });
     },
     reloadAccessLogList: function () {
@@ -574,10 +577,10 @@ export default {
         params += "&statusCode=" + this.logStatusCode;
       }
       if (this.logStartTime) {
-        params += "&startTime=" + this.logStartTime;
+        params += "&startTime=" + encodeURIComponent(this.logStartTime);
       }
       if (this.logEndTime) {
-        params += "&endTime=" + this.logEndTime;
+        params += "&endTime=" + encodeURIComponent(this.logEndTime);
       }
       this.$http.get(
         "/datapoly/manager/api/v1/overview/log/" + this.currentInterfaceId + params
@@ -595,14 +598,6 @@ export default {
     handleShowException: function (index, row) {
       this.exeptionText = row.exception;
       this.showExceptDialogVisible = true;
-    },
-    handleSizeChange: function (pageSize) {
-      this.currentPageSize = pageSize;
-      this.reloadInterfaceList()
-    },
-    handleCurrentChange: function (currentPage) {
-      this.currentPageNum = currentPage;
-      this.reloadInterfaceList()
     },
     handleAccessSizeChange: function (pageSize) {
       this.currentAccessPageSize = pageSize;

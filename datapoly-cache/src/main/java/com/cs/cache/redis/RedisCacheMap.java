@@ -20,9 +20,10 @@ public class RedisCacheMap<V> implements Map<String, V> {
 
     @Override
     public int size() {
-        return jedisClient.doAction(
-                jedis -> jedis.hgetAll(hashTableKey).size()
+        Long size = jedisClient.doAction(
+                jedis -> jedis.hlen(hashTableKey)
         );
+        return null == size ? 0 : size.intValue();
     }
 
     @Override
@@ -39,7 +40,7 @@ public class RedisCacheMap<V> implements Map<String, V> {
 
     @Override
     public boolean containsValue(Object o) {
-        return false;
+        return snapshot().containsValue(o);
     }
 
     @Override
@@ -76,6 +77,10 @@ public class RedisCacheMap<V> implements Map<String, V> {
 
     @Override
     public void putAll(Map<? extends String, ? extends V> map) {
+        if (null == map || map.isEmpty()) {
+            // HMSET with zero pairs is a protocol error on the Redis side
+            return;
+        }
         Map<String, String> values = new HashMap<>();
         map.forEach((k, v) -> values.put(k, JSONUtil.toJsonStr(v)));
         jedisClient.doConsume(
@@ -86,7 +91,7 @@ public class RedisCacheMap<V> implements Map<String, V> {
     @Override
     public void clear() {
         jedisClient.doConsume(
-                jedis -> jedis.hmset(hashTableKey, Collections.emptyMap())
+                jedis -> jedis.del(hashTableKey)
         );
     }
 
@@ -99,11 +104,25 @@ public class RedisCacheMap<V> implements Map<String, V> {
 
     @Override
     public Collection<V> values() {
-        return Collections.emptyList();
+        return snapshot().values();
     }
 
     @Override
     public Set<Entry<String, V>> entrySet() {
-        return Collections.emptySet();
+        return snapshot().entrySet();
+    }
+
+    /**
+     * Full in-memory copy of the hash — backs the value-view operations that have no Redis-side shortcut.
+     */
+    private Map<String, V> snapshot() {
+        Map<String, String> raw = jedisClient.doAction(
+                jedis -> jedis.hgetAll(hashTableKey)
+        );
+        Map<String, V> result = new LinkedHashMap<>(null == raw ? 4 : raw.size());
+        if (null != raw) {
+            raw.forEach((k, v) -> result.put(k, JSONUtil.toBean(v, valueClazz, true)));
+        }
+        return result;
     }
 }
