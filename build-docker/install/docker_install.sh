@@ -8,9 +8,9 @@ mkdir -p /etc/docker/
 cat > /etc/docker/daemon.json <<EOF
 {
     "registry-mirrors":[
-        "https://docker.mirrors.ustc.edu.cn",
-        "http://hub-mirror.c.163.com",
-        "https://mirror.ccs.tencentyun.com"
+        "https://docker.m.daocloud.io",
+        "https://docker.1ms.run",
+        "https://docker.xuanyuan.me"
     ],
     "insecure-registries": ["127.0.0.1/8"],
     "max-concurrent-downloads":10,
