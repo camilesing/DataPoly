@@ -58,6 +58,40 @@ public class DataTaskParamBinderTest {
     }
 
     @Test
+    public void requiredScalarWithBlankValueIsStillMissing() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "  ");
+
+        try {
+            DataTaskParamBinder.bind(
+                    Collections.singletonList(simple("name", ParamTypeEnum.STRING, false, true, null)), body);
+            Assert.fail("expected CommonException");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_INVALID_ARGUMENT, e.getCode());
+        }
+    }
+
+    @Test
+    public void optionalScalarWithBlankValueIsOmittedNotMissing() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("arrivalAtStart", "");
+
+        Map<String, Object> bound = DataTaskParamBinder.bind(
+                Collections.singletonList(simple("arrivalAtStart", ParamTypeEnum.STRING, false, false, null)), body);
+
+        Assert.assertTrue("optional blank scalar must not be reported missing", bound.isEmpty());
+    }
+
+    @Test
+    public void optionalScalarAbsentIsOmitted() {
+        Map<String, Object> bound = DataTaskParamBinder.bind(
+                Collections.singletonList(simple("arrivalAtStart", ParamTypeEnum.STRING, false, false, null)),
+                Collections.emptyMap());
+
+        Assert.assertTrue(bound.isEmpty());
+    }
+
+    @Test
     public void defaultValueAppliesWhenAbsent() {
         Map<String, Object> bound = DataTaskParamBinder.bind(
                 Collections.singletonList(simple("offset", ParamTypeEnum.LONG, false, false, "3")),
