@@ -19,8 +19,9 @@
 # npmmirror / 阿里云镜像下载 npm 与 Maven 依赖,之后由层缓存与 cache mount 加速。
 # ============================================================================
 
-# ---- Stage 1: 构建内置管理端 UI(Vue2 + webpack3,与 build-ui.sh 同为 node:23) ----
-FROM node:23-alpine AS ui
+# ---- Stage 1: 构建内置管理端 UI(Vue2 + webpack5,与 build-ui.sh 同为 node:23) ----
+# 基镜像钉 digest（tag 可被上游覆盖，digest 不可变）；升级基镜像时须同步刷新
+FROM node:23-alpine@sha256:a34e14ef1df25b58258956049ab5a71ea7f0d498e41d0b514f4b8de09af09456 AS ui
 WORKDIR /opt/app
 # 拷贝整个仓库(与 build-ui.sh 挂载仓库根一致):webpack 的 @extension 别名会探测
 # 仓库根下 datapoly-extension/front/src,缺省回退 stub;仅生产构建,debug 变体仍走 build-ui.sh
@@ -31,7 +32,8 @@ RUN npm config set registry http://mirrors.cloud.tencent.com/npm/ \
  && npm run build
 
 # ---- Stage 2: Maven 打包(与 docker-maven-build.sh 同为 temurin 8,支持 arm64) ----
-FROM maven:3.9-eclipse-temurin-8 AS build
+# 基镜像钉 digest（tag 可被上游覆盖，digest 不可变）；升级基镜像时须同步刷新
+FROM maven:3.9-eclipse-temurin-8@sha256:d8b1b22e93012cd0257d37b3fd6d7bec3d0f7ae611730fc3ba0657b9ebe4e7ca AS build
 # CI 可传 MAVEN_ARGS=-Dmaven.test.skip=true 加速;默认与 docker-maven-build.sh 一致(跑测试)
 ARG MAVEN_ARGS=""
 WORKDIR /src
@@ -48,10 +50,15 @@ RUN --mount=type=cache,target=/opt/maven/localRepository \
  && mv /release/datapoly-release-* /release/datapoly-release
 
 # ---- Stage 3: 运行时镜像(与 build-docker/datapoly/Dockerfile-* 同基线) ----
-FROM eclipse-temurin:8-jre-jammy
+# 基镜像钉 digest（tag 可被上游覆盖，digest 不可变）；升级基镜像时须同步刷新
+FROM eclipse-temurin:8-jre-jammy@sha256:06641b36281c1ac815c33f3f3528cfea1c6fc41ddc60d261746e4343d19cbe65
 ENV TZ=Asia/Shanghai
-# 非 root 运行(K8s 安全上下文友好);用户需在 COPY --chown 前存在
+# 非 root 运行(K8s 安全上下文友好)；用户需在 COPY --chown 前存在；
+# curl 仅供 HEALTHCHECK 使用
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/* \
  && useradd -r -u 1001 -d /datapoly-release datapoly
 
 # --chown 在拷贝层内直接赋权,避免 chown -R 把整个发行目录复制成第二个层
@@ -68,6 +75,10 @@ WORKDIR /datapoly-release
 USER datapoly
 
 EXPOSE 8090 8091 8092
+
+# 默认启动 manager（8090）；K8s 以 args 切换 executor/gateway 时应同步覆盖探活端口
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=10 \
+  CMD curl -fsS http://localhost:8090/actuator/health || exit 1
 
 ENTRYPOINT ["/datapoly-release/bin/datapolyctl.sh"]
 CMD ["manager"]

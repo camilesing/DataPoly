@@ -2,7 +2,8 @@ version: '3.3'
 services:
   mysqldb:
     container_name: datapoly_mysqldb
-    image: mysql:5.7
+    # 基镜像钉 digest（tag 可被上游覆盖）；升级 mysql 时须同步刷新
+    image: mysql:5.7@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb
     networks:
       datapoly-net:
         ipv4_address: 172.28.0.10
@@ -45,8 +46,6 @@ services:
       DATAPOLY_ADMIN_PASSWORD: ${DATAPOLY_ADMIN_PASSWORD:-}
     #      DATAPOLY_MANAGER_URL: http://www.example.com:8090
     #      DATAPOLY_GATEWAY_URL: http://www.example.com:8091
-    volumes:
-      - /tmp:/tmp
     depends_on:
       mysqldb:
         condition: service_healthy
@@ -93,11 +92,16 @@ services:
       OSS_WEBHOOK_TOKEN: ${OSS_WEBHOOK_TOKEN:-}
       OSS_WEBHOOK_CONNECT_TIMEOUT_MS: ${OSS_WEBHOOK_CONNECT_TIMEOUT_MS:-5000}
       OSS_WEBHOOK_READ_TIMEOUT_MS: ${OSS_WEBHOOK_READ_TIMEOUT_MS:-5000}
-    volumes:
-      - /tmp:/tmp
     depends_on:
       mysqldb:
         condition: service_healthy
+    # 探测来自容器内 loopback：GatewaySourceFilter 恒信任 loopback；token 头与上方配置同源
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -H \"X-DATAPOLY-Gateway-Token: $${DATAPOLY_EXECUTOR_GATEWAY_AUTH_TOKEN:-}\" http://localhost:8092/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 90s
   gateway:
     container_name: datapoly_gateway
     image: camilesing/datapoly-gateway:latest
@@ -119,8 +123,6 @@ services:
       # 与 executor 的 DATAPOLY_EXECUTOR_GATEWAY_AUTH_TOKEN 保持一致（S2）
       # gateway 的 AddRequestHeader 不允许空值，未设置密钥时注入哨兵 UNSET（executor 未配置 auth-token 时忽略该头）
       DATAPOLY_GATEWAY_TOKEN: ${DATAPOLY_GATEWAY_TOKEN:-UNSET}
-    volumes:
-      - /tmp:/tmp
     ports:
       - 8091:8091
     depends_on:
@@ -128,6 +130,12 @@ services:
         condition: service_healthy
       manager:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8091/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 90s
 
 networks:
   datapoly-net:

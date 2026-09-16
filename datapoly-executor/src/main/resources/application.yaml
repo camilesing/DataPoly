@@ -7,6 +7,8 @@ spring:
     name: datapoly-executor
   main:
     allow-bean-definition-overriding: false
+    # Boot 2.6+ 默认拒绝循环依赖；先保持 2.5 行为，待全量启动回归后再收紧
+    allow-circular-references: true
   messages:
     basename: i18n/messages
     encoding: UTF-8

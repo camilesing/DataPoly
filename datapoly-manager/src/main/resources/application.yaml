@@ -5,9 +5,15 @@ spring:
     include: ${DB_TYPE}
   application:
     name: datapoly-manager
+  main:
+    # Boot 2.6+ 默认拒绝循环依赖；先保持 2.5 行为，待全量启动回归后再收紧
+    allow-circular-references: true
   mvc:
     throw-exception-if-no-handler-found: false
     static-path-pattern: /**
+    pathmatch:
+      # springfox 3.0 不支持 PathPatternParser（Boot 2.6+ 默认），必须回退 AntPathMatcher
+      matching-strategy: ant_path_matcher
   messages:
     basename: i18n/messages
     encoding: UTF-8

@@ -30,11 +30,14 @@ public class ApiGroupDao {
     }
 
     public List<ApiGroupEntity> listAll(String searchText) {
-        return apiGroupMapper.selectList(
+        List<ApiGroupEntity> rows = apiGroupMapper.selectList(
                 Wrappers.<ApiGroupEntity>lambdaQuery()
                         .like(StringUtils.hasText(searchText), ApiGroupEntity::getName, searchText)
                         .orderByDesc(ApiGroupEntity::getId)
+                        .last(ListGuard.LIMIT_SQL)
         );
+        ListGuard.warnIfHit("api group", rows.size());
+        return rows;
     }
 
     public void updateById(ApiGroupEntity entity) {

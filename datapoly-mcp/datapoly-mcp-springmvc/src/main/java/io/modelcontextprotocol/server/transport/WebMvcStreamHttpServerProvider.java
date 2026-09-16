@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.web.servlet.function.*;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -193,7 +194,9 @@ public class WebMvcStreamHttpServerProvider {
         JSONRPCResponse jsonrpcResponse = new JSONRPCResponse();
         jsonrpcResponse.setId(id);
         jsonrpcResponse.setJsonrpc(McpSchema.JSONRPC_VERSION);
-        jsonrpcResponse.setResult(tool.getCall().apply(null, callToolRequest.getArguments()).block());
+        // bound the wait so a hung tool handler cannot pin the MVC worker thread forever
+        jsonrpcResponse.setResult(tool.getCall().apply(null, callToolRequest.getArguments())
+                .block(Duration.ofSeconds(60)));
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(jsonrpcResponse);
     }
 

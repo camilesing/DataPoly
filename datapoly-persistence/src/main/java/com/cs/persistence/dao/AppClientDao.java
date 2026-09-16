@@ -43,11 +43,14 @@ public class AppClientDao {
     }
 
     public List<AppClientEntity> listAll(String searchText) {
-        return appClientMapper.selectList(
+        List<AppClientEntity> rows = appClientMapper.selectList(
                 Wrappers.<AppClientEntity>lambdaQuery()
                         .like(StringUtils.isNotBlank(searchText), AppClientEntity::getName, searchText)
                         .orderByDesc(AppClientEntity::getCreateTime)
+                        .last(ListGuard.LIMIT_SQL)
         );
+        ListGuard.warnIfHit("app client", rows.size());
+        return rows;
     }
 
     public AppClientEntity getById(Long id) {

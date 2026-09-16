@@ -13,6 +13,7 @@ import javax.servlet.*;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.*;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -99,6 +100,13 @@ public class HttpServletSseServerTransportProvider extends HttpServlet implement
      * Flag indicating if the transport is in the process of shutting down
      */
     private final AtomicBoolean isClosing = new AtomicBoolean(false);
+
+    /**
+     * Upper bound for processing a single message while parked on a servlet request
+     * thread; the previous unbounded block() let one hung handler pin the worker
+     * thread forever.
+     */
+    private static final Duration MESSAGE_HANDLING_TIMEOUT = Duration.ofSeconds(60);
 
     /**
      * Session factory for creating new sessions
@@ -204,6 +212,29 @@ public class HttpServletSseServerTransportProvider extends HttpServlet implement
         AsyncContext asyncContext = request.startAsync();
         asyncContext.setTimeout(0);
 
+        // Without a listener, a client that silently disappears (half-open TCP) never
+        // triggered any write failure and its session stayed in the map forever
+        asyncContext.addListener(new AsyncListener() {
+            @Override
+            public void onComplete(AsyncEvent event) {
+                removeSession(sessionId);
+            }
+
+            @Override
+            public void onTimeout(AsyncEvent event) {
+                removeSession(sessionId);
+            }
+
+            @Override
+            public void onError(AsyncEvent event) {
+                removeSession(sessionId);
+            }
+
+            @Override
+            public void onStartAsync(AsyncEvent event) {
+            }
+        });
+
         PrintWriter writer = response.getWriter();
 
         // Create a new session transport
@@ -282,7 +313,7 @@ public class HttpServletSseServerTransportProvider extends HttpServlet implement
             McpSchema.JSONRPCMessage message = McpSchema.deserializeJsonRpcMessage(objectMapper, body.toString());
 
             // Process the message through the session's handle method
-            session.handle(message).block(); // Block for Servlet compatibility
+            session.handle(message).block(MESSAGE_HANDLING_TIMEOUT); // Block for Servlet compatibility
 
             response.setStatus(HttpServletResponse.SC_OK);
         } catch (Exception e) {
@@ -299,6 +330,22 @@ public class HttpServletSseServerTransportProvider extends HttpServlet implement
             } catch (IOException ex) {
                 logger.error(FAILED_TO_SEND_ERROR_RESPONSE, ex.getMessage());
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error processing message");
+            }
+        }
+    }
+
+    /**
+     * Removes a session from the active map and closes it so its pending request
+     * waiters are failed instead of waiting out their timeouts.
+     */
+    private void removeSession(String sessionId) {
+        McpServerSession removed = this.sessions.remove(sessionId);
+        if (removed != null) {
+            try {
+                removed.close();
+            }
+            catch (Exception e) {
+                logger.warn("Failed to close session {} on SSE termination: {}", sessionId, e.getMessage());
             }
         }
     }
@@ -345,7 +392,7 @@ public class HttpServletSseServerTransportProvider extends HttpServlet implement
      */
     @Override
     public void destroy() {
-        closeGracefully().block();
+        closeGracefully().block(Duration.ofSeconds(10));
         super.destroy();
     }
 

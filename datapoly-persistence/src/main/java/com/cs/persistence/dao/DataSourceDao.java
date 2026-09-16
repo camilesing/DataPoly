@@ -34,11 +34,14 @@ public class DataSourceDao {
     }
 
     public List<DataSourceEntity> listAll(String searchText) {
-        return dataSourceMapper.selectList(
+        List<DataSourceEntity> rows = dataSourceMapper.selectList(
                 Wrappers.<DataSourceEntity>lambdaQuery()
                         .like(StringUtils.hasText(searchText), DataSourceEntity::getName, searchText)
                         .orderByDesc(DataSourceEntity::getCreateTime)
+                        .last(ListGuard.LIMIT_SQL)
         );
+        ListGuard.warnIfHit("datasource", rows.size());
+        return rows;
     }
 
     public List<DataSourceEntity> listAll() {

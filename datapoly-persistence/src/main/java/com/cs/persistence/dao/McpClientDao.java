@@ -27,11 +27,14 @@ public class McpClientDao {
     }
 
     public List<McpClientEntity> listAll(String searchText) {
-        return mcpClientMapper.selectList(
+        List<McpClientEntity> rows = mcpClientMapper.selectList(
                 Wrappers.<McpClientEntity>lambdaQuery()
                         .like(StringUtils.isNotBlank(searchText), McpClientEntity::getName, searchText)
                         .orderByDesc(McpClientEntity::getCreateTime)
+                        .last(ListGuard.LIMIT_SQL)
         );
+        ListGuard.warnIfHit("mcp client", rows.size());
+        return rows;
     }
 
     public boolean existsAccessToken(String accessToken) {

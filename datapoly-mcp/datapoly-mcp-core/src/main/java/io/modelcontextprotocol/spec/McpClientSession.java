@@ -263,7 +263,12 @@ public class McpClientSession implements McpSession {
                         this.pendingResponses.remove(requestId);
                         sink.error(error);
                     });
-        }).timeout(this.requestTimeout).handle((jsonRpcResponse, sink) -> {
+        }).timeout(this.requestTimeout)
+                // remove the pending entry on ANY terminal signal (timeout, downstream
+                // cancel included) — previously only send errors and received responses
+                // removed it, so every timed-out request permanently leaked one entry
+                .doFinally(signal -> this.pendingResponses.remove(requestId))
+                .handle((jsonRpcResponse, sink) -> {
             if (jsonRpcResponse.getError() != null) {
                 sink.error(new McpError(jsonRpcResponse.getError()));
             } else {
@@ -298,6 +303,8 @@ public class McpClientSession implements McpSession {
     @Override
     public Mono<Void> closeGracefully() {
         return Mono.defer(() -> {
+            // fail waiters so callers do not sit on their timeouts after the session is gone
+            this.failPendingResponses("Client session closed");
             this.connection.dispose();
             return transport.closeGracefully();
         });
@@ -308,8 +315,17 @@ public class McpClientSession implements McpSession {
      */
     @Override
     public void close() {
+        this.failPendingResponses("Client session closed");
         this.connection.dispose();
         transport.close();
+    }
+
+    private void failPendingResponses(String reason) {
+        for (Map.Entry<Object, MonoSink<McpSchema.JSONRPCResponse>> entry : this.pendingResponses.entrySet()) {
+            if (this.pendingResponses.remove(entry.getKey(), entry.getValue())) {
+                entry.getValue().error(new McpError(reason));
+            }
+        }
     }
 
 }

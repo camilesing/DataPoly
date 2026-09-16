@@ -1,8 +1,7 @@
 'use strict'
 const path = require('path')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const config = require('../config')
-const ExtractTextPlugin = require('extract-text-webpack-plugin')
-const packageConfig = require('../package.json')
 
 exports.assetsPath = function (_path) {
   const assetsSubDirectory = process.env.NODE_ENV === 'production'
@@ -18,53 +17,51 @@ exports.cssLoaders = function (options) {
   const cssLoader = {
     loader: 'css-loader',
     options: {
-      sourceMap: options.sourceMap
+      sourceMap: options.sourceMap,
+      // vue-style-loader expects the CSS export to be a string module;
+      // css-loader 6+ defaults to ES modules which breaks it
+      esModule: false
     }
   }
 
   const postcssLoader = {
     loader: 'postcss-loader',
     options: {
-      sourceMap: options.sourceMap
+      sourceMap: options.sourceMap,
+      postcssOptions: {
+        // explicitly point at the project's .postcssrc.js so extension sources
+        // compiled from outside the tree pick up the same plugins
+        config: path.resolve(__dirname, '../.postcssrc.js')
+      }
     }
   }
 
-  // generate loader string to be used with extract text plugin
+  // generate loader chain for one style language
   function generateLoaders (loader, loaderOptions) {
     const loaders = options.usePostCSS ? [cssLoader, postcssLoader] : [cssLoader]
 
     if (loader) {
-      loaders.push({
-        loader: loader + '-loader',
-        options: Object.assign({}, loaderOptions, {
-          sourceMap: options.sourceMap
-        })
-      })
+      const loaderEntry = { loader: loader + '-loader' }
+      // less-loader 9+ no longer accepts a top-level sourceMap key
+      if (loaderOptions && Object.keys(loaderOptions).length > 0) {
+        loaderEntry.options = Object.assign({}, loaderOptions)
+      }
+      loaders.push(loaderEntry)
     }
 
-    // Extract CSS when that option is specified
-    // (which is the case during production build)
-    // 这里的配置参考：https://www.hangge.com/blog/cache/detail_2473.html
+    // Extract CSS into chunk files on production builds; dev keeps HMR-friendly
+    // vue-style-loader injection
     if (options.extract) {
-      return ExtractTextPlugin.extract({
-        use: loaders,
-        fallback: 'vue-style-loader',
-        publicPath: '../../'
-      })
-    } else {
-      return ['vue-style-loader'].concat(loaders)
+      return [MiniCssExtractPlugin.loader].concat(loaders)
     }
+    return ['vue-style-loader'].concat(loaders)
   }
 
-  // https://vue-loader.vuejs.org/en/configurations/extract-css.html
+  // https://vue-loader.vuejs.org
   return {
     css: generateLoaders(),
     postcss: generateLoaders(),
-    less: generateLoaders('less'),
-    sass: generateLoaders('sass', { indentedSyntax: true }),
-    scss: generateLoaders('sass'),
-    stylus: generateLoaders('stylus'),
-    styl: generateLoaders('stylus')
+    less: generateLoaders('less')
   }
 }
 
@@ -82,22 +79,4 @@ exports.styleLoaders = function (options) {
   }
 
   return output
-}
-
-exports.createNotifierCallback = () => {
-  const notifier = require('node-notifier')
-
-  return (severity, errors) => {
-    if (severity !== 'error') return
-
-    const error = errors[0]
-    const filename = error.file && error.file.split('!').pop()
-
-    notifier.notify({
-      title: packageConfig.name,
-      message: severity + ': ' + error.name,
-      subtitle: filename || '',
-      icon: path.join(__dirname, 'logo.png')
-    })
-  }
 }
