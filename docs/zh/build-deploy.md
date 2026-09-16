@@ -52,6 +52,28 @@ sh build-docker/build_and_push_image.sh debug
 cd build-docker/install && docker compose up -d
 ```
 
+**(4) 宿主扩展装配（可选）：**
+
+支持在顶层 `datapoly-extension/` 目录维护宿主自有扩展（独立 git 仓库，已被 .gitignore 排除、不随宿主仓库提交），
+其中 `backend/` 放 Maven 扩展模块、`front/` 放扩展 UI（webpack `@extension` 别名自动装配进管理端界面）。
+
+```
+# 方式一：配置扩展仓库地址，构建时自动浅克隆/同步到 datapoly-extension/
+export DATAPOLY_EXTENSION_GIT_URL=<扩展仓库地址>   # 可用 git clone 的地址
+export DATAPOLY_EXTENSION_GIT_REF=master           # 分支/标签，默认 master
+# 方式二：不配置环境变量，手动把扩展仓库克隆到宿主根目录（只需一次）
+
+# 单独装配扩展：构建 backend（宿主机 JDK 8 优先，无 8 时 8 以上 JDK 亦可用，编译目标 1.8）并投放 jar 到 lib-extra/
+sh build-extension.sh
+
+# 或直接走常规打包：先自动装配扩展，再构建 UI、mvn 打包，产出带扩展的发行包
+sh build.sh
+# 出带扩展的三张镜像并重标 :latest
+sh build-docker/build_and_push_image.sh
+```
+
+配置了 `DATAPOLY_EXTENSION_GIT_URL` 或本地已有 `datapoly-extension/` 目录时，`build-extension.sh` 才会构建投放——扩展 jar 随发行版进入
+`lib/common`，打进 manager / executor / gateway 的运行时 classpath；两者皆无则跳过，纯开源构建不受影响。
 
 > 调试构建仅供本机联调，**勿随发行版发布**；不带参数重新构建即可恢复生产版 UI。
 
