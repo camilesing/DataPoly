@@ -5,8 +5,8 @@
 classpath（三服务的 `bin/datapolyctl.sh` 均以 `lib/common/*` 通配加载）。
 
 宿主扩展（根目录 `datapoly-extension/`，已被 `.gitignore` 排除，独立 git 仓库）构建后的产物由入库脚本
-`build-extension.sh` 自动投放到这里——`build.sh` / `docker-maven-build.sh` 会先调用它（无环境变量配置时
-该脚本为无操作）。本地一键入口仍是 `dev-local/dev.sh`（薄包装：注入 env.sh 后转发）。第三方额外 jar 也可手工投放。
+`build-extension.sh` 自动投放到这里——`build.sh` / `docker-maven-build.sh` 会先调用它：配置 `DATAPOLY_EXTENSION_GIT_URL`
+或本地已有 `datapoly-extension/` 目录时即构建 backend（宿主机 JDK 8 优先、无 8 时 8 以上可用）并投放本目录，两者皆无则无操作（纯开源构建零影响）。本地一键入口仍是 `dev-local/dev.sh`（薄包装：注入 env.sh 后转发）。第三方额外 jar 也可手工投放。
 
 - 仅 `*.jar` 参与装配；本文件与 `.gitkeep` 只占位，保证目录在干净 clone 中恒存在。
 - 手工清理（回归纯开源构建）：`rm -f lib-extra/*.jar`

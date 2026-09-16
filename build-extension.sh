@@ -8,7 +8,7 @@
 #   DATAPOLY_EXTENSION_GIT_REF      拉取的 ref（分支/标签），默认 master
 #   DATAPOLY_EXTENSION_FORCE_SYNC=1 目录已存在时强制 fetch+reset 到 REF（丢弃本地未提交改动，慎用）
 #
-# 后端模块构建沿用 dev-local/dev.sh 原约定：宿主机 JDK 8、扩展模块不进根 reactor、
+# 后端模块构建沿用 dev-local/dev.sh 原约定：宿主机 JDK 8 优先、无 8 时允许 8 以上（编译目标钉在 1.8）、扩展模块不进根 reactor、
 # 依赖经 <relativePath> 解析根 pom、产物投放 lib-extra/ 后由 package.xml 打进 lib/common。
 # 参数：--skip-tests 用 -DskipTests 替代默认 -Dmaven.test.skip=true（仅作用于扩展侧构建）。
 
@@ -65,7 +65,9 @@ if [ "$(wc -l < "$POM_LIST")" -eq 0 ]; then
     exit 0
 fi
 
-# ---------- ③ 宿主机 JDK 8（与 build.sh/dev.sh 同约定：本机构建统一 JDK 8） ----------
+# ---------- ③ 宿主机 JDK：优先 JDK 8（与 CI 的 temurin 8 对齐）；扩展模块编译目标为 1.8
+#     （根 pom maven.compiler.source/target=1.8），8 以上 JDK 构建同样产出 Java 8 字节码，
+#     故不再硬性断言 8——仅当完全无可用 JDK 时才中止 ----------
 jdkmajor() {
     "$1/bin/java" -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | sed 's/^1$/8/'
 }
@@ -79,16 +81,27 @@ if [ "$(uname -s)" = "Darwin" ]; then
         /opt/homebrew/opt/openjdk@8/libexec/openjdk.jdk/Contents/Home \
         /usr/local/opt/openjdk@8/libexec/openjdk.jdk/Contents/Home \
         "$java_home_8"; do
-        if [ -n "$candidate" ] && [ "$(jdkmajor "$candidate" 2>/dev/null)" = "8" ]; then
+        if [ -n "$candidate" ] && [ -n "$(jdkmajor "$candidate" 2>/dev/null)" ]; then
             export JAVA_HOME="$candidate"
-            echo "[ext] JAVA_HOME=$JAVA_HOME"
             break
         fi
     done
 fi
-if [ -z "${JAVA_HOME:-}" ] || [ "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" != "8" ]; then
-    echo "[ext] 未找到 JDK 8（AGENTS.md 约定本机构建统一 JDK 8）；如需强制沿用当前环境 mvn，请先 export JAVA_HOME" >&2
+if [ -z "${JAVA_HOME:-}" ] || [ -z "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" ]; then
+    # 非 macOS 或上述候选均无效：从 PATH 上的 java 反推 JAVA_HOME（如 yum/dnf 装的 OpenJDK）
+    java_bin=$(command -v java 2>/dev/null || true)
+    if [ -n "$java_bin" ]; then
+        java_bin=$(readlink -f "$java_bin" 2>/dev/null || printf '%s' "$java_bin")
+        export JAVA_HOME=$(dirname "$(dirname "$java_bin")")
+    fi
+fi
+if [ -z "${JAVA_HOME:-}" ] || [ -z "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" ]; then
+    echo "[ext] 未找到可用 JDK，无法构建扩展模块" >&2
     exit 1
+fi
+echo "[ext] JAVA_HOME=$JAVA_HOME"
+if [ "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" != "8" ]; then
+    echo "[ext] 当前为 JDK $(jdkmajor "$JAVA_HOME" 2>/dev/null)（非 8）：编译目标 1.8，产物仍为 Java 8 字节码（与容器内 temurin 8 一致）"
 fi
 
 HOST_VERSION=$(grep -m1 '<version>' "$ROOT/pom.xml" | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
