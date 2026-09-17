@@ -9,9 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.ConstraintViolationException;
+import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -48,6 +49,18 @@ public class ExceptionController {
 
         return respond(ResponseErrorCode.ERROR_INVALID_ARGUMENT,
                 ResultEntity.failed(ResponseErrorCode.ERROR_INVALID_ARGUMENT, errorMessage));
+    }
+
+    /**
+     * Boot 3 起 Spring MVC 对未映射路径恒抛 NoHandlerFoundException（原
+     * spring.mvc.throw-exception-if-no-handler-found=false 已弃用失效），在此等价恢复
+     * 旧 404 语义，避免未匹配路径落入 500 内部错误。
+     */
+    @ExceptionHandler(value = {NoHandlerFoundException.class})
+    public ResponseEntity<ResultEntity> noHandlerFoundException(NoHandlerFoundException e) {
+        return respond(ResponseErrorCode.ERROR_PATH_NOT_EXISTS,
+                ResultEntity.failed(ResponseErrorCode.ERROR_PATH_NOT_EXISTS,
+                        e.getHttpMethod() + " " + e.getRequestURL() + " not exists"));
     }
 
     @ExceptionHandler(value = Exception.class)

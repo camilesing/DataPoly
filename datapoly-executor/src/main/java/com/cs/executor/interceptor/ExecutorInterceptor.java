@@ -9,7 +9,7 @@ import com.cs.persistence.dao.SystemParamDao;
 import com.cs.persistence.entity.SystemParamEntity;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import javax.servlet.http.*;
+import jakarta.servlet.http.*;
 import java.io.IOException;
 
 public class ExecutorInterceptor implements HandlerInterceptor {

@@ -16,7 +16,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;

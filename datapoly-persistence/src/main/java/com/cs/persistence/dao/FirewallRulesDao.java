@@ -7,7 +7,7 @@ import com.cs.persistence.entity.FirewallRulesEntity;
 import com.cs.persistence.mapper.FirewallRulesMapper;
 import org.springframework.stereotype.Repository;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 @Repository
 public class FirewallRulesDao {

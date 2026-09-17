@@ -6,7 +6,7 @@ Thanks for your interest in contributing!
 
 1. Fork the repository and create your branch from `main`.
 2. Set up the environment:
-   - JDK 8 (the project targets Java 8)
+   - JDK 25 (the project targets Java 25, LTS line)
    - Maven 3.6+
    - Docker (for the database containers and the front-end build)
 
@@ -55,7 +55,7 @@ If you build this way, copy `dist/index.html` and `dist/static/` into
 
 ## Local smoke testing
 
-The `.devcontainer/` directory contains a dev container (JDK 8 + Maven,
+The `.devcontainer/` directory contains a dev container (JDK 25 + Maven,
 MySQL 8, PostgreSQL 14) for end-to-end smoke tests:
 
 ```bash

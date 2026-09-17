@@ -9,20 +9,13 @@ spring:
     # Boot 2.6+ 默认拒绝循环依赖；先保持 2.5 行为，待全量启动回归后再收紧
     allow-circular-references: true
   mvc:
-    throw-exception-if-no-handler-found: false
     static-path-pattern: /**
-    pathmatch:
-      # springfox 3.0 不支持 PathPatternParser（Boot 2.6+ 默认），必须回退 AntPathMatcher
-      matching-strategy: ant_path_matcher
   messages:
     basename: i18n/messages
     encoding: UTF-8
 
 datapoly:
   manager:
-    # 管理端 swagger 默认关闭（收口）：开发联调需要时经环境变量/本地配置打开
-    swagger:
-      enable: ${DATAPOLY_MANAGER_SWAGGER_ENABLE:false}
     # 错误响应是否映射真实 HTTP 状态码（H5）：关闭后一切错误回 HTTP 200（兼容旧内置前端）
     http-status-mapping:
       enabled: ${DATAPOLY_MANAGER_HTTP_STATUS_MAPPING_ENABLED:true}
@@ -72,6 +65,13 @@ mybatis:
 mybatis-plus:
   global-config:
     banner: false
+
+# API 文档（springdoc）默认关闭（收口）：开发联调需要时经环境变量/本地配置打开
+springdoc:
+  api-docs:
+    enabled: ${DATAPOLY_MANAGER_SWAGGER_ENABLE:false}
+  swagger-ui:
+    enabled: ${DATAPOLY_MANAGER_SWAGGER_ENABLE:false}
 
 logging:
   config: classpath:logback-manager.xml

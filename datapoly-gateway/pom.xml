@@ -42,6 +42,12 @@
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
+        <!-- Cloud 2025 下 eureka-client 的 jersey3 传输不再由 starter 传递引入，显式补充 -->
+        <dependency>
+            <groupId>com.netflix.eureka</groupId>
+            <artifactId>eureka-client-jersey3</artifactId>
+        </dependency>
+
     </dependencies>
 
 </project>

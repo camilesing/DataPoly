@@ -7,14 +7,14 @@ import com.cs.common.dto.ResultEntity;
 import com.cs.core.dto.UpdateFirewallRulesRequest;
 import com.cs.core.gateway.FirewallFilterService;
 import com.cs.persistence.entity.FirewallRulesEntity;
-import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
-import javax.validation.Valid;
+import jakarta.annotation.Resource;
+import jakarta.validation.Valid;
 
-@Api(tags = {"防火墙管理接口"})
+@Tag(name = "防火墙管理接口")
 @RestController
 @RequestMapping(value = Constants.MANAGER_API_V1 + "/firewall")
 public class FirewallController {

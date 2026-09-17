@@ -3,7 +3,7 @@
 package com.cs.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.io.Serializable;
@@ -12,22 +12,22 @@ import java.io.Serializable;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel("TOKEN信息")
+@Schema(description = "TOKEN信息")
 public class AccessToken implements Serializable {
 
-    @ApiModelProperty("实际名称")
+    @Schema(description = "实际名称")
     private String realName;
 
-    @ApiModelProperty("唯一标识")
+    @Schema(description = "唯一标识")
     private String appKey;
 
-    @ApiModelProperty("token字符串")
+    @Schema(description = "token字符串")
     private String accessToken;
 
     @JsonIgnore
-    @ApiModelProperty("创建时的时间戳")
+    @Schema(description = "创建时的时间戳")
     private Long createTimestamp;
 
-    @ApiModelProperty("有效期(时间段，单位:秒)")
+    @Schema(description = "有效期(时间段，单位:秒)")
     private Long expireSeconds;
 }

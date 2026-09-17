@@ -10,7 +10,7 @@ import com.cs.persistence.dao.SystemUserDao;
 import com.cs.persistence.entity.SystemUserEntity;
 import org.junit.*;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicReference;
 

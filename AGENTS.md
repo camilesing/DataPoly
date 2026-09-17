@@ -2,14 +2,14 @@
 
 > 安全弱点上报见 SECURITY.md；内部评审细节不入库。
 
-Maven 多模块，BSD-3-Clause。本机构建与 CI 统一 JDK 8（temurin/zulu 均可），产物即成 Java 8 字节码（无需本机安装 JDK 25）；宿主机扩展构建（build-extension.sh）JDK 8 优先，无 8 时允许 8 以上（编译目标钉在 1.8，产物仍为 Java 8 字节码）。CI（temurin 8）经 `mvn test -pl datapoly-test -am` 运行测试：各模块测试统一集中在 datapoly-test 模块（JUnit 4 + 手写 fake，包名与被测模块保持同包以访问 package-private 成员），其余模块不含 src/test。
-- lombok 1.18.46、groovy 4.0.33（org.apache.groovy）为钉版勿回退（JDK 8 与 25 下均验证可用）；注解处理器依赖必须走 `annotationProcessorPaths`。
+Maven 多模块，BSD-3-Clause。本机构建与 CI 统一 JDK 25（LTS；temurin/homebrew 均可），产物即成 Java 25 字节码；宿主机扩展构建（build-extension.sh）同样要求 JDK ≥25（编译目标钉在 25，低于 25 直接中止）。CI（temurin 25）经 `mvn test -pl datapoly-test -am` 运行测试：各模块测试统一集中在 datapoly-test 模块（JUnit 4 + 手写 fake，包名与被测模块保持同包以访问 package-private 成员），其余模块不含 src/test。
+- lombok 1.18.48、groovy 4.0.33（org.apache.groovy）为钉版勿回退（JDK 25 基线验证可用）；注解处理器依赖必须走 `annotationProcessorPaths`。
 - 三服务经 Eureka 互联：manager（8090，Liquibase 唯一迁移执行方）、executor（8092）、gateway（8091 唯一对外入口）。前端 datapoly-manager-ui 非 Maven：manager resources 下的 `index.html` 与 `static/` 为构建产物 **不入库**（已被 .gitignore 排除，勿提交/勿 git add -f），打包前由根目录 `build-ui.sh`（node:23-alpine 容器，本机无需 Node）生成——`build.sh` 与 `docker-maven-build.sh` 已在它之前前置 `build-extension.sh`（宿主扩展装配：配置 `DATAPOLY_EXTENSION_GIT_URL` 或 `datapoly-extension` 目录存在即构建，否则无操作）及该 UI 步骤；纯 `mvn package` 的 jar 不含 UI。`build-ui.sh debug` 产出 devtools 可用的调试构建（`DATAPOLY_UI_ENV=debug`，NODE_ENV=development），仅限本机联调、勿随发行版发布；`build.sh`/`docker-maven-build.sh` 会透传首参给 build-ui.sh。
 - 许可头：新改文件只写 BSD 许可声明行，勿写个人 Copyright 头；vendored 文件（如 io.modelcontextprotocol.*）保留原版权声明。
 
 ## 模块速览与常用命令
 
-SQL/DSL → RESTful API 的数据访问中间件（Boot 2.7.18 + Cloud 2021.0.9）。Maven 模块：common（通用定义）、mcp（LLM MCP 协议）、template（SQL 内容模板）、persistence（数据库持久化）、core（接口核心实现）、cache（执行缓存）、executor/gateway/manager（三服务，见下）、test（集中全部测试）、dist（发行打包）；`datapoly-manager-ui` 为前端（非 Maven）；`drivers/` 装配 20+ 数据库 JDBC 驱动；`build-docker/` 镜像与 compose 一键安装。改动前按需读 docs/{zh,en}/ 下 overview.md、build-deploy.md、data-task.md（涉及 DataTask 必读）。
+SQL/DSL → RESTful API 的数据访问中间件（Boot 3.5.x LTS + Cloud 2025.0.x，jakarta 命名空间）。Maven 模块：common（通用定义）、mcp（LLM MCP 协议）、template（SQL 内容模板）、persistence（数据库持久化）、core（接口核心实现）、cache（执行缓存）、executor/gateway/manager（三服务，见下）、test（集中全部测试）、dist（发行打包）；`datapoly-manager-ui` 为前端（非 Maven）；`drivers/` 装配 20+ 数据库 JDBC 驱动；`build-docker/` 镜像与 compose 一键安装。改动前按需读 docs/{zh,en}/ 下 overview.md、build-deploy.md、data-task.md（涉及 DataTask 必读）。API 文档注解用 springdoc/swagger v3（io.swagger.v3.oas.annotations），勿引入 springfox。
 
 - 全量测试（CI 同款）：`mvn test -pl datapoly-test -am`
 - 发行构建：`./build.sh`（前置 build-extension.sh 与 build-ui.sh 再 mvn package）；容器内构建：`./docker-maven-build.sh`
@@ -35,7 +35,7 @@ Groovy 沙箱默认启用但不是 JVM 隔离：勿把脚本编写权开放给�
 ## 五、其他约束
 
 - 新增 JDBC 代码资源必须 try-with-resources；firewall 规则行被删时网关按"全拒绝"处理（fail-closed，属预期）。
-- DataTask 投递 Sink 仓库内置零实现，外部以 Spring Bean / `META-INF/services` 注册（SPI `com.cs.common.datatask.DataTaskSink`）；宿主可自行维护本地扩展：在顶层 `datapoly-extension/`（已被 .gitignore 排除，独立 git 仓库）下用 `backend/` 放 Maven 扩展模块（依赖钉版在模块自身 pom、不进根 reactor，由入库脚本 build-extension.sh 在宿主机 JDK 8 构建后投放 lib-extra/，随发行版装配进各服务 classpath）、`front/` 放扩展 UI；API 扩展点 `ApiAssignmentPostProcessor` 注册方式相同、须同步执行且保持轻量。详见 docs/*/data-task.md。
+- DataTask 投递 Sink 仓库内置零实现，外部以 Spring Bean / `META-INF/services` 注册（SPI `com.cs.common.datatask.DataTaskSink`）；宿主可自行维护本地扩展：在顶层 `datapoly-extension/`（已被 .gitignore 排除，独立 git 仓库）下用 `backend/` 放 Maven 扩展模块（依赖钉版在模块自身 pom、不进根 reactor，由入库脚本 build-extension.sh 在宿主机 JDK 25 构建后投放 lib-extra/，随发行版装配进各服务 classpath）、`front/` 放扩展 UI；API 扩展点 `ApiAssignmentPostProcessor` 注册方式相同、须同步执行且保持轻量。详见 docs/*/data-task.md。
 - 默认前端扩展目录 `datapoly-extension/front`（同被 .gitignore 排除）经 datapoly-manager-ui 编译期装配：webpack `@extension` 别名自动探测该目录 `src/index.js`（见 build/webpack.base.conf.js）、`src/extension-stub` 为缺省回退、扩展路由与 i18n 词条在 manager-ui 入口深合并——这四处钩子文件（build/webpack.base.conf.js、src/extension-stub、src/router、src/main.js）勿移除或改名；目录不存在时 CI 与普通构建不受影响。front 自带 `package.json` 可直接启动（`npm run dev`，复用宿主 webpack 链，前置为宿主 node_modules 已安装、Node 23——dev server 与生产构建均已实测）。
-- 宿主扩展 jar 经根目录 `lib-extra/` 投放点进入发行版 `lib/common/`（`package.xml` 打包该目录 `*.jar`；目录只占位入库，jar 永不入库）。扩展为独立 git 仓库（内部 GitLab，front+backend 一体）：`build-extension.sh` 按环境变量 `DATAPOLY_EXTENSION_GIT_URL`（真实地址不入库，CI 注入）+ `DATAPOLY_EXTENSION_GIT_REF`（默认 master）浅克隆到 `datapoly-extension/`（仍被 .gitignore 排除），目录已存在则按本地工作区构建（宿主机 JDK 8 优先、无 8 时 8 以上可用）、`DATAPOLY_EXTENSION_FORCE_SYNC=1` 强制覆盖本地改动；`build.sh`/`docker-maven-build.sh` 会先调用该脚本，未配置且目录不存在时无操作（纯开源构建零影响）。本地环境变量注入（env.sh）与防误提交钩子集中在被忽略的 `dev-local/`。
+- 宿主扩展 jar 经根目录 `lib-extra/` 投放点进入发行版 `lib/common/`（`package.xml` 打包该目录 `*.jar`；目录只占位入库，jar 永不入库）。扩展为独立 git 仓库（内部 GitLab，front+backend 一体）：`build-extension.sh` 按环境变量 `DATAPOLY_EXTENSION_GIT_URL`（真实地址不入库，CI 注入）+ `DATAPOLY_EXTENSION_GIT_REF`（默认 master）浅克隆到 `datapoly-extension/`（仍被 .gitignore 排除），目录已存在则按本地工作区构建（宿主机 JDK 25 优先、低于 25 不可用）、`DATAPOLY_EXTENSION_FORCE_SYNC=1` 强制覆盖本地改动；`build.sh`/`docker-maven-build.sh` 会先调用该脚本，未配置且目录不存在时无操作（纯开源构建零影响）。本地环境变量注入（env.sh）与防误提交钩子集中在被忽略的 `dev-local/`。
 - 一次性 token 在校验时即消费（含查库兜底路径；2026-09 修复兜底不消费导致的重放）；并发首用竞态下多 executor 仍可能各放行一次（无分布式锁，已知限制）。

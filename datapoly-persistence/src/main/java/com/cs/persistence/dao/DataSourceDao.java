@@ -9,7 +9,7 @@ import com.cs.persistence.mapper.DataSourceMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.stream.Collectors;
 

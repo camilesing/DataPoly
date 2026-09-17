@@ -3,7 +3,7 @@
 package com.cs.core.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.sql.Timestamp;
@@ -12,41 +12,41 @@ import java.sql.Timestamp;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ApiModel("MCP工具详情")
+@Schema(description = "MCP工具详情")
 public class McpToolResponse {
 
-    @ApiModelProperty("ID编号")
+    @Schema(description = "ID编号")
     private Long id;
 
-    @ApiModelProperty("工具名称")
+    @Schema(description = "工具名称")
     private String name;
 
-    @ApiModelProperty("工具描述")
+    @Schema(description = "工具描述")
     private String description;
 
-    @ApiModelProperty("接口模块ID")
+    @Schema(description = "接口模块ID")
     private Long moduleId;
 
-    @ApiModelProperty("接口模块名称")
+    @Schema(description = "接口模块名称")
     private String moduleName;
 
-    @ApiModelProperty("接口ID")
+    @Schema(description = "接口ID")
     private Long apiId;
 
-    @ApiModelProperty("接口名称")
+    @Schema(description = "接口名称")
     private String apiName;
 
-    @ApiModelProperty("接口Method")
+    @Schema(description = "接口Method")
     private String apiMethod;
 
-    @ApiModelProperty("接口Path")
+    @Schema(description = "接口Path")
     private String apiPath;
 
-    @ApiModelProperty("创建时间")
+    @Schema(description = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Timestamp createTime;
 
-    @ApiModelProperty("更新时间")
+    @Schema(description = "更新时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Timestamp updateTime;
 }

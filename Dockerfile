@@ -1,7 +1,7 @@
 # Use of this source code is governed by a BSD-style license
 
 # ============================================================================
-# 单 Dockerfile 全自动构建(多阶段):UI(node:23) → Maven 打包(temurin 8) → 运行时(temurin 8 JRE)
+# 单 Dockerfile 全自动构建(多阶段):UI(node:23) → Maven 打包(temurin 25) → 运行时(temurin 25 JRE)
 # 产物与 build.sh / docker-maven-build.sh / build_and_push_image.sh 一致,两条链路并行可用。
 #
 # 用法(在仓库根目录):
@@ -31,9 +31,9 @@ RUN npm config set registry http://mirrors.cloud.tencent.com/npm/ \
  && npm install --no-audit --no-fund --no-package-lock --legacy-peer-deps \
  && npm run build
 
-# ---- Stage 2: Maven 打包(与 docker-maven-build.sh 同为 temurin 8,支持 arm64) ----
+# ---- Stage 2: Maven 打包(与 docker-maven-build.sh 同为 temurin 25,支持 arm64) ----
 # 基镜像钉 digest（tag 可被上游覆盖，digest 不可变）；升级基镜像时须同步刷新
-FROM maven:3.9-eclipse-temurin-8@sha256:d8b1b22e93012cd0257d37b3fd6d7bec3d0f7ae611730fc3ba0657b9ebe4e7ca AS build
+FROM maven:3.9-eclipse-temurin-25@sha256:0e3f1c4394674505f73525188b8005f521ef3c786c651cb61432b2db3517087b AS build
 # CI 可传 MAVEN_ARGS=-Dmaven.test.skip=true 加速;默认与 docker-maven-build.sh 一致(跑测试)
 ARG MAVEN_ARGS=""
 WORKDIR /src
@@ -51,7 +51,7 @@ RUN --mount=type=cache,target=/opt/maven/localRepository \
 
 # ---- Stage 3: 运行时镜像(与 build-docker/datapoly/Dockerfile-* 同基线) ----
 # 基镜像钉 digest（tag 可被上游覆盖，digest 不可变）；升级基镜像时须同步刷新
-FROM eclipse-temurin:8-jre-jammy@sha256:06641b36281c1ac815c33f3f3528cfea1c6fc41ddc60d261746e4343d19cbe65
+FROM eclipse-temurin:25-jre-jammy@sha256:20a695e74d47fb29cda1cbad5d9ee6cfad4ac6e88a8e048ed6265cede1e71f5e
 ENV TZ=Asia/Shanghai
 # 非 root 运行(K8s 安全上下文友好)；用户需在 COPY --chown 前存在；
 # curl 仅供 HEALTHCHECK 使用
