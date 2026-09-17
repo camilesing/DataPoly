@@ -7,6 +7,13 @@ Maven 多模块，BSD-3-Clause。本机构建与 CI 统一 JDK 8（temurin/zulu 
 - 三服务经 Eureka 互联：manager（8090，Liquibase 唯一迁移执行方）、executor（8092）、gateway（8091 唯一对外入口）。前端 datapoly-manager-ui 非 Maven：manager resources 下的 `index.html` 与 `static/` 为构建产物 **不入库**（已被 .gitignore 排除，勿提交/勿 git add -f），打包前由根目录 `build-ui.sh`（node:23-alpine 容器，本机无需 Node）生成——`build.sh` 与 `docker-maven-build.sh` 已在它之前前置 `build-extension.sh`（宿主扩展装配：配置 `DATAPOLY_EXTENSION_GIT_URL` 或 `datapoly-extension` 目录存在即构建，否则无操作）及该 UI 步骤；纯 `mvn package` 的 jar 不含 UI。`build-ui.sh debug` 产出 devtools 可用的调试构建（`DATAPOLY_UI_ENV=debug`，NODE_ENV=development），仅限本机联调、勿随发行版发布；`build.sh`/`docker-maven-build.sh` 会透传首参给 build-ui.sh。
 - 许可头：新改文件只写 BSD 许可声明行，勿写个人 Copyright 头；vendored 文件（如 io.modelcontextprotocol.*）保留原版权声明。
 
+## 模块速览与常用命令
+
+SQL/DSL → RESTful API 的数据访问中间件（Boot 2.7.18 + Cloud 2021.0.9）。Maven 模块：common（通用定义）、mcp（LLM MCP 协议）、template（SQL 内容模板）、persistence（数据库持久化）、core（接口核心实现）、cache（执行缓存）、executor/gateway/manager（三服务，见下）、test（集中全部测试）、dist（发行打包）；`datapoly-manager-ui` 为前端（非 Maven）；`drivers/` 装配 20+ 数据库 JDBC 驱动；`build-docker/` 镜像与 compose 一键安装。改动前按需读 docs/{zh,en}/ 下 overview.md、build-deploy.md、data-task.md（涉及 DataTask 必读）。
+
+- 全量测试（CI 同款）：`mvn test -pl datapoly-test -am`
+- 发行构建：`./build.sh`（前置 build-extension.sh 与 build-ui.sh 再 mvn package）；容器内构建：`./docker-maven-build.sh`
+
 ## 一、网络分段（必须遵守）
 
 - 仅 gateway 对外发布端口；manager 与 executor 除 Eureka 外无 HTTP 直连，新增直连须同步更新白名单与本文件。
