@@ -21,8 +21,9 @@ public final class SpelUtils {
      * on evaluation failure the original expression text is returned as a fallback (same as the existing behavior).
      */
     public static String getExpressionValue(String expr, Map<String, Object> paramValues) {
-        EvaluationContext context = new SimpleEvaluationContext.Builder(
-                DataBindingPropertyAccessor.forReadOnlyAccess(), new MapAccessor()).build();
+        EvaluationContext context = SimpleEvaluationContext
+                .forPropertyAccessors(DataBindingPropertyAccessor.forReadOnlyAccess(), new MapAccessor())
+                .build();
         for (Map.Entry<String, Object> entry : paramValues.entrySet()) {
             context.setVariable(entry.getKey(), entry.getValue());
         }

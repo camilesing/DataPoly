@@ -1,14 +1,14 @@
 version: '3.8'
 
 # DataPoly 开发/冒烟环境（Dev Containers）：
-#   dev       —— JDK8+Maven 开发容器（仓库挂载 /workspace，复用宿主 ~/.m2 缓存），三节点在本容器内启动
+#   dev       —— JDK25+Maven 开发容器（仓库挂载 /workspace，复用宿主 ~/.m2 缓存），三节点在本容器内启动
 #   mysql     —— 8.0，mysql_native_password（免三期冒烟时的 ALTER USER 步骤）
 #   postgres  —— 14（PG 元库冒烟用）
 # 用法见 AGENTS.md 第六节「devcontainer 冒烟方法」。
 
 services:
   dev:
-    image: maven:3.8.7-eclipse-temurin-8
+    image: maven:3.9-eclipse-temurin-25
     container_name: datapoly_dev
     command: sleep infinity
     volumes:

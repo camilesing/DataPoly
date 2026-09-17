@@ -7,16 +7,17 @@ import com.cs.common.dto.*;
 import com.cs.core.dto.*;
 import com.cs.manager.service.McpManageService;
 import com.cs.persistence.entity.McpClientEntity;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
-import javax.validation.Valid;
-import javax.validation.constraints.NotBlank;
+import jakarta.annotation.Resource;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 
-@Api(tags = {"MCP令牌管理接口"})
+@Tag(name = "MCP令牌管理接口")
 @Validated
 @RestController
 @RequestMapping(value = Constants.MANAGER_API_V1 + "/mcp/client")
@@ -25,20 +26,20 @@ public class McpClientController {
     @Resource
     private McpManageService mcpManageService;
 
-    @ApiOperation(value = "获取MCP服务地址")
+    @Operation(summary = "获取MCP服务地址")
     @GetMapping(value = "/endpoint", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<McpServerAddrResponse> getMcpServerEndpoint() {
         return ResultEntity.success(mcpManageService.getMcpServerEndpoint());
     }
 
-    @ApiOperation(value = "添加令牌")
+    @Operation(summary = "添加令牌")
     @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity create(@Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name) {
         mcpManageService.createClient(name);
         return ResultEntity.success();
     }
 
-    @ApiOperation(value = "更新令牌")
+    @Operation(summary = "更新令牌")
     @PostMapping(value = "/update/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity update(@PathVariable("id") Long id,
                                @Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name) {
@@ -46,20 +47,20 @@ public class McpClientController {
         return ResultEntity.success();
     }
 
-    @ApiOperation(value = "删除令牌")
+    @Operation(summary = "删除令牌")
     @DeleteMapping(value = "/delete/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity delete(@PathVariable("id") Long id) {
         mcpManageService.deleteClient(id);
         return ResultEntity.success();
     }
 
-    @ApiOperation(value = "令牌列表")
+    @Operation(summary = "令牌列表")
     @PostMapping(value = "/listAll", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<McpClientEntity> listAll(@RequestBody EntitySearchRequest request) {
         return mcpManageService.listClientAll(request);
     }
 
-    @ApiOperation(value = "获取令牌明文（唯一出口，需已认证会话）")
+    @Operation(summary = "获取令牌明文（唯一出口，需已认证会话）")
     @GetMapping(value = "/token/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<String> getToken(@PathVariable("id") Long id) {
         return ResultEntity.success(mcpManageService.getClientToken(id));

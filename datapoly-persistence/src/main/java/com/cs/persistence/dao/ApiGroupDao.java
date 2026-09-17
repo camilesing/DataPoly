@@ -8,7 +8,7 @@ import com.cs.persistence.mapper.ApiGroupMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 
 @Repository

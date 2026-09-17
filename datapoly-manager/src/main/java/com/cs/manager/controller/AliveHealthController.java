@@ -5,11 +5,11 @@ package com.cs.manager.controller;
 import com.cs.common.consts.Constants;
 import com.cs.common.dto.ResultEntity;
 import com.cs.common.util.PomVersionUtils;
-import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
-@Api(tags = {"存活健康接口"})
+@Tag(name = "存活健康接口")
 @RestController
 @RequestMapping(value = Constants.MANAGER_API_V1 + "/health")
 public class AliveHealthController {

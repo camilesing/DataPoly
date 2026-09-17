@@ -13,8 +13,8 @@ import org.springframework.boot.web.servlet.*;
 import org.springframework.context.annotation.*;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServlet;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServlet;
 
 @Slf4j
 @EnableScheduling

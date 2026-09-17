@@ -7,7 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.*;
 
-import javax.servlet.ServletInputStream;
+import jakarta.servlet.ServletInputStream;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.*;

@@ -1,7 +1,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.sql.Timestamp;
@@ -10,30 +10,30 @@ import java.sql.Timestamp;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ApiModel("数据任务列表项")
+@Schema(description = "数据任务列表项")
 public class DataTaskBaseResponse {
 
-    @ApiModelProperty("主键")
+    @Schema(description = "主键")
     private Long id;
 
-    @ApiModelProperty("任务名称")
+    @Schema(description = "任务名称")
     private String name;
 
-    @ApiModelProperty("任务描述")
+    @Schema(description = "任务描述")
     private String description;
 
-    @ApiModelProperty("数据源ID")
+    @Schema(description = "数据源ID")
     private Long datasourceId;
 
-    @ApiModelProperty("投递实现标识")
+    @Schema(description = "投递实现标识")
     private String sinkType;
 
-    @ApiModelProperty("是否启用")
+    @Schema(description = "是否启用")
     private Boolean enabled;
 
-    @ApiModelProperty("创建时间")
+    @Schema(description = "创建时间")
     private Timestamp createTime;
 
-    @ApiModelProperty("修改时间")
+    @Schema(description = "修改时间")
     private Timestamp updateTime;
 }

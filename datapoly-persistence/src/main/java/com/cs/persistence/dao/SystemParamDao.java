@@ -7,7 +7,7 @@ import com.cs.persistence.entity.SystemParamEntity;
 import com.cs.persistence.mapper.SystemParamMapper;
 import org.springframework.stereotype.Repository;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.Objects;
 
 @Repository

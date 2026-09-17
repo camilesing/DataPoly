@@ -3,23 +3,23 @@
 package com.cs.core.dto;
 
 import com.cs.common.enums.*;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 @Data
 @NoArgsConstructor
-@ApiModel("防火墙规则")
+@Schema(description = "防火墙规则")
 public class UpdateFirewallRulesRequest {
 
     @NotNull(message = "status不能为null")
-    @ApiModelProperty("开启状态")
+    @Schema(description = "开启状态")
     private OnOffEnum status;
 
-    @ApiModelProperty("黑白名单选项")
+    @Schema(description = "黑白名单选项")
     private WhiteBlackEnum mode;
 
-    @ApiModelProperty("地址列表")
+    @Schema(description = "地址列表")
     private String addresses;
 }

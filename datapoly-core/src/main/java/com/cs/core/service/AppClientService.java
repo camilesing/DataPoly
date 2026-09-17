@@ -17,7 +17,7 @@ import com.cs.persistence.util.PageUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;

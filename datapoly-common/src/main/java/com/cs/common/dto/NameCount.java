@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.common.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.io.Serializable;
@@ -11,12 +11,12 @@ import java.io.Serializable;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel("统计数量")
+@Schema(description = "统计数量")
 public class NameCount implements Serializable {
 
-    @ApiModelProperty("名称")
+    @Schema(description = "名称")
     private String name;
 
-    @ApiModelProperty("数量")
+    @Schema(description = "数量")
     private Long count;
 }

@@ -3,25 +3,25 @@
 package com.cs.common.dto;
 
 import com.cs.common.exception.ResponseErrorCode;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.io.Serializable;
 
-@ApiModel(description = "响应结果")
+@Schema(description = "响应结果")
 @AllArgsConstructor
 @Data
 public class ResultEntity<T> implements Serializable {
 
     private static final String SUCCESS = "success";
 
-    @ApiModelProperty("状态码")
+    @Schema(description = "状态码")
     private Integer code;
 
-    @ApiModelProperty("状态描述")
+    @Schema(description = "状态描述")
     private String message;
 
-    @ApiModelProperty("数据")
+    @Schema(description = "数据")
     private T data;
 
     public static <T> ResultEntity success() {

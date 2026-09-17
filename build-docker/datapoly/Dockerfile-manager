@@ -1,5 +1,5 @@
 # 基镜像钉 digest（tag 可被上游覆盖，digest 不可变）；升级基镜像时须同步刷新
-FROM eclipse-temurin:8-jre-jammy@sha256:06641b36281c1ac815c33f3f3528cfea1c6fc41ddc60d261746e4343d19cbe65
+FROM eclipse-temurin:25-jre-jammy@sha256:20a695e74d47fb29cda1cbad5d9ee6cfad4ac6e88a8e048ed6265cede1e71f5e
 
 ENV TZ=Asia/Shanghai
 

@@ -8,8 +8,8 @@ import com.cs.core.exec.*;
 import com.cs.core.util.JacksonUtils;
 import com.cs.persistence.entity.ApiAssignmentEntity;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.*;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.*;
 import java.io.IOException;
 
 public class HttpApiServlet extends HttpServlet {

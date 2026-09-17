@@ -3,7 +3,7 @@ package com.cs.common.util;
 
 import org.junit.Test;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;

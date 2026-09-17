@@ -8,7 +8,7 @@ This tool is developed in pure Java, with all dependencies from open-source proj
 
 - Requirements:
 
-  **JDK**: >=1.8 (JDK 1.8 recommended)
+  **JDK**: >=25 (JDK 25 LTS recommended)
 
   **Maven**: >=3.6
 
@@ -65,7 +65,7 @@ export DATAPOLY_EXTENSION_GIT_URL=<extension-repository-url>   # git-clone-able 
 export DATAPOLY_EXTENSION_GIT_REF=master                       # branch/tag, defaults to master
 # -- or skip the env vars and clone the repository under datapoly-extension/ by hand once
 
-# Assemble extensions only: build backend modules (host JDK 8 preferred, 8+ works too, compile target 1.8)
+# Assemble extensions only: build backend modules (host JDK 25 required, below 25 not supported, compile target 25)
 # and drop the jars into lib-extra/
 sh build-extension.sh
 

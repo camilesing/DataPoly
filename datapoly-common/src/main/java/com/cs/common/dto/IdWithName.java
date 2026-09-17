@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.common.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.io.Serializable;
@@ -11,12 +11,12 @@ import java.io.Serializable;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel("ID名称")
+@Schema(description = "ID名称")
 public class IdWithName implements Serializable {
 
-    @ApiModelProperty("ID编号")
+    @Schema(description = "ID编号")
     private Long id;
 
-    @ApiModelProperty("名称")
+    @Schema(description = "名称")
     private String name;
 }

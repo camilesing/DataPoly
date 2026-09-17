@@ -1,5 +1,5 @@
 {
-  "name": "DataPoly Dev (JDK8 + MySQL8 + PG14)",
+  "name": "DataPoly Dev (JDK25 + MySQL8 + PG14)",
   "dockerComposeFile": "docker-compose.yml",
   "service": "dev",
   "workspaceFolder": "/workspace",

@@ -8,7 +8,7 @@
 
 - 环境要求:
 
-  **JDK**:>=1.8 （建议用JDK 1.8）
+  **JDK**:>=25（建议用 JDK 25，LTS）
 
   **maven**:>=3.6
 
@@ -63,7 +63,7 @@ export DATAPOLY_EXTENSION_GIT_URL=<扩展仓库地址>   # 可用 git clone 的�
 export DATAPOLY_EXTENSION_GIT_REF=master           # 分支/标签，默认 master
 # 方式二：不配置环境变量，手动把扩展仓库克隆到宿主根目录（只需一次）
 
-# 单独装配扩展：构建 backend（宿主机 JDK 8 优先，无 8 时 8 以上 JDK 亦可用，编译目标 1.8）并投放 jar 到 lib-extra/
+# 单独装配扩展：构建 backend（宿主机 JDK 25，低于 25 不可用，编译目标 25）并投放 jar 到 lib-extra/
 sh build-extension.sh
 
 # 或直接走常规打包：先自动装配扩展，再构建 UI、mvn 打包，产出带扩展的发行包

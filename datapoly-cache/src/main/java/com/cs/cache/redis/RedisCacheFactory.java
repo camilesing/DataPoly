@@ -4,7 +4,7 @@ package com.cs.cache.redis;
 
 import com.cs.cache.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 

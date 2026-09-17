@@ -25,8 +25,8 @@ import org.apache.commons.lang3.*;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.nio.charset.*;
 import java.util.*;

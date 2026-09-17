@@ -7,7 +7,7 @@ import com.cs.persistence.dao.SystemParamDao;
 import com.cs.persistence.entity.SystemParamEntity;
 import org.junit.*;
 
-import javax.servlet.http.*;
+import jakarta.servlet.http.*;
 import java.lang.reflect.Proxy;
 
 public class ExecutorInterceptorTest {

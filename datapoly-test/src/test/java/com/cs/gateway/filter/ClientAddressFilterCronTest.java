@@ -3,9 +3,9 @@
 package com.cs.gateway.filter;
 
 import org.junit.Test;
-import org.springframework.scheduling.support.CronSequenceGenerator;
+import org.springframework.scheduling.support.CronExpression;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 import static org.junit.Assert.assertEquals;
 
@@ -18,13 +18,11 @@ public class ClientAddressFilterCronTest {
 
     @Test
     public void defaultFirewallCronFiresEvery30Seconds() {
-        CronSequenceGenerator generator =
-                new CronSequenceGenerator(ClientAddressFilter.DEFAULT_FIREWALL_CRON);
-        Date start = new Date(0L);
-        Date previous = generator.next(start);
+        CronExpression expression = CronExpression.parse(ClientAddressFilter.DEFAULT_FIREWALL_CRON);
+        LocalDateTime previous = expression.next(LocalDateTime.of(1970, 1, 1, 0, 0, 0));
         for (int i = 0; i < 6; i++) {
-            Date next = generator.next(previous);
-            assertEquals(30_000L, next.getTime() - previous.getTime());
+            LocalDateTime next = expression.next(previous);
+            assertEquals(30L, java.time.Duration.between(previous, next).getSeconds());
             previous = next;
         }
     }
