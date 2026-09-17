@@ -59,6 +59,7 @@
         <module>datapoly-executor</module>
         <module>datapoly-gateway</module>
         <module>datapoly-manager</module>
+        <module>datapoly-test</module>
         <module>datapoly-dist</module>
     </modules>
 

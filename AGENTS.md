@@ -2,7 +2,7 @@
 
 > 安全弱点上报见 SECURITY.md；内部评审细节不入库。
 
-Maven 多模块，BSD-3-Clause。本机构建与 CI 统一 JDK 8（temurin/zulu 均可），产物即成 Java 8 字节码（无需本机安装 JDK 25）；宿主机扩展构建（build-extension.sh）JDK 8 优先，无 8 时允许 8 以上（编译目标钉在 1.8，产物仍为 Java 8 字节码）。CI（temurin 8）只跑 common/template/core/executor/gateway/manager 六模块的测试。
+Maven 多模块，BSD-3-Clause。本机构建与 CI 统一 JDK 8（temurin/zulu 均可），产物即成 Java 8 字节码（无需本机安装 JDK 25）；宿主机扩展构建（build-extension.sh）JDK 8 优先，无 8 时允许 8 以上（编译目标钉在 1.8，产物仍为 Java 8 字节码）。CI（temurin 8）经 `mvn test -pl datapoly-test -am` 运行测试：各模块测试统一集中在 datapoly-test 模块（JUnit 4 + 手写 fake，包名与被测模块保持同包以访问 package-private 成员），其余模块不含 src/test。
 - lombok 1.18.46、groovy 4.0.33（org.apache.groovy）为钉版勿回退（JDK 8 与 25 下均验证可用）；注解处理器依赖必须走 `annotationProcessorPaths`。
 - 三服务经 Eureka 互联：manager（8090，Liquibase 唯一迁移执行方）、executor（8092）、gateway（8091 唯一对外入口）。前端 datapoly-manager-ui 非 Maven：manager resources 下的 `index.html` 与 `static/` 为构建产物 **不入库**（已被 .gitignore 排除，勿提交/勿 git add -f），打包前由根目录 `build-ui.sh`（node:23-alpine 容器，本机无需 Node）生成——`build.sh` 与 `docker-maven-build.sh` 已在它之前前置 `build-extension.sh`（宿主扩展装配：配置 `DATAPOLY_EXTENSION_GIT_URL` 或 `datapoly-extension` 目录存在即构建，否则无操作）及该 UI 步骤；纯 `mvn package` 的 jar 不含 UI。`build-ui.sh debug` 产出 devtools 可用的调试构建（`DATAPOLY_UI_ENV=debug`，NODE_ENV=development），仅限本机联调、勿随发行版发布；`build.sh`/`docker-maven-build.sh` 会透传首参给 build-ui.sh。
 - 许可头：新改文件只写 BSD 许可声明行，勿写个人 Copyright 头；vendored 文件（如 io.modelcontextprotocol.*）保留原版权声明。
