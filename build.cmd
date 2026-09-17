@@ -2,7 +2,7 @@
 
 if not exist datapoly-manager\src\main\resources\index.html (
   echo [WARN] Built-in UI is not built: the package will contain no management UI.
-  echo        Build it first with Node 23 (`npm run build`) or Docker (`sh build-ui.sh`),
+  echo        Build it first with Node 24 (`npm run build`) or Docker (`sh build-ui.sh`),
   echo        see docs/zh/build-deploy.md.
   echo.
 )

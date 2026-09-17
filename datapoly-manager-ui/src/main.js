@@ -8,6 +8,8 @@ import ElementUI from 'element-ui';
 import VueI18n from 'vue-i18n'
 import messages from './lang'
 import extension from '@extension'
+import { mergeExtensionI18n } from './lang/merge'
+import { setupHttpInterceptors } from './assets/http.js'
 import './assets/iconfont/iconfont.css'
 import './assets/dbicon/iconfont.css'
 import './assets/dbicon/iconfont.js'
@@ -42,24 +44,6 @@ const i18n = new VueI18n({
   messages
 })
 
-function mergeExtensionI18n (target, ext) {
-  Object.keys(ext || {}).forEach(locale => {
-    deepMerge(target[locale] || (target[locale] = {}), ext[locale] || {})
-  })
-}
-
-function deepMerge (target, source) {
-  Object.keys(source).forEach(key => {
-    const value = source[key]
-    if (value && typeof value === 'object' && !Array.isArray(value)
-      && target[key] && typeof target[key] === 'object') {
-      deepMerge(target[key], value)
-    } else {
-      target[key] = value
-    }
-  })
-}
-
 Vue.prototype.$http = axios
 Vue.config.productionTip = false
 if (process.env.NODE_ENV !== 'production') {
@@ -68,59 +52,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 Vue.prototype.$echarts = echarts
 
-
-// http request interceptor
-axios.interceptors.request.use(config => {
-
-  // Attach Authorization header with token if present
-  let token = sessionStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = 'Bearer ' + token;
-  }
-
-  // Send language header for backend i18n
-  const locale = localStorage.getItem('locale') || 'zh-CN';
-  config.headers['Accept-Language'] = locale;
-
-  return config;
-}, function (error) {
-  return Promise.reject(error)
-})
-
-// Response interceptor
-axios.interceptors.response.use(res => {
-  redirectToLoginIfAuthError(res.data)
-
-  return res
-}, error => {
-  // Backend now maps real HTTP status from error codes (H5): for non-2xx
-  // responses with a ResultEntity body, normalize to the old shape (resolve
-  // {data}) so page-level code checking res.data.code stays unchanged
-  const resp = error.response
-  if (resp && resp.data && resp.data.code !== undefined) {
-    redirectToLoginIfAuthError(resp.data)
-    return Promise.resolve({data: resp.data, status: resp.status, headers: resp.headers})
-  }
-  return Promise.reject(resp)
-})
-
-function redirectToLoginIfAuthError(body) {
-  if (!body) {
-    return;
-  }
-  if (body.code === 401 || body.code === 403) {
-    // Only redirect when not already on the login page
-    if (router.currentRoute.path !== '/login') {
-      router.push({path: "/login"}).catch(() => {
-      });
-    }
-    return;
-  }
-  if (body.code === 404 && router.currentRoute.path !== '/login') {
-    // Business 404 is not an auth failure — surfacing it instead of silently logging out
-    ElementUI.Message.error(body.message || 'Not Found');
-  }
-}
+// http interceptors (token/language headers, auth-error redirect, ResultEntity
+// error normalization) — extracted to assets/http.js and covered by unit tests
+setupHttpInterceptors(axios, router, message => ElementUI.Message.error(message))
 
 /* eslint-disable no-new */
 new Vue({

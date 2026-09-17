@@ -1,7 +1,7 @@
 # Use of this source code is governed by a BSD-style license
 
 # ============================================================================
-# 单 Dockerfile 全自动构建(多阶段):UI(node:23) → Maven 打包(temurin 25) → 运行时(temurin 25 JRE)
+# 单 Dockerfile 全自动构建(多阶段):UI(node:24) → Maven 打包(temurin 25) → 运行时(temurin 25 JRE)
 # 产物与 build.sh / docker-maven-build.sh / build_and_push_image.sh 一致,两条链路并行可用。
 #
 # 用法(在仓库根目录):
@@ -19,9 +19,9 @@
 # npmmirror / 阿里云镜像下载 npm 与 Maven 依赖,之后由层缓存与 cache mount 加速。
 # ============================================================================
 
-# ---- Stage 1: 构建内置管理端 UI(Vue2 + webpack5,与 build-ui.sh 同为 node:23) ----
+# ---- Stage 1: 构建内置管理端 UI(Vue2 + webpack5,与 build-ui.sh 同为 node:24) ----
 # 基镜像钉 digest（tag 可被上游覆盖，digest 不可变）；升级基镜像时须同步刷新
-FROM node:23-alpine@sha256:a34e14ef1df25b58258956049ab5a71ea7f0d498e41d0b514f4b8de09af09456 AS ui
+FROM node:24-alpine@sha256:a34e14ef1df25b58258956049ab5a71ea7f0d498e41d0b514f4b8de09af09456 AS ui
 WORKDIR /opt/app
 # 拷贝整个仓库(与 build-ui.sh 挂载仓库根一致):webpack 的 @extension 别名会探测
 # 仓库根下 datapoly-extension/front/src,缺省回退 stub;仅生产构建,debug 变体仍走 build-ui.sh

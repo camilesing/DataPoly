@@ -32,7 +32,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
 fi
 
 # 先装配宿主扩展（build-extension.sh：环境变量门控，未配置且无本地目录时无操作），
-# 再构建内置 UI 产物（node:23-alpine 容器），最后 mvn 打包；mvn 本身不触发前端构建。
+# 再构建内置 UI 产物（node:24-alpine 容器），最后 mvn 打包；mvn 本身不触发前端构建。
 # 传 "debug" 可构建 devtools 可用的调试版 UI（透传给 build-ui.sh），仅限本机联调。
 sh "$(dirname "$0")/build-extension.sh"
 sh "$(dirname "$0")/build-ui.sh" "$1"
