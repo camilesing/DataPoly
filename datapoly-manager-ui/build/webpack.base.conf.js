@@ -36,9 +36,11 @@ module.exports = {
   resolve: {
     extensions: ['.js', '.vue', '.json'],
     // webpack 5 dropped the automatic node polyfills this app relied on through
-    // urlencode -> iconv-lite; buffer is the only one actually needed
+    // urlencode -> iconv-lite; buffer and string_decoder are the ones actually needed
+    // (iconv-lite >=0.5 additionally pulls string_decoder for its codecs)
     fallback: {
-      buffer: require.resolve('buffer/')
+      buffer: require.resolve('buffer/'),
+      'string_decoder': require.resolve('string_decoder/')
     },
     // Extension sources sit outside the manager-ui tree, so its npm imports cannot
     // rely on the classic upward node_modules lookup. Its own node_modules (if any, the

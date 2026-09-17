@@ -1,4 +1,5 @@
 import Axios from 'axios';
+import { setHeader } from './http.js';
 
 var root = process.env.API_ROOT || '';
 const axios = Axios.create();
@@ -21,7 +22,7 @@ axios.interceptors.request.use((config) => {
   }
   // Send language header for backend i18n
   const locale = localStorage.getItem('locale') || 'zh-CN';
-  config.headers['Accept-Language'] = locale;
+  setHeader(config, 'Accept-Language', locale);
   return config;
 });
 

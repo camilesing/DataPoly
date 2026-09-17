@@ -13,7 +13,7 @@
   **maven**:>=3.6
 
   **Docker**（或本机 Node）：`build.sh` / `docker-maven-build.sh` 会用 Docker 构建内置管理端 UI
-  （`datapoly-manager-ui`，Vue 2 + webpack 5 工程，经 `node:23-alpine` 容器构建，Node 23 实测可构建）。
+  （`datapoly-manager-ui`，Vue 2 + webpack 5 工程，经 `node:24-alpine` 容器构建，Node 24 实测可构建）。
   UI 产物不随仓库提交，打包前由脚本自动生成。
 
 > Maven 仓库默认在国外， 国内使用难免很慢，可以更换为阿里云的仓库。
