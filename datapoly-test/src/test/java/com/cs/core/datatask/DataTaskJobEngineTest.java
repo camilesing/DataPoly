@@ -3,6 +3,8 @@ package com.cs.core.datatask;
 
 import com.cs.common.datatask.ColumnMetadata;
 import com.cs.common.datatask.DataTaskSink;
+import com.cs.common.datatask.DataTaskStatementRequest;
+import com.cs.common.datatask.DataTaskStatementSink;
 import com.cs.common.datatask.SinkOutcome;
 import com.cs.common.datatask.SinkRequest;
 import com.cs.common.datatask.SinkSession;
@@ -74,12 +76,47 @@ public class DataTaskJobEngineTest {
         }
     }
 
+    /** Same registration type as {@link StubSink}: one sink, two delivery modes. */
+    private static class StubStatementSink extends StubSink implements DataTaskStatementSink {
+        final List<DataTaskStatementRequest> executed = new ArrayList<>();
+        boolean handles = true;
+        boolean throwOnExecute;
+        boolean cancelledAtSubmission;
+        Runnable duringExecution;
+
+        @Override
+        public boolean handlesStatement(DataTaskStatementRequest request) {
+            // mirrors the real contract: only queries can be wrapped by a server-side export
+            return handles && request.isQuery();
+        }
+
+        @Override
+        public SinkOutcome executeStatement(DataTaskStatementRequest request) throws Exception {
+            executed.add(request);
+            cancelledAtSubmission = request.getCancelled().getAsBoolean();
+            if (cancelledAtSubmission) {
+                // mirrors a well-behaved server-side sink: never submit once the job asks out
+                throw new IllegalStateException("cancelled before submission");
+            }
+            if (null != duringExecution) {
+                duringExecution.run();
+            }
+            if (throwOnExecute) {
+                throw new IllegalStateException("unload rejected by MaxCompute");
+            }
+            Map<String, Object> info = new LinkedHashMap<>();
+            info.put("location", ARTIFACT_LOCATION);
+            return SinkOutcome.builder().artifactUri(ARTIFACT_LOCATION).info(info).build();
+        }
+    }
+
     private static class RecordingJobDao extends com.cs.persistence.dao.DataTaskJobDao {
         DataTaskJobEntity current;
         Long successRows;
         String successUri;
         String successInfoJson;
         String failureMessage;
+        int heartbeats;
 
         @Override
         public DataTaskJobEntity getById(Long id) {
@@ -88,6 +125,7 @@ public class DataTaskJobEngineTest {
 
         @Override
         public boolean heartbeat(Long id, long totalRows, java.sql.Timestamp leaseExpireAt) {
+            heartbeats++;
             current.setTotalRows(totalRows);
             return true;
         }
@@ -149,8 +187,11 @@ public class DataTaskJobEngineTest {
 
     // ------------------------------------------------------------------ state
 
+    private static final String ARTIFACT_LOCATION = "oss://oss-cn-hangzhou-internal.aliyuncs.com/reports/orders/";
+
     private int cannedRows;
     private boolean cannedTruncated;
+    private boolean rowPipelineRan;
     private List<DataTaskEvent> events = new ArrayList<>();
 
     // ------------------------------------------------------------------ helpers
@@ -190,7 +231,7 @@ public class DataTaskJobEngineTest {
     }
 
     /** Overridden streamQuery plays the JDBC layer role with canned batches/results. */
-    private DataTaskJobEngine engine(RecordingJobDao jobDao, StubSink sink, final ChannelScript script) {
+    private DataTaskJobEngine engine(RecordingJobDao jobDao, DataTaskSink sink, final ChannelScript script) {
         DataTaskJobEngine engineInstance = new DataTaskJobEngine() {
             @Override
             protected HikariDataSource loadDataSource(DataSourceEntity dsEntity) {
@@ -199,6 +240,7 @@ public class DataTaskJobEngineTest {
 
             @Override
             protected StreamResult streamQuery(StreamSpec spec, ResultChannel channel) throws Exception {
+                rowPipelineRan = true;
                 script.drive(channel);
                 return StreamResult.rows(cannedRows, cannedTruncated);
             }
@@ -211,6 +253,38 @@ public class DataTaskJobEngineTest {
         DataTaskTestSupport.setField(engineInstance, "eventPublisher", collector);
         events = collector.events;
         return engineInstance;
+    }
+
+    /** Definition authored for server-side delivery: one query, ${} inlined parameters. */
+    private DataTaskDefEntity statementDefinition() {
+        DataTaskDefEntity def = DataTaskDefEntity.builder()
+                .name("odps-export")
+                .datasourceId(3L)
+                .sqlText("SELECT shop_name FROM sale_detail WHERE sale_date = '${sale_date}'")
+                .namingStrategy(NamingStrategyEnum.NONE)
+                .dollarAllowed(Boolean.TRUE)
+                .maxRows(100L)
+                .sinkType("stub")
+                .sinkConfig("{\"format\":\"PARQUET\"}")
+                .enabled(Boolean.TRUE)
+                .build();
+        def.setResponseFormat(Collections.emptyMap());
+        return def;
+    }
+
+    private DataTaskJobEntity statementJob(DataTaskDefEntity def) {
+        DataTaskJobEntity job = jobFor(def);
+        job.setParamsJson("{\"sale_date\":\"2013\"}");
+        return job;
+    }
+
+    private static ChannelScript mustNotStream() {
+        return new ChannelScript() {
+            @Override
+            public void drive(DataTaskJobEngine.ResultChannel channel) {
+                Assert.fail("the row pipeline must not run for a delegated statement");
+            }
+        };
     }
 
     // ------------------------------------------------------------------ cases
@@ -354,5 +428,183 @@ public class DataTaskJobEngineTest {
         Assert.assertEquals(Long.valueOf(5), jobDao.successRows);
         Assert.assertNotNull(jobDao.successInfoJson);
         Assert.assertTrue(jobDao.successInfoJson.contains("\"truncated\":true"));
+    }
+
+    // -------------------------------------------------- delegated (statement) delivery
+
+    @Test
+    public void delegatedStatementSkipsTheRowPipelineAndRecordsItsOutcome() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = statementJob(statementDefinition());
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, mustNotStream());
+
+        localEngine.run(77L);
+
+        Assert.assertFalse(rowPipelineRan);
+        Assert.assertTrue(sink.sessions.isEmpty());
+        Assert.assertEquals(1, sink.executed.size());
+        DataTaskStatementRequest request = sink.executed.get(0);
+        Assert.assertEquals(Long.valueOf(77L), request.getJobId());
+        Assert.assertEquals("odps-export", request.getTaskName());
+        Assert.assertEquals("stub", request.getSinkType());
+        Assert.assertEquals("{\"format\":\"PARQUET\"}", request.getSinkConfig());
+        // ${} inlining leaves a complete statement: no placeholders for the engine to bind
+        Assert.assertEquals("SELECT shop_name FROM sale_detail WHERE sale_date = '2013'", request.getSql());
+        Assert.assertTrue(request.getSqlParameters().isEmpty());
+        Assert.assertEquals("2013", request.getParams().get("sale_date"));
+        Assert.assertEquals(Long.valueOf(3L), request.getDatasourceId());
+        Assert.assertEquals(ProductTypeEnum.MYSQL, request.getProduct());
+        Assert.assertNotNull(request.getDataSource());
+        Assert.assertEquals("tester", request.getSubmittedBy());
+        Assert.assertTrue("a SELECT is a query the sink may export server-side", request.isQuery());
+        // the cancel probe is read while the job is still RUNNING
+        Assert.assertFalse(sink.cancelledAtSubmission);
+
+        Assert.assertEquals(Long.valueOf(0L), jobDao.successRows);
+        Assert.assertEquals(ARTIFACT_LOCATION, jobDao.successUri);
+        Assert.assertTrue(jobDao.successInfoJson.contains("\"statementDelegated\":true"));
+        Assert.assertTrue(jobDao.successInfoJson.contains("\"sinkType\":\"stub\""));
+
+        Assert.assertEquals(1, events.size());
+        Assert.assertEquals(DataTaskStatus.SUCCESS, events.get(0).getStatus());
+        Assert.assertEquals(ARTIFACT_LOCATION, events.get(0).getArtifactUri());
+    }
+
+    @Test
+    public void statementSinkDecliningKeepsTheDefinitionOnTheRowPipeline() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        sink.handles = false;
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = statementJob(statementDefinition());
+
+        cannedRows = 1;
+        DataTaskJobEngine localEngine = engine(jobDao, sink, new ChannelScript() {
+            @Override
+            public void drive(DataTaskJobEngine.ResultChannel channel) throws Exception {
+                channel.start(new ArrayList<>(Arrays.asList("shop_name")),
+                        Collections.<ColumnMetadata>emptyList());
+                List<Object[]> batch = new ArrayList<>();
+                batch.add(new Object[]{"s1"});
+                channel.batch(batch);
+            }
+        });
+
+        localEngine.run(77L);
+
+        Assert.assertTrue(rowPipelineRan);
+        Assert.assertTrue(sink.executed.isEmpty());
+        Assert.assertEquals(1, sink.sessions.size());
+        Assert.assertTrue(sink.sessions.get(0).completed);
+        Assert.assertEquals(Long.valueOf(1L), jobDao.successRows);
+    }
+
+    @Test
+    public void nonQueryDefinitionsStayOnThePathTheyHadBefore() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        DataTaskDefEntity def = statementDefinition();
+        // DML/DDL cannot be wrapped by a server-side export command
+        def.setSqlText("DELETE FROM sale_detail WHERE sale_date = '${sale_date}'");
+        jobDao.current = statementJob(def);
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, new ChannelScript() {
+            @Override
+            public void drive(DataTaskJobEngine.ResultChannel channel) throws Exception {
+                channel.start(new ArrayList<>(Arrays.asList("cnt")),
+                        Collections.<ColumnMetadata>emptyList());
+            }
+        });
+
+        localEngine.run(77L);
+
+        Assert.assertTrue(rowPipelineRan);
+        Assert.assertTrue(sink.executed.isEmpty());
+        Assert.assertEquals("stub://artifact", jobDao.successUri);
+        Assert.assertEquals(DataTaskStatus.SUCCESS, events.get(0).getStatus());
+    }
+
+    @Test
+    public void delegatedStatementFailureMarksTheJobFailed() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        sink.throwOnExecute = true;
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = statementJob(statementDefinition());
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, mustNotStream());
+
+        localEngine.run(77L);
+
+        Assert.assertTrue(String.valueOf(jobDao.failureMessage).contains("unload rejected"));
+        Assert.assertNull(jobDao.successUri);
+        Assert.assertEquals(1, events.size());
+        Assert.assertEquals(DataTaskStatus.FAILED, events.get(0).getStatus());
+    }
+
+    @Test
+    public void cancelRequestedBeforeSubmissionMarksTheDelegatedJobCanceled() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = statementJob(statementDefinition());
+        jobDao.current.setCancelRequested(Boolean.TRUE); // cooperatively flagged beforehand
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, mustNotStream());
+
+        localEngine.run(77L);
+
+        Assert.assertTrue(sink.cancelledAtSubmission);
+        Assert.assertNull(jobDao.successUri);
+        Assert.assertEquals(1, events.size());
+        Assert.assertEquals(DataTaskStatus.CANCELED, events.get(0).getStatus());
+    }
+
+    @Test
+    public void lateCancelKeepsTheArtifactAndIsRecordedOnIt() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = statementJob(statementDefinition());
+        // the export is already accepted by the source engine when the cancel arrives
+        sink.duringExecution = new Runnable() {
+            @Override
+            public void run() {
+                jobDao.current.setCancelRequested(Boolean.TRUE);
+            }
+        };
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, mustNotStream());
+
+        localEngine.run(77L);
+
+        Assert.assertEquals(ARTIFACT_LOCATION, jobDao.successUri);
+        Assert.assertTrue(jobDao.successInfoJson.contains("\"cancelRequested\":true"));
+        Assert.assertEquals(1, events.size());
+        Assert.assertEquals(DataTaskStatus.SUCCESS, events.get(0).getStatus());
+    }
+
+    @Test
+    public void delegatedStatementKeepsItsLeaseAliveWhileItBlocks() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        sink.duringExecution = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(2500L);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = statementJob(statementDefinition());
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, mustNotStream());
+
+        localEngine.run(77L);
+
+        // without the keeper the lease would expire mid-export and the reaper would fail the job
+        Assert.assertTrue("expected periodic lease refreshes, saw " + jobDao.heartbeats,
+                jobDao.heartbeats >= 2);
+        Assert.assertEquals(DataTaskStatus.SUCCESS, events.get(0).getStatus());
     }
 }

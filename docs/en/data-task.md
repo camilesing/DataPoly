@@ -279,6 +279,59 @@ Two auxiliary extension points:
   Listen for it in the host application to wire WebSocket/SSE/webhooks; the default interaction remains frontend
   polling of `/job/{id}`.
 
+### Statement sinks (server-side exports)
+
+Some deliveries should never be produced by this process at all: a warehouse's own export command (MaxCompute's
+`UNLOAD ... INTO LOCATION 'oss://...'`) writes the data into object storage inside the source engine, so a whole
+table never has to travel through the executor. Implement the optional interface
+`com.cs.common.datatask.DataTaskStatementSink` for those:
+
+```java
+public interface DataTaskStatementSink extends DataTaskSink {
+
+    @Override
+    default SinkSession openSession(SinkRequest request) {   // no session on this path
+        throw new UnsupportedOperationException(type() + ": driven through executeStatement");
+    }
+
+    /** Claim this definition, or leave it on the row pipeline */
+    boolean handlesStatement(DataTaskStatementRequest request);
+
+    SinkOutcome executeStatement(DataTaskStatementRequest request) throws Exception;
+}
+```
+
+`handlesStatement` is consulted once per job, after the template is rendered and before any JDBC work (no
+connection exists yet, so the decision must be cheap). Returning `true` makes the engine **skip the entire row
+pipeline** — no session, no result set, no row limit or column reshaping — and call `executeStatement` instead,
+merging the returned `artifactUri`/`info` into the job record exactly like any other sink outcome. Returning
+`false` keeps the ordinary path, so one sink can serve both modes (see the extension module's `oss` delivery,
+which switches on the datasource type).
+
+`DataTaskStatementRequest` carries `jobId / taskName / sinkType / sinkConfig / sql` (already rendered) /
+`sqlParameters` (the `#{}` bind values; a non-empty list means the statement cannot be handed over wholesale and
+has to be rewritten with `${}` inlining) / `query` (whether the rendered statement is a query — `SELECT`/`WITH`
+after leading whitespace, parens and comments) / `params` (raw boundary values, for diagnostics) /
+`datasourceId / product / dataSource` (the definition's pooled datasource, shared with the synchronous API path) /
+`submittedBy` / `cancelled` (the same cooperative-cancel predicate the row pipeline uses).
+
+Server-side export commands usually accept **queries only** (`UNLOAD FROM (<sql>)` does), so
+`handlesStatement` should include `isQuery()` in its decision: DML, DDL and definitions that already spell out a
+full export command then stay on the execution they had before, instead of changing behaviour because this path
+was introduced.
+
+Two behaviours differ from the row pipeline and implementations must know them:
+
+- **Lease**: while the statement blocks, a background keeper in the engine refreshes the job lease every
+  `lease-seconds/3`, so a server-side export may run for tens of minutes without the reaper failing it — but
+  `totalRows` stays 0, since there is no row stream to count.
+- **Cancellation**: the probe can only stop a statement *before* submission. Once the source engine accepted it
+  (an UNLOAD already submitted), MaxCompute finishes writing the files regardless; the job is still marked
+  SUCCESS with `artifactInfo.cancelRequested=true` so that files in the object store never end up without a
+  recorded artifact. Deliveries needing true mid-flight cancellation should not take this path.
+
+Cleanup on failure is the implementation's responsibility — there is no session to `abort`.
+
 ## 6. Worker configuration reference
 
 Executor-side prefix `datapoly.data-task.*` (every key can be overridden with a `DATAPOLY_DATA_TASK_*` environment
