@@ -30,4 +30,7 @@ public class AccessToken implements Serializable {
 
     @Schema(description = "有效期(时间段，单位:秒)")
     private Long expireSeconds;
+
+    @Schema(description = "角色(ADMIN/USER)")
+    private String role;
 }
