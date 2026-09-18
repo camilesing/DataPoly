@@ -3,38 +3,38 @@
 package com.cs.core.dto;
 
 import com.cs.common.enums.NodeStatusEnum;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ApiModel("拓扑节点信息")
+@Schema(description = "拓扑节点信息")
 public class TopologyNodeResponse {
 
-    @ApiModelProperty("服务ID")
+    @Schema(description = "服务ID")
     private String serviceId;
 
-    @ApiModelProperty("实例ID")
+    @Schema(description = "实例ID")
     private String instanceId;
 
-    @ApiModelProperty("主机地址")
+    @Schema(description = "主机地址")
     private String host;
 
-    @ApiModelProperty("端口号")
+    @Schema(description = "端口号")
     private Integer port;
 
 
-    @ApiModelProperty("内存使用")
+    @Schema(description = "内存使用")
     private Integer memory;
 
-    @ApiModelProperty("CPU使用")
+    @Schema(description = "CPU使用")
     private Integer cpu;
 
-    @ApiModelProperty("存储使用")
+    @Schema(description = "存储使用")
     private Integer disk;
 
-    @ApiModelProperty("节点状态")
+    @Schema(description = "节点状态")
     private NodeStatusEnum status;
 }

@@ -3,39 +3,39 @@
 package com.cs.core.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.sql.Timestamp;
 
 @Data
 @NoArgsConstructor
-@ApiModel("系统用户")
+@Schema(description = "系统用户")
 public class SystemUserDetailResponse {
 
-    @ApiModelProperty("ID编号")
+    @Schema(description = "ID编号")
     private Long id;
 
-    @ApiModelProperty("登陆名")
+    @Schema(description = "登陆名")
     private String username;
 
-    @ApiModelProperty("实际名")
+    @Schema(description = "实际名")
     private String realName;
 
-    @ApiModelProperty("电子邮箱")
+    @Schema(description = "电子邮箱")
     private String email;
 
-    @ApiModelProperty("地址")
+    @Schema(description = "地址")
     private String address;
 
-    @ApiModelProperty("是否锁定")
+    @Schema(description = "是否锁定")
     private Boolean locked;
 
-    @ApiModelProperty("创建时间")
+    @Schema(description = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Timestamp createTime;
 
-    @ApiModelProperty("更新时间")
+    @Schema(description = "更新时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Timestamp updateTime;
 

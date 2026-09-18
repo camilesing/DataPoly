@@ -108,9 +108,3 @@ management:
     web:
       exposure:
         include: health,info
-
-# 网关无 swagger 端点（/apidoc/** 由路由转发给 executor）；整体关闭 springfox，
-# 避免 Boot 2.6+ PathPattern 与 springfox 3.0 webflux 扫描的兼容性问题
-springfox:
-  documentation:
-    enabled: false

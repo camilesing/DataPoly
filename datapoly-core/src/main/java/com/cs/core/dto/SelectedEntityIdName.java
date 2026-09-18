@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.dto;
 
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 @Data
@@ -11,12 +11,12 @@ import lombok.*;
 @AllArgsConstructor
 public class SelectedEntityIdName {
 
-    @ApiModelProperty("ID编号")
+    @Schema(description = "ID编号")
     private Long id;
 
-    @ApiModelProperty("名称")
+    @Schema(description = "名称")
     private String name;
 
-    @ApiModelProperty("是否选中")
+    @Schema(description = "是否选中")
     private Boolean selected;
 }

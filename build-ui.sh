@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # 构建内置管理端 UI 并同步进 manager resources（构建产物不入库，见 .gitignore 与 AGENTS.md）。
-# 前端为 Vue2 + webpack5，经 node:23-alpine 容器构建（本机无需 Node；镜像钉 digest 防上游漂移）。
+# 前端为 Vue2 + webpack5，经 node:24-alpine 容器构建（本机无需 Node；镜像钉 digest 防上游漂移）。
 # build.sh 与 docker-maven-build.sh 会在 mvn 打包前调用本脚本；纯 mvn package 的 jar 不含 UI。
 # 用法：./build-ui.sh [debug]
 #   debug —— DATAPOLY_UI_ENV=debug：NODE_ENV 保持 development，Vue 保留 devtools 钩子，
@@ -29,7 +29,7 @@ docker run --rm \
   -e DATAPOLY_UI_ENV="$UI_ENV" \
   -v "$PWD":/opt/app \
   -w /opt/app/datapoly-manager-ui \
-  node:23-alpine@sha256:a34e14ef1df25b58258956049ab5a71ea7f0d498e41d0b514f4b8de09af09456 \
+  node:24-alpine@sha256:a34e14ef1df25b58258956049ab5a71ea7f0d498e41d0b514f4b8de09af09456 \
   sh -c "npm config set registry https://registry.npmmirror.com && \
          npm install --no-audit --no-fund --no-package-lock --legacy-peer-deps && \
          $BUILD_CMD"

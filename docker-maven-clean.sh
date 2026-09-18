@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# maven:3.6.3-jdk-8 只有 amd64 镜像，Apple Silicon 上无法运行；
-# 改用基于 Eclipse Temurin 8 的镜像（同为 JDK 8，与 CI 的 temurin 8 对齐，且支持 arm64）
+# 构建基线为 JDK 25（LTS，与 CI 的 temurin 25 对齐），镜像支持 arm64
 set -e
 
 docker run -it --rm \
@@ -10,6 +9,6 @@ docker run -it --rm \
 	-v "$PWD":/usr/src/mymaven \
 	-w /usr/src/mymaven \
 	--entrypoint /usr/share/maven/bin/mvn \
-  maven:3.9-eclipse-temurin-8 \
+  maven:3.9-eclipse-temurin-25 \
   -s /usr/src/mymaven/docker-maven-settings.xml clean
 

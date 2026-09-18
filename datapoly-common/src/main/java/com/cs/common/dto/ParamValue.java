@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.common.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.util.List;
@@ -10,16 +10,16 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel("参数信息")
+@Schema(description = "参数信息")
 public class ParamValue extends BaseParam {
 
-    @ApiModelProperty("Object类型的子元素及值")
+    @Schema(description = "Object类型的子元素及值")
     private List<BaseParamValue> children;
 
-    @ApiModelProperty("非数组参数值")
+    @Schema(description = "非数组参数值")
     private String value;
 
-    @ApiModelProperty("数组参数值")
+    @Schema(description = "数组参数值")
     private List<String> arrayValues;
 
     @Data

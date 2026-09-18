@@ -6,13 +6,13 @@ import com.cs.common.consts.Constants;
 import com.cs.common.dto.ResultEntity;
 import com.cs.core.dto.TopologyNodeResponse;
 import com.cs.manager.service.NodeService;
-import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
-@Api(tags = {"节点信息接口"})
+@Tag(name = "节点信息接口")
 @RestController
 @RequestMapping(value = Constants.MANAGER_API_V1 + "/node")
 public class NodeController {

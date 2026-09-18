@@ -8,13 +8,13 @@ This tool is developed in pure Java, with all dependencies from open-source proj
 
 - Requirements:
 
-  **JDK**: >=1.8 (JDK 1.8 recommended)
+  **JDK**: >=25 (JDK 25 LTS recommended)
 
   **Maven**: >=3.6
 
   **Docker** (or a local Node): `build.sh` / `docker-maven-build.sh` use Docker to build the built-in UI
-  (`datapoly-manager-ui`, a Vue 2 + webpack 5 project built in a `node:23-alpine` container; the build is
-  verified on Node 23). UI assets are build artifacts and are not committed to git.
+  (`datapoly-manager-ui`, a Vue 2 + webpack 5 project built in a `node:24-alpine` container; the build is
+  verified on Node 24). UI assets are build artifacts and are not committed to git.
 
 > The Maven repository is hosted overseas by default, which can be slow in China. You can switch to the Alibaba Cloud
 > mirror.
@@ -65,7 +65,7 @@ export DATAPOLY_EXTENSION_GIT_URL=<extension-repository-url>   # git-clone-able 
 export DATAPOLY_EXTENSION_GIT_REF=master                       # branch/tag, defaults to master
 # -- or skip the env vars and clone the repository under datapoly-extension/ by hand once
 
-# Assemble extensions only: build backend modules (host JDK 8 preferred, 8+ works too, compile target 1.8)
+# Assemble extensions only: build backend modules (host JDK 25 required, below 25 not supported, compile target 25)
 # and drop the jars into lib-extra/
 sh build-extension.sh
 

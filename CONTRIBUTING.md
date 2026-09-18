@@ -6,7 +6,7 @@ Thanks for your interest in contributing!
 
 1. Fork the repository and create your branch from `main`.
 2. Set up the environment:
-   - JDK 8 (the project targets Java 8)
+   - JDK 25 (the project targets Java 25, LTS line)
    - Maven 3.6+
    - Docker (for the database containers and the front-end build)
 
@@ -21,15 +21,15 @@ mvn -B -ntp test -pl datapoly-common,datapoly-template,datapoly-core,datapoly-ex
 ## Front-end (built-in manager UI)
 
 The built-in UI (`datapoly-manager-ui`) is a Vue 2 project built with a
-webpack 5 toolchain. The canonical toolchain is the pinned `node:23-alpine`
-container (the production build is verified on Node 23), so build it with
+webpack 5 toolchain. The canonical toolchain is the pinned `node:24-alpine`
+container (the production build is verified on Node 24), so build it with
 the provided script (works on any host with Docker, no local Node required):
 
 ```bash
 sh ./build-ui.sh
 ```
 
-This builds the UI inside a `node:23-alpine` container and syncs
+This builds the UI inside a `node:24-alpine` container and syncs
 `dist/index.html` + `dist/static/` into `datapoly-manager/src/main/resources/`
 (wiping the previous copies first so stale hashed files do not linger).
 
@@ -44,7 +44,7 @@ To rebuild the UI without the wrapper script (for UI-only development), the
 raw container command is:
 
 ```bash
-docker run --rm -v $PWD/datapoly-manager-ui:/app -w /app node:23-alpine \
+docker run --rm -v $PWD/datapoly-manager-ui:/app -w /app node:24-alpine \
   sh -c "npm config set registry https://registry.npmmirror.com && \
          npm install --no-audit --no-fund --no-package-lock --legacy-peer-deps && \
          npm run build"
@@ -55,7 +55,7 @@ If you build this way, copy `dist/index.html` and `dist/static/` into
 
 ## Local smoke testing
 
-The `.devcontainer/` directory contains a dev container (JDK 8 + Maven,
+The `.devcontainer/` directory contains a dev container (JDK 25 + Maven,
 MySQL 8, PostgreSQL 14) for end-to-end smoke tests:
 
 ```bash

@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@ApiModel("带ID的名称")
+@Schema(description = "带ID的名称")
 public class EntityIdNameResponse {
 
-    @ApiModelProperty("ID编号")
+    @Schema(description = "ID编号")
     private Long id;
 
-    @ApiModelProperty("名称")
+    @Schema(description = "名称")
     private String name;
 }

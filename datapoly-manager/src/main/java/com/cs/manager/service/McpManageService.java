@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -92,15 +92,24 @@ public class McpManageService {
                         Constants.DEFAULT_SSE_ENDPOINT, tokenParamName))
                 .streamAddrPrefix(String.format("%s%s?%s=", managerAddress,
                         Constants.DEFAULT_STREAM_ENDPOINT, tokenParamName))
+                .adminSseAddrPrefix(String.format("%s%s?%s=", managerAddress,
+                        Constants.ADMIN_SSE_ENDPOINT, tokenParamName))
+                .adminStreamAddrPrefix(String.format("%s%s?%s=", managerAddress,
+                        Constants.ADMIN_STREAM_ENDPOINT, tokenParamName))
                 .build();
     }
 
     public void createClient(String name) {
+        createClient(name, false);
+    }
+
+    public void createClient(String name, boolean manage) {
         try {
             mcpClientDao.insert(
                     McpClientEntity.builder()
                             .name(name)
                             .token(TokenUtils.generateValue())
+                            .manage(manage)
                             .build()
             );
         } catch (DuplicateKeyException e) {
@@ -109,11 +118,18 @@ public class McpManageService {
     }
 
     public void updateClient(Long id, String newName) {
+        updateClient(id, newName, null);
+    }
+
+    public void updateClient(Long id, String newName, Boolean manage) {
         McpClientEntity clientEntity = mcpClientDao.getById(id);
         if (null == clientEntity) {
             throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "common.id.not.found", id);
         }
         clientEntity.setName(newName);
+        if (null != manage) {
+            clientEntity.setManage(manage);
+        }
         try {
             mcpClientDao.updateById(clientEntity);
         } catch (DuplicateKeyException e) {

@@ -48,6 +48,11 @@ public abstract class Constants {
     public static final String MESSAGE_ENDPOINT = "/mcp/message";
     public static final String MCP_SERVER_NAME = "datapoly-mcp-server";
 
+    public static final String ADMIN_STREAM_ENDPOINT = "/mcp/admin";
+    public static final String ADMIN_SSE_ENDPOINT = "/mcp/admin/sse";
+    public static final String ADMIN_MESSAGE_ENDPOINT = "/mcp/admin/message";
+    public static final String MCP_ADMIN_SERVER_NAME = "datapoly-mcp-admin-server";
+
     public static final String getResourceName(String method, String path) {
         return String.format("/%s/%s[%s]", Constants.API_PATH_PREFIX, path, method);
     }

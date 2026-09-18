@@ -8,7 +8,7 @@ import com.cs.persistence.dao.SystemParamDao;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 @Configuration
 public class ExecutorWebConfig implements WebMvcConfigurer {
