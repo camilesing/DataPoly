@@ -9,9 +9,9 @@ import io.modelcontextprotocol.spec.*;
 import org.slf4j.*;
 import reactor.core.publisher.*;
 
-import javax.servlet.*;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.*;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
 import java.io.*;
 import java.time.Duration;
 import java.util.*;

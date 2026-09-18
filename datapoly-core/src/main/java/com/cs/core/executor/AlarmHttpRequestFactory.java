@@ -3,15 +3,17 @@
 package com.cs.core.executor;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.*;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
 /**
  * HTTP client for the alarm webhook. Uses the JVM default TLS trust store and hostname
  * verification — alarm payloads carry business data and must not be interceptable via a
- * trust-all socket factory.
+ * trust-all socket factory. Built on Apache HttpClient 5 (Spring 6 requires client5).
  */
 @Slf4j
 public class AlarmHttpRequestFactory extends HttpComponentsClientHttpRequestFactory {
@@ -28,17 +30,17 @@ public class AlarmHttpRequestFactory extends HttpComponentsClientHttpRequestFact
     }
 
     private void init() {
-        PoolingHttpClientConnectionManager manager = new PoolingHttpClientConnectionManager();
-        manager.setMaxTotal(maxConnectionSize);
-        manager.setDefaultMaxPerRoute(maxPerRoute);
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(Timeout.ofMilliseconds(connectTimeout))
+                .setResponseTimeout(Timeout.ofMilliseconds(socketTimeout))
+                .setConnectionRequestTimeout(Timeout.ofMilliseconds(connectionRequestTimeout))
+                .build();
         CloseableHttpClient httpClient = HttpClients.custom()
-                .setConnectionManager(manager)
-                .setDefaultRequestConfig(
-                        RequestConfig.custom()
-                                .setConnectTimeout(connectTimeout)
-                                .setSocketTimeout(socketTimeout)
-                                .setConnectionRequestTimeout(connectionRequestTimeout)
-                                .build())
+                .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(maxConnectionSize)
+                        .setMaxConnPerRoute(maxPerRoute)
+                        .build())
+                .setDefaultRequestConfig(requestConfig)
                 .build();
         setHttpClient(httpClient);
     }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -10,12 +10,12 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@ApiModel("枚举键值")
+@Schema(description = "枚举键值")
 public class NameValueBaseResponse {
 
-    @ApiModelProperty("枚举至")
+    @Schema(description = "枚举至")
     private String key;
 
-    @ApiModelProperty("说明")
+    @Schema(description = "说明")
     private String value;
 }

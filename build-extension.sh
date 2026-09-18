@@ -8,7 +8,8 @@
 #   DATAPOLY_EXTENSION_GIT_REF      拉取的 ref（分支/标签），默认 master
 #   DATAPOLY_EXTENSION_FORCE_SYNC=1 目录已存在时强制 fetch+reset 到 REF（丢弃本地未提交改动，慎用）
 #
-# 后端模块构建沿用 dev-local/dev.sh 原约定：宿主机 JDK 8 优先、无 8 时允许 8 以上（编译目标钉在 1.8）、扩展模块不进根 reactor、
+# 后端模块构建：宿主机 JDK 25 优先（与 CI 的 temurin 25 对齐）、无 25 时允许 25 以上（编译目标钉在 25，
+# 低于 25 无法编译，构建中止）、扩展模块不进根 reactor、
 # 依赖经 <relativePath> 解析根 pom、产物投放 lib-extra/ 后由 package.xml 打进 lib/common。
 # 参数：--skip-tests 用 -DskipTests 替代默认 -Dmaven.test.skip=true（仅作用于扩展侧构建）。
 
@@ -65,22 +66,21 @@ if [ "$(wc -l < "$POM_LIST")" -eq 0 ]; then
     exit 0
 fi
 
-# ---------- ③ 宿主机 JDK：优先 JDK 8（与 CI 的 temurin 8 对齐）；扩展模块编译目标为 1.8
-#     （根 pom maven.compiler.source/target=1.8），8 以上 JDK 构建同样产出 Java 8 字节码，
-#     故不再硬性断言 8——仅当完全无可用 JDK 时才中止 ----------
+# ---------- ③ 宿主机 JDK：优先 JDK 25（与 CI 的 temurin 25 对齐）；扩展模块编译目标为 25
+#     （根 pom maven.compiler.release=25），低于 25 无法编译、25 以上亦可 ----------
 jdkmajor() {
     "$1/bin/java" -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | sed 's/^1$/8/'
 }
 if [ "$(uname -s)" = "Darwin" ]; then
-    java_home_8=""
+    java_home_25=""
     if [ -x /usr/libexec/java_home ]; then
-        java_home_8=$(/usr/libexec/java_home -v 8 2>/dev/null || true)
+        java_home_25=$(/usr/libexec/java_home -v 25 2>/dev/null || true)
     fi
     for candidate in \
         "${JAVA_HOME:-}" \
-        /opt/homebrew/opt/openjdk@8/libexec/openjdk.jdk/Contents/Home \
-        /usr/local/opt/openjdk@8/libexec/openjdk.jdk/Contents/Home \
-        "$java_home_8"; do
+        /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home \
+        /usr/local/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home \
+        "$java_home_25"; do
         if [ -n "$candidate" ] && [ -n "$(jdkmajor "$candidate" 2>/dev/null)" ]; then
             export JAVA_HOME="$candidate"
             break
@@ -100,8 +100,9 @@ if [ -z "${JAVA_HOME:-}" ] || [ -z "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" ]; the
     exit 1
 fi
 echo "[ext] JAVA_HOME=$JAVA_HOME"
-if [ "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" != "8" ]; then
-    echo "[ext] 当前为 JDK $(jdkmajor "$JAVA_HOME" 2>/dev/null)（非 8）：编译目标 1.8，产物仍为 Java 8 字节码（与容器内 temurin 8 一致）"
+if [ "$(jdkmajor "$JAVA_HOME" 2>/dev/null)" -lt 25 ]; then
+    echo "[ext] 当前为 JDK $(jdkmajor "$JAVA_HOME" 2>/dev/null)（低于 25）：扩展模块编译目标为 25，无法编译，请切换 JDK 25 或以上" >&2
+    exit 1
 fi
 
 HOST_VERSION=$(grep -m1 '<version>' "$ROOT/pom.xml" | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')

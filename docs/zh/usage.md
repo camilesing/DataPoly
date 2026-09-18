@@ -135,3 +135,55 @@ public class AuditPostProcessor implements com.cs.core.extension.ApiAssignmentPo
 - 钩子在 manager 请求线程**同步**执行，请保持轻量，耗时操作建议自行转异步。
 - 单个处理器抛异常只记 warn 日志，不影响管理接口响应、其余处理器与事件发布；更新在钩子触发前已提交，扩展失败不会回滚业务更新。
 - 调试上下文携带完整查询结果与执行日志，扩展 jar 属宿主信任域（与 DataTaskSink 同一信任模型），请勿转发到不受信目的地。
+
+## MCP 服务（数据工具 + 管理实体增删改查）
+
+manager 内置**两个相互独立的 MCP Server**，均通过 `?token=` 查询参数鉴权（令牌在管理页"MCP令牌"中创建，经
+`/datapoly/manager/api/v1/mcp/client/endpoint` 可查询地址前缀）：
+
+| 服务 | 端点（Streamable HTTP / SSE） | 令牌要求 | 用途 |
+| --- | --- | --- | --- |
+| 数据 MCP 服务 `datapoly-mcp-server` | `/mcp` · `/mcp/sse` | 任意 MCP 令牌 | 调用已注册的数据 API tools（查询业务数据）|
+| 管理 MCP 服务 `datapoly-mcp-admin-server` | `/mcp/admin` · `/mcp/admin/sse` | **manage 权限**令牌 | 对 DataPoly 实体做增删改查与上下线运维 |
+
+### 管理 MCP 服务（Agent 运维 DataPoly）
+
+管理服务把 manager 的实体管理 REST 能力包装为 `dp_{entity}_{action}` 命名的 tools，覆盖完整生命周期：
+数据源（列表/详情/创建/更新/删除/连通性测试/schema/表/字段元信息）、模块、授权分组、
+API 定义（列表/详情/创建/更新/删除/SQL占位符解析/发布/上线/下线/批量改组/版本查询/版本详情/回退）、
+应用客户端（创建/删除/密钥/授权分组）、MCP 配置（数据工具注册表、MCP 令牌管理）。
+
+创建 manage 令牌（等同管理员权限，谨慎授予）：
+
+```bash
+# 1. 登录取会话 token
+curl -X POST http://<manager>:8090/datapoly/manager/api/v1/user/login \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"***"}'
+# 2. 创建 manage 令牌并取明文
+curl -X POST 'http://<manager>:8090/datapoly/manager/api/v1/mcp/client/create?name=agent-admin&manage=true' \
+  -H 'Authorization: Bearer <会话token>'
+curl 'http://<manager>:8090/datapoly/manager/api/v1/mcp/client/token/<id>' -H 'Authorization: Bearer <会话token>'
+```
+
+Agent 客户端接入（以 Claude Desktop / Cline 类客户端为例）：
+
+```json
+{
+  "mcpServers": {
+    "datapoly-admin": {
+      "url": "http://<manager>:8090/mcp/admin?token=<manage令牌明文>"
+    }
+  }
+}
+```
+
+SSE 客户端使用 `http://<manager>:8090/mcp/admin/sse?token=<manage令牌明文>`。
+典型 Agent 工作流：`dp_datasource_types` → `dp_datasource_create/test` → `dp_api_parse_sql` →
+`dp_api_create` → `dp_api_publish` → `dp_api_deploy`（上线后可用 `dp_mcp_tool_create` 把 API
+注册进数据 MCP 服务供大模型调用）。
+
+安全须知：
+- manage 令牌等同管理员：可读写全部实体、读取 appSecret 与 MCP 令牌明文，请像保管管理员密码一样保管。
+- `/mcp/**`（含 admin 端点）不走管理页会话鉴权，网络暴露面与既有数据 MCP 端点一致，仅靠令牌区分权限；
+  生产环境建议仅经内网/网关侧到达 manager。
+

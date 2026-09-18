@@ -5,7 +5,7 @@ package com.cs.cache.hazelcast;
 import com.cs.cache.*;
 import com.hazelcast.core.HazelcastInstance;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 

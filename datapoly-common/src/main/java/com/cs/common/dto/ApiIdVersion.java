@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.common.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.io.Serializable;
@@ -11,15 +11,15 @@ import java.io.Serializable;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel("API的ID及版本号")
+@Schema(description = "API的ID及版本号")
 public class ApiIdVersion implements Serializable {
 
-    @ApiModelProperty("API的ID")
+    @Schema(description = "API的ID")
     private Long apiId;
 
-    @ApiModelProperty("commitId")
+    @Schema(description = "commitId")
     private Long commitId;
 
-    @ApiModelProperty("版本号")
+    @Schema(description = "版本号")
     private Integer version;
 }

@@ -4,7 +4,7 @@ package com.cs.common.dto;
 
 import com.cs.common.enums.*;
 import com.cs.common.exception.*;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import org.apache.commons.lang3.StringUtils;
 
@@ -13,10 +13,10 @@ import java.util.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel("入参信息")
+@Schema(description = "入参信息")
 public class ItemParam extends BaseParam {
 
-    @ApiModelProperty("Object类型的子元素")
+    @Schema(description = "Object类型的子元素")
     private List<BaseParam> children;
 
     public void checkValid(HttpMethodEnum method) {

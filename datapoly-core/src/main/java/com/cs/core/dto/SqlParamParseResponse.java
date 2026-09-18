@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.util.*;
@@ -10,16 +10,16 @@ import java.util.*;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@ApiModel("SQL参数解析")
+@Schema(description = "SQL参数解析")
 public class SqlParamParseResponse {
 
-    @ApiModelProperty("参数名")
+    @Schema(description = "参数名")
     private String name;
 
-    @ApiModelProperty("是否为数组")
+    @Schema(description = "是否为数组")
     private Boolean isArray;
 
-    @ApiModelProperty("Object类型的子元素")
+    @Schema(description = "Object类型的子元素")
     private List<SqlParamParseResponse> children;
 
     public SqlParamParseResponse(String name, Boolean isArray) {

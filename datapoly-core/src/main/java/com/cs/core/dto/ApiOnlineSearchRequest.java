@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.util.List;
 
 @Data
 @NoArgsConstructor
-@ApiModel("接口搜索")
+@Schema(description = "接口搜索")
 public class ApiOnlineSearchRequest extends EntitySearchRequest {
 
-    @ApiModelProperty("模块ID")
+    @Schema(description = "模块ID")
     private List<Long> moduleIds;
 }

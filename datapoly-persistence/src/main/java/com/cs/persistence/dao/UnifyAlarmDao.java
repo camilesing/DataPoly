@@ -7,7 +7,7 @@ import com.cs.persistence.entity.UnifyAlarmEntity;
 import com.cs.persistence.mapper.UnifyAlarmMapper;
 import org.springframework.stereotype.Repository;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 @Repository
 public class UnifyAlarmDao {

@@ -2,41 +2,41 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.common.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.io.Serializable;
 import java.util.List;
 
-@ApiModel(description = "分页结果")
+@Schema(description = "分页结果")
 @NoArgsConstructor
 @Data
 public class PageResult<E> implements Serializable {
 
-    @ApiModelProperty("状态码")
+    @Schema(description = "状态码")
     private Integer code = 0;
 
-    @ApiModelProperty("状态描述")
+    @Schema(description = "状态描述")
     private String message = "success";
 
-    @ApiModelProperty("分页信息")
+    @Schema(description = "分页信息")
     private Pagination pagination;
 
-    @ApiModelProperty("数据")
+    @Schema(description = "数据")
     private List<E> data;
 
-    @ApiModel(description = "分页结果")
+    @Schema(description = "分页结果")
     @NoArgsConstructor
     @Data
     public static class Pagination {
 
-        @ApiModelProperty("页码")
+        @Schema(description = "页码")
         private int page;
 
-        @ApiModelProperty("记录总数")
+        @Schema(description = "记录总数")
         private int total;
 
-        @ApiModelProperty("每页大小")
+        @Schema(description = "每页大小")
         private int size;
     }
 

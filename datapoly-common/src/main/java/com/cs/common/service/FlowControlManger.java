@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.common.service;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 public interface FlowControlManger {

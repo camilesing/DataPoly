@@ -13,8 +13,8 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.*;
 
-import javax.annotation.Resource;
-import javax.servlet.http.*;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.*;
 import java.util.Arrays;
 
 @Configuration

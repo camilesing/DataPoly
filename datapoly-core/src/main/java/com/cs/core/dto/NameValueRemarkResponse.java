@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -10,9 +10,9 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@ApiModel("带说明的枚举键值")
+@Schema(description = "带说明的枚举键值")
 public class NameValueRemarkResponse extends NameValueBaseResponse {
 
-    @ApiModelProperty("注释")
+    @Schema(description = "注释")
     private String remark;
 }

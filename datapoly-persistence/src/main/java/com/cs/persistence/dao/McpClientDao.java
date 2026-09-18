@@ -9,7 +9,7 @@ import com.cs.persistence.mapper.McpClientMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Repository;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 
 @Repository
@@ -40,6 +40,14 @@ public class McpClientDao {
     public boolean existsAccessToken(String accessToken) {
         QueryWrapper<McpClientEntity> queryWrapper = new QueryWrapper<>();
         queryWrapper.lambda().eq(McpClientEntity::getToken, accessToken);
+        return null != mcpClientMapper.selectOne(queryWrapper);
+    }
+
+    public boolean existsManageAccessToken(String accessToken) {
+        QueryWrapper<McpClientEntity> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda()
+                .eq(McpClientEntity::getToken, accessToken)
+                .eq(McpClientEntity::getManage, Boolean.TRUE);
         return null != mcpClientMapper.selectOne(queryWrapper);
     }
 

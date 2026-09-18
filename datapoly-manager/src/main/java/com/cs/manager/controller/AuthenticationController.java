@@ -7,16 +7,20 @@ import com.cs.common.exception.CommonException;
 import com.cs.core.dto.UserLoginRequest;
 import com.cs.core.service.SystemUserService;
 import com.cs.manager.config.LoginGuard;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
-@Api(tags = {"登陆认证接口"})
+@Tag(name = "登陆认证接口")
 @Slf4j
 @RestController
 @RequestMapping(value = "/user")
@@ -28,7 +32,7 @@ public class AuthenticationController {
     @Resource
     private LoginGuard loginGuard;
 
-    @ApiOperation(value = "账号登录", notes = "使用一个账号密码登录")
+    @Operation(summary = "账号登录", description = "使用一个账号密码登录")
     @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity login(@Valid @RequestBody UserLoginRequest request, HttpServletRequest httpRequest) {
         String username = request.getUsername();
@@ -47,9 +51,9 @@ public class AuthenticationController {
     }
 
     @GetMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
-    @ApiOperation(value = "认证登出", notes = "登出系统")
-    @ApiImplicitParams({
-            @ApiImplicitParam(paramType = "header", dataType = "String", name = "token", value = "token标记", required = true)
+    @Operation(summary = "认证登出", description = "登出系统")
+    @Parameters({
+            @Parameter(in = ParameterIn.HEADER, name = "token", description = "token标记", required = true)
     })
     public ResultEntity logout(HttpServletRequest request) {
         systemUserService.logout(request);

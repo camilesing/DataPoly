@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.common.dto;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.io.Serializable;
@@ -11,15 +11,15 @@ import java.io.Serializable;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel("按照日期的统计")
+@Schema(description = "按照日期的统计")
 public class DateCount implements Serializable {
 
-    @ApiModelProperty("日期")
+    @Schema(description = "日期")
     private String ofDate;
 
-    @ApiModelProperty("总数")
+    @Schema(description = "总数")
     private Long total;
 
-    @ApiModelProperty("成功数")
+    @Schema(description = "成功数")
     private Long success;
 }

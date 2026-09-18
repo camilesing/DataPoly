@@ -4,7 +4,7 @@ package com.cs.core.exec.extractor;
 
 import org.springframework.http.MediaType;
 
-import javax.servlet.ServletInputStream;
+import jakarta.servlet.ServletInputStream;
 import java.nio.charset.Charset;
 import java.util.Map;
 
