@@ -43,6 +43,14 @@ public class McpClientDao {
         return null != mcpClientMapper.selectOne(queryWrapper);
     }
 
+    public boolean existsManageAccessToken(String accessToken) {
+        QueryWrapper<McpClientEntity> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda()
+                .eq(McpClientEntity::getToken, accessToken)
+                .eq(McpClientEntity::getManage, Boolean.TRUE);
+        return null != mcpClientMapper.selectOne(queryWrapper);
+    }
+
     public void updateById(McpClientEntity entity) {
         mcpClientMapper.updateById(entity);
     }

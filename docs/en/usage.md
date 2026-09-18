@@ -150,3 +150,61 @@ Semantics and boundaries:
 - The debug context carries the full query result and execution logs; extension jars
   belong to the host trust domain (same model as DataTaskSink) — do not forward results
   to untrusted destinations.
+
+## MCP services (data tools + entity CRUD for agents)
+
+The manager hosts **two independent MCP servers**, both authenticated through the
+`?token=` query parameter (tokens are created on the management UI "MCP tokens" page;
+address prefixes are served by `/datapoly/manager/api/v1/mcp/client/endpoint`):
+
+| Server | Endpoint (Streamable HTTP / SSE) | Token required | Purpose |
+| --- | --- | --- | --- |
+| Data MCP server `datapoly-mcp-server` | `/mcp` · `/mcp/sse` | any MCP token | Call registered data-API tools (business queries) |
+| Admin MCP server `datapoly-mcp-admin-server` | `/mcp/admin` · `/mcp/admin/sse` | token with **manage** scope | Full CRUD over DataPoly entities and lifecycle ops |
+
+### Admin MCP server (letting agents operate DataPoly)
+
+The admin server wraps the manager's entity REST capabilities as tools named
+`dp_{entity}_{action}`, covering the whole lifecycle: datasources (list/detail/create/
+update/delete/connectivity test/schema/table/column metadata), modules, authorization
+groups, API assignments (list/detail/create/update/delete/SQL placeholder parsing/
+publish/deploy/retire/batch group change/version list/version detail/revert),
+app clients (create/delete/secret/group grants) and MCP configuration (data-tool
+registry, MCP token management).
+
+Creating a manage-scoped token (equivalent to an administrator — grant with care):
+
+```bash
+# 1. log in to obtain a session token
+curl -X POST http://<manager>:8090/datapoly/manager/api/v1/user/login \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"***"}'
+# 2. create the manage token and reveal its plaintext
+curl -X POST 'http://<manager>:8090/datapoly/manager/api/v1/mcp/client/create?name=agent-admin&manage=true' \
+  -H 'Authorization: Bearer <session-token>'
+curl 'http://<manager>:8090/datapoly/manager/api/v1/mcp/client/token/<id>' -H 'Authorization: Bearer <session-token>'
+```
+
+Connecting an agent client (Claude Desktop / Cline style config):
+
+```json
+{
+  "mcpServers": {
+    "datapoly-admin": {
+      "url": "http://<manager>:8090/mcp/admin?token=<manage-token-plaintext>"
+    }
+  }
+}
+```
+
+SSE clients use `http://<manager>:8090/mcp/admin/sse?token=<manage-token-plaintext>`.
+Typical agent workflow: `dp_datasource_types` → `dp_datasource_create/test` →
+`dp_api_parse_sql` → `dp_api_create` → `dp_api_publish` → `dp_api_deploy` (once online,
+`dp_mcp_tool_create` registers the API on the data MCP server for LLM consumption).
+
+Security notes:
+- A manage token is administrator-equivalent: it can read and write every entity and
+  reveal appSecrets and MCP token plaintext — store it like the admin password.
+- `/mcp/**` (including the admin endpoints) bypasses the management-UI session auth;
+  the exposure surface matches the existing data MCP endpoints and only tokens
+  separate privileges. In production, reach the manager through an internal
+  network/gateway path only.
