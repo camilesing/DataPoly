@@ -121,6 +121,8 @@ curl -s -X POST $BASE/create -H "$AUTH" -H 'Content-Type: application/json' -d '
 - 入参声明字段与 API 配置一致：`name/type/location/isArray/required/defaultValue/remark`，`type` 取
   `LONG/DOUBLE/STRING/DATE/TIME/BOOLEAN/OBJECT`（OBJECT 需声明 `children`，支持嵌套 Map 或 `parent.sub`
   扁平键提交）；提交时按声明做必填校验与类型转换，未声明的多余入参被忽略。
+- 数组入参（`isArray=true`）接受 JSON 数组、序列化后的 JSON 数组字符串（如 `"[\"燕文\",\"顺友\"]"`）以及逗号
+  分隔字符串（如 `"燕文,顺友"`）三种提交形式，元素仍逐项按声明类型转换。
 - 整形顺序为**命名策略 → 别名 → 列顺序**：`columnAlias` 的 key 匹配命名策略转换**之后**的列名；
   `columnOrder` 给出输出列的顺序与子集，未列出的列被丢弃。
 - `formatMap` 中日期/时间类型给格式串，`BIG_DECIMAL` 给小数位数（HALF_UP，默认 6）；
