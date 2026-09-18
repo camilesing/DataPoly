@@ -12,6 +12,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- DataTask statement sinks (optional capability, backward compatible): the new
+  interface `com.cs.common.datatask.DataTaskStatementSink` lets a delivery
+  provider claim a definition and run its rendered statement itself, for
+  exports that must complete inside the source engine (MaxCompute
+  `UNLOAD ... INTO LOCATION 'oss://...'`) instead of streaming rows through the
+  executor. `DataTaskJobEngine` consults the sink once, right after rendering
+  and before any JDBC work: on a claim it skips the whole row pipeline (no
+  session, no result set, no row limit or reshaping) and records the returned
+  `SinkOutcome` like any other artifact. Because such a statement can outlive
+  `lease-seconds`, a lazily started daemon refreshes the job lease every
+  `lease-seconds/3` while it blocks; the cancel probe can only stop a statement
+  before submission, so a late cancel keeps the artifact and is recorded as
+  `artifactInfo.cancelRequested`. Existing sinks are untouched — a sink that
+  never claims a definition behaves exactly as before. Documented in
+  `docs/{zh,en}/data-task.md` §5.
 - DataTask sink contract (net-neutral extension): `SinkRequest` now carries
   `columnMetadata` (per-column JDBC type hints, shaped through the same
   projection as the columns) and the terminal `DataTaskEvent` includes the

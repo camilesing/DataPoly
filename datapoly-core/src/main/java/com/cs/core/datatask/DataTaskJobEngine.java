@@ -4,6 +4,8 @@ package com.cs.core.datatask;
 import com.cs.common.datatask.CellDecorator;
 import com.cs.common.datatask.ColumnMetadata;
 import com.cs.common.datatask.DataTaskSink;
+import com.cs.common.datatask.DataTaskStatementRequest;
+import com.cs.common.datatask.DataTaskStatementSink;
 import com.cs.common.datatask.SinkOutcome;
 import com.cs.common.datatask.SinkRequest;
 import com.cs.common.datatask.SinkSession;
@@ -36,10 +38,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import java.io.File;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -52,6 +59,12 @@ import java.util.function.LongConsumer;
  * batches through the reshaping plan into the delivery provider session, refreshes
  * progress/lease while scanning and finalizes the job row together with a Spring
  * {@link DataTaskEvent} carrying the terminal state.
+ *
+ * <p>A sink that claims the definition as a
+ * {@link DataTaskStatementSink statement sink} (server-side exports such as MaxCompute
+ * {@code UNLOAD}) bypasses the row pipeline entirely: the statement is handed over, the
+ * lease is refreshed from a background keeper while it blocks, and the returned outcome
+ * is recorded on the job like any other artifact.</p>
  */
 @Slf4j
 @Service
@@ -91,6 +104,9 @@ public class DataTaskJobEngine {
     @Value("${datapoly.data-task.max-rows-default:1000000}")
     private long maxRowsDefault;
 
+    /** Lazily started daemon keeping delegated statements' leases alive; see {@link #runDelegatedStatement}. */
+    private volatile ScheduledExecutorService leaseKeeper;
+
     /** Claim exactly one PENDING job for this worker; null once the queue is drained. */
     public Long claimNext(String workerAddr) {
         long now = System.currentTimeMillis();
@@ -114,6 +130,68 @@ public class DataTaskJobEngine {
     protected HikariDataSource loadDataSource(DataSourceEntity dsEntity) {
         File driverPath = driverLoadService.getVersionDriverFile(dsEntity.getType(), dsEntity.getVersion());
         return DataSourceUtils.getHikariDataSource(dsEntity, driverPath.getAbsolutePath());
+    }
+
+    /**
+     * Runs one statement a {@link DataTaskStatementSink} claimed, refreshing the job lease
+     * while it blocks: a server-side export routinely outlives the lease window, and the
+     * reaper would otherwise fail a perfectly healthy job. Progress is not reported here —
+     * the engine only sees the terminal outcome.
+     */
+    private SinkOutcome runDelegatedStatement(DataTaskStatementSink sink, DataTaskStatementRequest request,
+                                              Long jobId) throws Exception {
+        long intervalMs = Math.max(1000L, leaseSeconds * 1000L / 3);
+        ScheduledFuture<?> lease = leaseKeeper().scheduleAtFixedRate(() -> refreshLease(jobId),
+                intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+        try {
+            return sink.executeStatement(request);
+        } finally {
+            lease.cancel(false);
+        }
+    }
+
+    private void refreshLease(Long jobId) {
+        try {
+            if (!dataTaskJobDao.heartbeat(jobId, 0L,
+                    new Timestamp(System.currentTimeMillis() + leaseSeconds * 1000L))) {
+                log.warn("Data task job {} is no longer RUNNING; the delegated statement is left to finish", jobId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to refresh the lease of data task job {}: {}", jobId, e.getMessage());
+        }
+    }
+
+    private ScheduledExecutorService leaseKeeper() {
+        ScheduledExecutorService keeper = leaseKeeper;
+        if (null == keeper) {
+            synchronized (this) {
+                keeper = leaseKeeper;
+                if (null == keeper) {
+                    keeper = Executors.newSingleThreadScheduledExecutor(runnable -> {
+                        Thread thread = new Thread(runnable, "data-task-lease-keeper");
+                        thread.setDaemon(true);
+                        return thread;
+                    });
+                    leaseKeeper = keeper;
+                }
+            }
+        }
+        return keeper;
+    }
+
+    @PreDestroy
+    void shutdownLeaseKeeper() {
+        ScheduledExecutorService keeper = leaseKeeper;
+        if (null != keeper) {
+            keeper.shutdownNow();
+        }
+    }
+
+    /** Cooperative-cancel predicate shared by the row pipeline and delegated statements. */
+    private boolean isJobCancelled(Long jobId) {
+        DataTaskJobEntity current = dataTaskJobDao.getById(jobId);
+        return null == current || !Objects.equals(current.getStatus(), DataTaskStatus.RUNNING)
+                || Boolean.TRUE.equals(current.getCancelRequested());
     }
 
     public void run(Long jobId) {
@@ -157,43 +235,83 @@ public class DataTaskJobEngine {
                         "datatask.sink.unknown", snapshot.getSinkType());
             }
 
-            channel = new SessionChannel(dataTaskJobDao, jobId, snapshot,
-                    sinkHolder.get(), job);
-            StreamSpec streamSpec = StreamSpec.builder()
-                    .dataSource(dataSource)
-                    .product(dsEntity.getType())
-                    .sqlMeta(sqlMeta)
-                    .naming(null == snapshot.getNamingStrategy()
-                            ? NamingStrategyEnum.CAMEL_CASE : snapshot.getNamingStrategy())
-                    .cancelSupplier(channel::isJobCancelled)
-                    .rowLimit(effectiveMaxRows(snapshot.getMaxRows()))
-                    .flushIntervalMs(flushIntervalMs)
-                    .fetchSize(fetchSize)
-                    .timeoutSeconds(queryTimeoutSeconds)
-                    .progress(rows -> onProgress(jobId, rows))
-                    .build();
-
-            StreamResult result = streamQuery(streamSpec, channel);
-            delivered = result.getRows();
-            session = channel.session();
-            artifactInfo.put("sinkStopped", channel.isSinkAskedStop());
-
-            if (!result.isRowset()) {
-                artifactInfo.put("updateCount", result.getUpdateCount());
-                terminal = DataTaskStatus.SUCCESS;
-            } else {
-                SinkOutcome outcome = session.complete();
-                session = null; // ownership moved into complete(); nothing left to abort
-                if (null != outcome) {
-                    artifactUri = outcome.getArtifactUri();
-                    if (null != outcome.getInfo()) {
-                        artifactInfo.putAll(outcome.getInfo());
+            DataTaskSink resolved = sinkHolder.get();
+            boolean delegated = false;
+            if (resolved instanceof DataTaskStatementSink) {
+                // server-side delivery: the sink runs the statement itself (the data never
+                // travels through this process), so the row pipeline stays out of the way
+                DataTaskStatementSink statementSink = (DataTaskStatementSink) resolved;
+                DataTaskStatementRequest statementRequest = DataTaskStatementRequest.builder()
+                        .jobId(jobId)
+                        .taskName(job.getDefName())
+                        .sinkType(snapshot.getSinkType())
+                        .sinkConfig(snapshot.getSinkConfig())
+                        .sql(sqlMeta.getSql())
+                        .sqlParameters(sqlMeta.getParameter())
+                        .query(sqlMeta.isQuerySQL())
+                        .params(params)
+                        .datasourceId(dsEntity.getId())
+                        .product(dsEntity.getType())
+                        .dataSource(dataSource)
+                        .submittedBy(job.getSubmittedBy())
+                        .cancelled(() -> isJobCancelled(jobId))
+                        .build();
+                if (statementSink.handlesStatement(statementRequest)) {
+                    delegated = true;
+                    SinkOutcome outcome = runDelegatedStatement(statementSink, statementRequest, jobId);
+                    artifactInfo.put("statementDelegated", Boolean.TRUE);
+                    if (null != outcome) {
+                        artifactUri = outcome.getArtifactUri();
+                        if (null != outcome.getInfo()) {
+                            artifactInfo.putAll(outcome.getInfo());
+                        }
+                    }
+                    if (isRunningAndCancelled(jobId)) {
+                        // an accepted server-side export cannot be stopped: the payload is
+                        // already in the target store, so the artifact is kept and the late
+                        // cancel is recorded rather than dropped
+                        artifactInfo.put("cancelRequested", Boolean.TRUE);
                     }
                 }
-                artifactInfo.put("truncated", result.isTruncated());
-                artifactInfo.put("deliveredRows", delivered);
-                terminal = DataTaskStatus.SUCCESS;
             }
+
+            if (!delegated) {
+                channel = new SessionChannel(jobId, snapshot, resolved, job);
+                StreamSpec streamSpec = StreamSpec.builder()
+                        .dataSource(dataSource)
+                        .product(dsEntity.getType())
+                        .sqlMeta(sqlMeta)
+                        .naming(null == snapshot.getNamingStrategy()
+                                ? NamingStrategyEnum.CAMEL_CASE : snapshot.getNamingStrategy())
+                        .cancelSupplier(channel::isJobCancelled)
+                        .rowLimit(effectiveMaxRows(snapshot.getMaxRows()))
+                        .flushIntervalMs(flushIntervalMs)
+                        .fetchSize(fetchSize)
+                        .timeoutSeconds(queryTimeoutSeconds)
+                        .progress(rows -> onProgress(jobId, rows))
+                        .build();
+
+                StreamResult result = streamQuery(streamSpec, channel);
+                delivered = result.getRows();
+                session = channel.session();
+                artifactInfo.put("sinkStopped", channel.isSinkAskedStop());
+
+                if (!result.isRowset()) {
+                    artifactInfo.put("updateCount", result.getUpdateCount());
+                } else {
+                    SinkOutcome outcome = session.complete();
+                    session = null; // ownership moved into complete(); nothing left to abort
+                    if (null != outcome) {
+                        artifactUri = outcome.getArtifactUri();
+                        if (null != outcome.getInfo()) {
+                            artifactInfo.putAll(outcome.getInfo());
+                        }
+                    }
+                    artifactInfo.put("truncated", result.isTruncated());
+                    artifactInfo.put("deliveredRows", delivered);
+                }
+            }
+            terminal = DataTaskStatus.SUCCESS;
 
             dataTaskJobDao.finishSuccess(jobId, delivered, artifactUri,
                     JsonUtils.toJsonString(artifactInfo), now());
@@ -480,7 +598,6 @@ public class DataTaskJobEngine {
     }
 
     private class SessionChannel implements ResultChannel {
-        private final DataTaskJobDao jobDao;
         private final Long jobId;
         private final DataTaskDefEntity spec;
         private final DataTaskSink sink;
@@ -489,9 +606,7 @@ public class DataTaskJobEngine {
         private volatile SinkSession sessionRef;
         private volatile boolean sinkAskedStop;
 
-        SessionChannel(DataTaskJobDao jobDao, Long jobId, DataTaskDefEntity spec,
-                       DataTaskSink sink, DataTaskJobEntity job) {
-            this.jobDao = jobDao;
+        SessionChannel(Long jobId, DataTaskDefEntity spec, DataTaskSink sink, DataTaskJobEntity job) {
             this.jobId = jobId;
             this.spec = spec;
             this.sink = sink;
@@ -507,9 +622,7 @@ public class DataTaskJobEngine {
         }
 
         boolean isJobCancelled() {
-            DataTaskJobEntity current = jobDao.getById(jobId);
-            return null == current || !Objects.equals(current.getStatus(), DataTaskStatus.RUNNING)
-                    || Boolean.TRUE.equals(current.getCancelRequested());
+            return DataTaskJobEngine.this.isJobCancelled(jobId);
         }
 
         @Override

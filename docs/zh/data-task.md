@@ -261,6 +261,52 @@ public class CsvFileSink implements DataTaskSink {
   `com.cs.core.datatask.DataTaskEvent`（字段：`jobId/defId/defName/status/totalRows/artifactUri/errorMessage/sinkType`）。
   在宿主应用监听即可对接 WebSocket/SSE/Webhook；默认交互仍是前端轮询 `/job/{id}`。
 
+### 语句型投递（服务端导出）
+
+有些投递根本不该由本进程产出：数据仓库自带的导出命令（MaxCompute 的
+`UNLOAD ... INTO LOCATION 'oss://...'`）在源引擎里跑完就把数据写进对象存储，整表数据不必穿过 executor
+再转发一次。这种需求实现可选接口 `com.cs.common.datatask.DataTaskStatementSink`：
+
+```java
+public interface DataTaskStatementSink extends DataTaskSink {
+
+    @Override
+    default SinkSession openSession(SinkRequest request) {   // 语句型 sink 不走会话
+        throw new UnsupportedOperationException(type() + ": driven through executeStatement");
+    }
+
+    /** 本次定义是否交给 sink 直接执行；false = 照常走行式管线 */
+    boolean handlesStatement(DataTaskStatementRequest request);
+
+    SinkOutcome executeStatement(DataTaskStatementRequest request) throws Exception;
+}
+```
+
+`handlesStatement` 在模板渲染之后、任何 JDBC 动作之前被调用一次（此时尚未建立连接，判定必须廉价）；
+返回 `true` 时引擎**跳过整个行式管线**——不开会话、不读结果集、不施行数上限与列整形——改为调用
+`executeStatement`，把返回的 `artifactUri`/`info` 与普通 sink 一样合并进执行记录。返回 `false` 则走常规路径，
+因此同一个 sink 可以两种模式并存（按数据源类型切换的现成例子见扩展模块的 `oss` 投递）。
+
+`DataTaskStatementRequest` 携带：`jobId / taskName / sinkType / sinkConfig / sql`（**已渲染**的语句）/
+`sqlParameters`（`#{}` 绑定值；非空即说明该语句不能整条交给源引擎，需改成 `${}` 内联） / `query`
+（渲染后的语句是否为查询，忽略前导空白/括号/注释后的 `SELECT`/`WITH`） / `params`（原始参数，诊断用）/
+`datasourceId / product / dataSource`（定义所指向数据源的连接池，与 API 数据面共用）/
+`submittedBy` / `cancelled`（与行式路径同一判据的取消探针）。
+
+服务端导出命令通常只接受**查询语句**（`UNLOAD FROM (<sql>)` 即如此），所以 `handlesStatement` 应把
+`isQuery()` 纳入判定：DML、DDL 以及用户已手写完整导出命令的定义都会因此留在原有执行路径上，不会因为
+新增这条通道而改变行为。
+
+两处与行式路径不同的语义，实现前必须知道：
+
+- **租约**：语句阻塞期间由引擎的后台续租线程按 `lease-seconds/3` 刷新租约，服务端导出跑几十分钟也不会被
+  reaper 判失联；但 `totalRows` 恒为 0，没有行流可计数。
+- **取消**：探针只在**提交前**拦得住——语句一旦被源引擎接受（UNLOAD 已提交），MaxCompute 会照常把文件写完。
+  此时引擎仍记 SUCCESS，并在 `artifactInfo.cancelRequested=true` 标注，避免出现"OSS 里有文件、记录里没产物"
+  的孤儿数据。需要行级取消语义的投递不要走这条路。
+
+失败清理由实现方负责（没有会话可以 `abort`）。
+
 ## 6、Worker 配置参考
 
 executor 侧前缀 `datapoly.data-task.*`（`application.yaml` 均可用 `DATAPOLY_DATA_TASK_*` 环境变量覆盖）：
