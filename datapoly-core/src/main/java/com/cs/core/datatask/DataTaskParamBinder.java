@@ -5,6 +5,7 @@ import com.cs.common.dto.BaseParam;
 import com.cs.common.dto.ItemParam;
 import com.cs.common.exception.CommonException;
 import com.cs.common.exception.ResponseErrorCode;
+import com.cs.persistence.util.JsonUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
@@ -46,17 +47,58 @@ public final class DataTaskParamBinder {
         if (!isArray) {
             return coerceOrNull(decl, raw, decl.getName(), Boolean.TRUE.equals(decl.getRequired()));
         }
-        List<Object> values = raw instanceof List ? (List<Object>) raw : null;
+        List<Object> values = arrayElements(decl, raw, decl.getName(), true);
         if (null == values || values.isEmpty()) {
             return requireOrNothing(decl, raw, decl.getName(),
                     () -> defaultList(decl));
         }
-        List<Object> out = new ArrayList<>(values.size());
-        for (int i = 0; i < values.size(); i++) {
-            out.add(coerce(decl.getType(), values.get(i),
-                    String.format("%s[%d]", decl.getName(), i), true));
+        return values;
+    }
+
+    /**
+     * Element list of an array-declared parameter. Besides a native JSON array, two
+     * string wire formats that frontends commonly emit are tolerated: a pre-serialized
+     * JSON array literal (["a","b"]) and a comma-separated list ("a,b"). Every element
+     * is still coerced to the declared type, so shape loosening does not weaken value
+     * validation; a String that carries nothing usable yields null for the caller.
+     */
+    private static List<Object> arrayElements(BaseParam decl, Object raw, String path, boolean enforce) {
+        List<Object> rawElements;
+        if (raw instanceof List) {
+            rawElements = (List<Object>) raw;
+        } else if (raw instanceof String && StringUtils.isNotBlank((String) raw)) {
+            rawElements = parseArrayString(StringUtils.trim((String) raw));
+        } else {
+            return null;
+        }
+        List<Object> out = new ArrayList<>(rawElements.size());
+        for (int i = 0; i < rawElements.size(); i++) {
+            out.add(coerce(decl.getType(), rawElements.get(i),
+                    String.format("%s[%d]", path, i), enforce));
         }
         return out;
+    }
+
+    private static List<Object> parseArrayString(String value) {
+        if (value.startsWith("[") && value.endsWith("]")) {
+            try {
+                return JsonUtils.toBeanList(value, Object.class);
+            } catch (RuntimeException ignore) {
+                // not a JSON array after all; fall back to comma splitting
+            }
+        }
+        String[] parts = value.split(",");
+        List<Object> values = new ArrayList<>(parts.length);
+        for (String part : parts) {
+            String item = part.trim();
+            if (item.length() >= 2 && item.startsWith("\"") && item.endsWith("\"")) {
+                item = item.substring(1, item.length() - 1);
+            }
+            if (!item.isEmpty()) {
+                values.add(item);
+            }
+        }
+        return values;
     }
 
     /**
@@ -92,18 +134,13 @@ public final class DataTaskParamBinder {
         for (BaseParam child : children) {
             String path = root + "." + child.getName();
             if (Boolean.TRUE.equals(child.getIsArray())) {
-                List<Object> raws = container.get(child.getName()) instanceof List
-                        ? (List<Object>) container.get(child.getName()) : null;
-                if (null == raws || raws.isEmpty()) {
+                List<Object> items = arrayElements(child, container.get(child.getName()), path,
+                        Boolean.TRUE.equals(child.getRequired()));
+                if (null == items || items.isEmpty()) {
                     if (Boolean.TRUE.equals(child.getRequired())) {
                         throw missing(path);
                     }
                     continue;
-                }
-                List<Object> items = new ArrayList<>(raws.size());
-                for (int i = 0; i < raws.size(); i++) {
-                    items.add(coerce(child.getType(), raws.get(i), String.format("%s[%d]", path, i),
-                            Boolean.TRUE.equals(child.getRequired())));
                 }
                 out.put(child.getName(), items);
             } else {

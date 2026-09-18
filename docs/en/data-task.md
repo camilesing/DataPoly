@@ -131,6 +131,9 @@ Notes:
   `type` is one of `LONG/DOUBLE/STRING/DATE/TIME/BOOLEAN/OBJECT` (OBJECT requires `children`; submit accepts nested
   maps or flat `parent.sub` keys). Submission enforces required checks and type conversion; undeclared extra
   parameters are ignored.
+- Array parameters (`isArray=true`) accept a JSON array, a pre-serialized JSON array string (e.g.
+  `"[\"YANWEN\",\"SHUNYOU\"]"`), or a comma-separated string (e.g. `"YANWEN,SHUNYOU"`); elements are still
+  converted one by one to the declared type.
 - Reshaping order is **naming strategy → alias → column order**: `columnAlias` keys match column names **after** the
   naming strategy is applied; `columnOrder` fixes the output order and subset — unlisted columns are dropped.
 - In `formatMap`, date/time types take a pattern string and `BIG_DECIMAL` takes a scale (HALF_UP, default 6); with

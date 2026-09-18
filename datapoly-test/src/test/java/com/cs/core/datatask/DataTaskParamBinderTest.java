@@ -120,6 +120,96 @@ public class DataTaskParamBinderTest {
     }
 
     @Test
+    public void arrayDeclaredParamAcceptsJsonArrayString() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("names", "[\"燕文\",\"顺友\"]");
+
+        Map<String, Object> bound = DataTaskParamBinder.bind(
+                Collections.singletonList(simple("names", ParamTypeEnum.STRING, true, false, null)), body);
+        Assert.assertEquals(Arrays.asList("燕文", "顺友"), bound.get("names"));
+    }
+
+    @Test
+    public void rawWireJsonWithStringifiedArrayBindsToList() {
+        String wire = "{\"params\":{\"logisticsProviderNameList\":\"[\\\"燕文\\\",\\\"顺友\\\"]\"}}";
+        Map<String, Object> body = com.cs.persistence.util.JsonUtils.toBeanType(wire,
+                new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {
+                });
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) body.get("params");
+        Map<String, Object> bound = DataTaskParamBinder.bind(
+                Collections.singletonList(simple("logisticsProviderNameList", ParamTypeEnum.STRING, true, false, null)),
+                params);
+        Assert.assertEquals(Arrays.asList("燕文", "顺友"), bound.get("logisticsProviderNameList"));
+    }
+
+    @Test
+    public void arrayDeclaredParamAcceptsCommaSeparatedString() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("names", " 燕文 , 顺友 ");
+
+        Map<String, Object> bound = DataTaskParamBinder.bind(
+                Collections.singletonList(simple("names", ParamTypeEnum.STRING, true, false, null)), body);
+        Assert.assertEquals(Arrays.asList("燕文", "顺友"), bound.get("names"));
+    }
+
+    @Test
+    public void arrayDeclaredParamAcceptsSingleScalarValue() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("names", "燕文");
+
+        Map<String, Object> bound = DataTaskParamBinder.bind(
+                Collections.singletonList(simple("names", ParamTypeEnum.STRING, true, false, null)), body);
+        Assert.assertEquals(Collections.singletonList("燕文"), bound.get("names"));
+    }
+
+    @Test
+    public void jsonArrayStringElementsKeepEmbeddedCommas() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("names", "[\"a,b\",\"c\"]");
+
+        Map<String, Object> bound = DataTaskParamBinder.bind(
+                Collections.singletonList(simple("names", ParamTypeEnum.STRING, true, false, null)), body);
+        Assert.assertEquals(Arrays.asList("a,b", "c"), bound.get("names"));
+    }
+
+    @Test
+    public void arrayStringElementsCoerceToDeclaredType() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("ids", "[1,2,3]");
+
+        Map<String, Object> bound = DataTaskParamBinder.bind(
+                Collections.singletonList(simple("ids", ParamTypeEnum.LONG, true, false, null)), body);
+        Assert.assertEquals(Arrays.asList(1L, 2L, 3L), bound.get("ids"));
+    }
+
+    @Test
+    public void objectChildArrayAcceptsJsonArrayString() {
+        ItemParam decl = new ItemParam();
+        decl.setName("obj");
+        decl.setType(ParamTypeEnum.OBJECT);
+        decl.setIsArray(false);
+        decl.setRequired(false);
+        BaseParam child = new BaseParam();
+        child.setName("tags");
+        child.setType(ParamTypeEnum.STRING);
+        child.setIsArray(true);
+        child.setRequired(false);
+        decl.setChildren(new ArrayList<>(Collections.singletonList(child)));
+
+        Map<String, Object> body = new HashMap<>();
+        Map<String, Object> inner = new HashMap<>();
+        inner.put("tags", "[\"a\",\"b\"]");
+        body.put("obj", inner);
+
+        Map<String, Object> bound = DataTaskParamBinder.bind(Collections.singletonList(decl), body);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> obj = (Map<String, Object>) bound.get("obj");
+        Assert.assertEquals(Arrays.asList("a", "b"), obj.get("tags"));
+    }
+
+    @Test
     public void objectParamsAcceptNestedAndDottedForms() {
         ItemParam decl = simple("obj", ParamTypeEnum.OBJECT, false, false, null);
 
