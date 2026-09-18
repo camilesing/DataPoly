@@ -46,7 +46,7 @@ public class SystemUserService {
         String token = TokenUtils.generateValue();
         CacheUtils.put(token, user);
         AccessToken accessTokenWrapper = new AccessToken(user.getRealName(), user.getUsername(), token,
-                System.currentTimeMillis() / 1000, CacheUtils.CACHE_DURATION_SECONDS);
+                System.currentTimeMillis() / 1000, CacheUtils.CACHE_DURATION_SECONDS, user.getRole());
         return accessTokenWrapper;
     }
 

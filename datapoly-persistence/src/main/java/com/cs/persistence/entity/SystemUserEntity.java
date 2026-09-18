@@ -38,6 +38,10 @@ public class SystemUserEntity {
     @TableField("locked")
     private Boolean locked;
 
+    /** Role name: {@code ADMIN} (full access) or {@code USER} (read/invoke only). */
+    @TableField("user_role")
+    private String role;
+
     @TableField(value = "create_time", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private Timestamp createTime;
 
