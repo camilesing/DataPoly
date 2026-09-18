@@ -17,4 +17,10 @@ public class McpServerAddrResponse {
 
     @Schema(description = "StreamHttp地址的路径")
     private String streamAddrPrefix;
+
+    @Schema(description = "管理MCP服务SSE地址的路径(需manage权限令牌)")
+    private String adminSseAddrPrefix;
+
+    @Schema(description = "管理MCP服务StreamHttp地址的路径(需manage权限令牌)")
+    private String adminStreamAddrPrefix;
 }

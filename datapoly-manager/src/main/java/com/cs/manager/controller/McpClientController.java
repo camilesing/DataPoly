@@ -34,16 +34,18 @@ public class McpClientController {
 
     @Operation(summary = "添加令牌")
     @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResultEntity create(@Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name) {
-        mcpManageService.createClient(name);
+    public ResultEntity create(@Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name,
+                               @RequestParam(value = "manage", required = false, defaultValue = "false") boolean manage) {
+        mcpManageService.createClient(name, manage);
         return ResultEntity.success();
     }
 
     @Operation(summary = "更新令牌")
     @PostMapping(value = "/update/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity update(@PathVariable("id") Long id,
-                               @Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name) {
-        mcpManageService.updateClient(id, name);
+                               @Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name,
+                               @RequestParam(value = "manage", required = false) Boolean manage) {
+        mcpManageService.updateClient(id, name, manage);
         return ResultEntity.success();
     }
 

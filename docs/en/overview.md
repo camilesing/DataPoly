@@ -26,7 +26,7 @@ DataPoly provides the following features:
 - **Document Database Support**: Supports MongoDB, ElasticSearch, and other document databases via DSL.
 - **API Version Management**: Supports API version control management.
 - **Batch Import/Export**: Supports bulk import and export of APIs.
-- **LLM MCP Service**: Supports creating MCP tools with simple configuration.
+- **LLM MCP Service**: Supports creating MCP tools with simple configuration, plus an admin MCP server (`/mcp/admin`, manage-scoped token) that lets AI agents perform full CRUD over datasources, modules, groups, APIs and clients.
 
 As a data access middleware in microservice architectures, DataPoly is suitable for the following scenarios:
 
