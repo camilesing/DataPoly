@@ -5,10 +5,10 @@ package com.cs.persistence.dao;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Upper bound for administrative full-list DAO scans (groups, clients, datasources,
- * MCP registries, ...). These lists feed in-memory pagination, so they must not be
- * silently truncated the way the executor data plane forbids implicit LIMITs (H4) —
- * hitting the guard logs a loud WARN so operators archive or narrow instead.
+ * Upper bound for unpaginated full-list DAO scans (api assignment, api online registry).
+ * Queries that go through PageHelper (PageUtils.getPage) must NOT append LIMIT_SQL:
+ * PageHelper string-appends its own "LIMIT ?" without merging, so a trailing
+ * {@code LIMIT 10000 LIMIT ?} fails to parse in MySQL.
  */
 @Slf4j
 final class ListGuard {
