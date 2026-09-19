@@ -41,7 +41,7 @@ xlsx 上传对象存储、写入消息队列、生成 CSV 文件等。框架本�
 | 条件 | 说明 |
 | --- | --- |
 | 服务已部署 | 三服务经 Eureka 互联、gateway（默认 `8091`）是唯一对外入口；executor 与 manager 不对外发布端口，下文所有请求都经 gateway |
-| 登录态 | manager 统一鉴权，请求需带 `Authorization: Bearer <token>`；出厂演示账号 `admin/123456` **仅限演示，正式部署必须修改** |
+| 登录态 | manager 统一鉴权，请求需带 `Authorization: Bearer <token>`；出厂演示账号 `admin/DataPoly@123456` **仅限演示，正式部署必须修改** |
 | 已注册数据源 | 任务定义引用 `datasourceId`，需先在管理端登记目标库（含账号权限） |
 | 元库迁移 | `log-v1.1.0`（`DATAPOLY_DATA_TASK_DEF` / `DATAPOLY_DATA_TASK_JOB` 两表，MySQL/PG 双份 DDL）由 manager 启动时经 Liquibase 自动执行，无需手工操作 |
 | executor worker | 默认启用（`datapoly.data-task.enabled=true`）；若被显式关闭则任务一直排队，见[第 6 节](#6worker-配置参考) |

@@ -20,7 +20,7 @@ Only the latest release line receives security fixes.
 DataPoly ships with demo defaults that **must** be changed before any
 production or internet-facing deployment:
 
-- Change the seed admin account (`admin/123456`) and the demo app client
+- Change the seed admin account (`admin/DataPoly@123456`) and the demo app client
   credentials (`test/test`) on first login.
 - Set `DATAPOLY_ADMIN_PASSWORD`, `DATAPOLY_REDIS_PASSWORD`, and especially
   `DATAPOLY_DS_AES_KEY` via environment variables — the built-in fallback

@@ -19,7 +19,7 @@ Groovy 沙箱默认启用但不是 JVM 隔离：勿把脚本编写权开放给�
 
 ## 三、凭据外部化
 
-真实值一律环境变量注入，禁止写回仓库 yaml：`DATAPOLY_ADMIN_PASSWORD`、`DATAPOLY_REDIS_PASSWORD`、`DATAPOLY_DS_AES_KEY`（轮换前须用旧密钥导出重录）、`DATAPOLY_CORS_ALLOWED_ORIGINS`、compose 的 `MYSQL_ROOT_PASSWORD`/`MYSQL_PASSWORD`（演示默认 123456）。演示凭据 admin/123456、test/test 正式部署必须修改；actuator 已收窄为 health,info。
+真实值一律环境变量注入，禁止写回仓库 yaml：`DATAPOLY_ADMIN_PASSWORD`、`DATAPOLY_REDIS_PASSWORD`、`DATAPOLY_DS_AES_KEY`（轮换前须用旧密钥导出重录）、`DATAPOLY_CORS_ALLOWED_ORIGINS`、compose 的 `MYSQL_ROOT_PASSWORD`/`MYSQL_PASSWORD`（演示默认 123456）。演示凭据 admin/DataPoly@123456、test/test 正式部署必须修改；actuator 已收窄为 health,info。
 
 ## 四、端点防护
 

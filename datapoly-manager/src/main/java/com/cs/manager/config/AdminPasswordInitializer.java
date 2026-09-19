@@ -22,7 +22,7 @@ import java.security.MessageDigest;
  *   <li>If {@code datapoly.admin.password} is set (injectable via the DATAPOLY_ADMIN_PASSWORD env var),
  *       override the seed admin password at startup (idempotent: skipped when already equal, so a
  *       password hash the user changed later is never touched).</li>
- *   <li>If unset and the seed password is still the factory default (admin/123456), log a startup warning.</li>
+ *   <li>If unset and the seed password is still the factory default (admin/DataPoly@123456), log a startup warning.</li>
  * </ul>
  * Already-executed Liquibase migrations are not modified, to keep checksums intact.
  */
@@ -31,8 +31,9 @@ import java.security.MessageDigest;
 public class AdminPasswordInitializer {
 
     private static final String DEFAULT_ADMIN_USERNAME = "admin";
-    private static final String DEFAULT_ADMIN_BCRYPT_HASH =
-            "$2a$10$eUanVjvzV27BBxAb4zuBCugwnngHkRZ7ZB4iI5tdx9ETJ2tnXJJDy";
+    // 与 V1_4_1 迁移后的出厂口令 DataPoly@123456 对应（同包测试据此校验三者不漂移）
+    static final String DEFAULT_ADMIN_BCRYPT_HASH =
+            "$2a$10$eUanVjvzV27BBxAb4zuBCuA7KW1vpxq9a0K0mzIp28yjiH8H/zmxi";
 
     @Value("${datapoly.admin.password:}")
     private String adminPassword;
