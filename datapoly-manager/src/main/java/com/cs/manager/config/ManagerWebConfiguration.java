@@ -10,9 +10,10 @@ public class ManagerWebConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve the built-in UI from classpath (resources/index.html)
-        registry.addResourceHandler("/index.html").addResourceLocations("classpath:/index.html");
-        registry.addResourceHandler("/favicon.svg").addResourceLocations("classpath:/svg.ico");
+        // 内置 UI 由 build-ui.sh 同步进 resources/static/（classpath:/static/）。
+        // location 必须为目录风格（以 / 结尾），文件式 location 会被 Spring 校验拒绝
+        registry.addResourceHandler("/index.html").addResourceLocations("classpath:/static/");
+        registry.addResourceHandler("/favicon.svg").addResourceLocations("classpath:/static/");
         // Serve static assets from classpath (resources/static/)
         registry.addResourceHandler("/static/**").addResourceLocations("classpath:/static/");
     }

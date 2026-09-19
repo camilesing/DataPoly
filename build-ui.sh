@@ -35,9 +35,13 @@ docker run --rm \
          $BUILD_CMD"
 
 # 先清后拷，避免旧 hash 产物残留；仅在容器构建成功后执行（set -e 保证）。
+# index.html/favicon.svg 需同步进 static/（classpath:/static/）供 manager 的
+# ResourceHandler 以目录风格 location 提供（classpath 根部的文件式 location 非法）。
 rm -rf datapoly-manager/src/main/resources/static
 rm -f  datapoly-manager/src/main/resources/index.html
 cp -R datapoly-manager-ui/dist/static datapoly-manager/src/main/resources/static
 cp    datapoly-manager-ui/dist/index.html datapoly-manager/src/main/resources/index.html
+cp    datapoly-manager-ui/dist/index.html datapoly-manager/src/main/resources/static/index.html
+cp    datapoly-manager/src/main/resources/favicon.svg datapoly-manager/src/main/resources/static/favicon.svg
 
 echo '[build-ui.sh] built-in UI synced into datapoly-manager/src/main/resources'

@@ -1,11 +1,40 @@
 # macOS 本地运行覆盖：Docker Desktop 不共享 /data 路径，改用命名卷存放 MySQL 数据。
 # 生产 Linux 服务器部署请忽略此文件（compose 会自动合并，但可用 -f 指定仅使用 docker-compose.yml）。
 services:
+  # 三个应用服务只用本地镜像（经 build-docker/build_and_push_image.sh 构建出 :latest），
+  # 本地缺失时直接报错而非去 Docker Hub 拉取；mysqldb 仍走远程拉取。
+  manager:
+    pull_policy: never
+    networks:
+      datapoly-net:
+        ipv4_address: 172.32.0.20
+  executor:
+    pull_policy: never
+    networks:
+      datapoly-net:
+        ipv4_address: 172.32.0.30
+    environment:
+      # 本机 172.28.0.0/16 被其他项目网络占用，本地子网与静态 IP 整体平移到 172.32.0.x
+      DATAPOLY_EXECUTOR_GATEWAY_TRUSTED_CIDRS: 127.0.0.1,::1,172.32.0.40
+  gateway:
+    pull_policy: never
+    networks:
+      datapoly-net:
+        ipv4_address: 172.32.0.40
   mysqldb:
     # Apple Silicon 上 mysql:5.7 仅有 amd64 镜像，显式声明以保证在 arm64 主机上按模拟方式运行
     platform: linux/amd64
     volumes:
       - "mysql-data:/var/lib/mysql"
+    networks:
+      datapoly-net:
+        ipv4_address: 172.32.0.10
 
 volumes:
   mysql-data:
+
+networks:
+  datapoly-net:
+    ipam:
+      config:
+        - subnet: 172.32.0.0/24

@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.*;
 import io.modelcontextprotocol.server.transport.*;
 import io.modelcontextprotocol.spec.McpSchema.*;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.*;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.function.*;
@@ -35,14 +36,18 @@ public class McpServerConfiguration {
         };
     }
 
+    // 管理 MCP（McpAdminServerConfiguration）并行注册了同类型的 transport/server/stream/router bean，
+    // 数据 MCP 侧所有按类型注入必须 @Qualifier 钉死到本类 bean，否则容器启动即歧义失败
     @Bean
-    public WebMvcSseServerTransportProvider webMvcSseServerTransportProvider(WebMvcSseServerAuthChecker checker) {
+    public WebMvcSseServerTransportProvider webMvcSseServerTransportProvider(
+            @Qualifier("serverAuthChecker") WebMvcSseServerAuthChecker checker) {
         String sseEndpoint = Constants.DEFAULT_SSE_ENDPOINT;
         return new WebMvcSseServerTransportProvider(new ObjectMapper(), checker, Constants.MESSAGE_ENDPOINT, sseEndpoint);
     }
 
     @Bean
-    public McpSyncServer mcpSyncServer(WebMvcSseServerTransportProvider transportProvider) {
+    public McpSyncServer mcpSyncServer(
+            @Qualifier("webMvcSseServerTransportProvider") WebMvcSseServerTransportProvider transportProvider) {
         McpSyncServer syncServer = McpServer.sync(transportProvider)
                 .serverInfo(Constants.MCP_SERVER_NAME, PomVersionUtils.getCachedProjectVersion())
                 .capabilities(
@@ -63,15 +68,17 @@ public class McpServerConfiguration {
     }
 
     @Bean
-    public WebMvcStreamHttpServerProvider webMvcStreamHttpServerProvider(WebMvcSseServerAuthChecker checker,
-                                                                         McpSyncServer mcpSyncServer) {
+    public WebMvcStreamHttpServerProvider webMvcStreamHttpServerProvider(
+            @Qualifier("serverAuthChecker") WebMvcSseServerAuthChecker checker,
+            @Qualifier("mcpSyncServer") McpSyncServer mcpSyncServer) {
         String mcpEndpoint = Constants.DEFAULT_STREAM_ENDPOINT;
         return new WebMvcStreamHttpServerProvider(new ObjectMapper(), checker, mcpEndpoint, mcpSyncServer);
     }
 
     @Bean
-    public RouterFunction<ServerResponse> routerFunction(WebMvcSseServerTransportProvider transportProvider,
-                                                         WebMvcStreamHttpServerProvider streamHttpServerProvider) {
+    public RouterFunction<ServerResponse> routerFunction(
+            @Qualifier("webMvcSseServerTransportProvider") WebMvcSseServerTransportProvider transportProvider,
+            @Qualifier("webMvcStreamHttpServerProvider") WebMvcStreamHttpServerProvider streamHttpServerProvider) {
         return transportProvider.getRouterFunction().and(streamHttpServerProvider.getRouterFunction());
     }
 }
