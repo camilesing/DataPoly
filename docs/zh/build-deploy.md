@@ -210,6 +210,6 @@ datapoly:
 
 启动完成后,通过http://<MANAGER_HOST>:<MANAGER_PORT> 地址即可访问。
 
-登陆账号：```admin```  登陆密码：```123456```
+登陆账号：```admin```  登陆密码：```DataPoly@123456```
 
 > 以上为出厂演示口令，首次登录后请立即修改admin密码；对外部署前请务必阅读 [SECURITY.md](../../SECURITY.md)。

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.4.1-admin-password-dml
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: pg/migration/V1_4_1__admin-password-dml.sql
