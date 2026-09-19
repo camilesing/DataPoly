@@ -218,7 +218,7 @@ Start the gateway service: `sh bin/datapolyctl.sh start gateway`
 
 After startup, access the system via `http://<MANAGER_HOST>:<MANAGER_PORT>`.
 
-Login username: ```admin```  Login password: ```123456```
+Login username: ```admin```  Login password: ```DataPoly@123456```
 
 > These are factory demo credentials. Change the admin password after first login, and see
 > [SECURITY.md](../../SECURITY.md) before exposing the service to a network.

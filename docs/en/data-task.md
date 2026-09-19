@@ -47,7 +47,7 @@ caller                  manager                    executor worker
 | Requirement | Notes |
 | --- | --- |
 | Services deployed | the three services interconnect via Eureka with the gateway (default `8091`) as the only external entry; executor and manager publish no ports — every request below goes through the gateway |
-| Login token | manager enforces unified auth; requests carry `Authorization: Bearer <token>`. The factory demo account `admin/123456` is **for demos only — change it for any real deployment** |
+| Login token | manager enforces unified auth; requests carry `Authorization: Bearer <token>`. The factory demo account `admin/DataPoly@123456` is **for demos only — change it for any real deployment** |
 | Registered datasource | definitions reference a `datasourceId`; register the target database (and its account permissions) in the management UI first |
 | Meta-store migration | `log-v1.1.0` (tables `DATAPOLY_DATA_TASK_DEF` / `DATAPOLY_DATA_TASK_JOB`, MySQL & PostgreSQL DDL) is applied automatically by manager via Liquibase at startup — no manual step |
 | executor worker | enabled by default (`datapoly.data-task.enabled=true`); if explicitly disabled, jobs queue forever — see [Section 6](#6-worker-configuration-reference) |

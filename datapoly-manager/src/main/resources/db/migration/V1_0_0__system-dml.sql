@@ -1,7 +1,8 @@
 -- DataPoly 元库种子数据初始基线（v1.0.0）：合并自历史迁移 V1_0_2 / V1_2_1 / V1_3_1，
 -- 并吸收 V1_9_1 的 apiDocOpen 收口（直接种为 false，不再经历 true→false 演进）。
--- admin 的 bcrypt 哈希一字不改：与 AdminPasswordInitializer#DEFAULT_ADMIN_BCRYPT_HASH 相同，
--- 该常量据此识别"出厂默认口令"，改哈希会破坏启动告警逻辑。
+-- admin 此处保留历史出厂口令 123456 的哈希：基线 changeset 已在存量环境执行，回改会破坏
+-- Liquibase checksum；未改过密码的部署由 V1_4_1 迁到新出厂口令 DataPoly@123456，
+-- AdminPasswordInitializer#DEFAULT_ADMIN_BCRYPT_HASH 对应迁移后的新出厂哈希。
 
 insert into `DATAPOLY_SYSTEM_USER`(`username`, `password`, `salt`, `real_name`, `locked`, `email`)
 VALUES ('admin', '$2a$10$eUanVjvzV27BBxAb4zuBCugwnngHkRZ7ZB4iI5tdx9ETJ2tnXJJDy', '$2a$10$eUanVjvzV27BBxAb4zuBCu',
