@@ -31,7 +31,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     fi
 fi
 
-# 先装配宿主扩展（build-extension.sh：环境变量门控，未配置且无本地目录时无操作），
+# 先装配宿主扩展（build-extension.sh：本地已有 datapoly-extension/ 目录才构建，脚本不做 git 拉取），
 # 再构建内置 UI 产物（node:24-alpine 容器），最后 mvn 打包；mvn 本身不触发前端构建。
 # 传 "debug" 可构建 devtools 可用的调试版 UI（透传给 build-ui.sh），仅限本机联调。
 sh "$(dirname "$0")/build-extension.sh"
