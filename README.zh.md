@@ -8,6 +8,15 @@
 
 DataPoly 是一款开源的 SQL/DSL 数据访问中间件：只需选择数据源、配置 SQL 或脚本、设置路由，即可快速生成 RESTful API，无需编写后端代码。支持 20+ 种常见数据库及国产主流库，具备 MyBatis 动态 SQL、Groovy 脚本、Token 认证、Sentinel 流控、Hazelcast/Redis 缓存、在线接口文档、大模型 MCP 服务等能力。
 
+## 使用 Docker Compose 快速启动
+```
+sh ./build.sh
+sh ./docker-maven-build.sh
+cd build-docker/install
+docker compose up -d
+```
+打开 `http://127.0.0.1:8091/#/login`，使用用户名 `admin`、密码 `DataPoly@123456` 登录。
+
 ## 从源码构建 DataPoly
 
 构建 DataPoly 的前置要求：

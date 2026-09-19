@@ -11,6 +11,15 @@ path to create RESTful APIs — no backend code required. It supports 20+ databa
 domestic ones, with MyBatis dynamic SQL, Groovy scripting, token authentication, Sentinel flow control,
 Hazelcast/Redis caching, online API docs, and LLM MCP services.
 
+## Quick Start With Docker Compose
+```
+sh ./build.sh
+sh ./docker-maven-build.sh
+cd build-docker/install 
+docker compose up -d
+```
+open `http://127.0.0.1:8091/#/login` then enter user `admin` and password `DataPoly@123456`.
+
 ## Building DataPoly from Source
 
 Prerequisites for building DataPoly:
