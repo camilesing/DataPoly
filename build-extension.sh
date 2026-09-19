@@ -1,12 +1,8 @@
 #!/bin/sh
 
-# build-extension.sh — 宿主扩展装配：按需同步扩展 git 仓库 → 宿主机构建后端模块 → 投放 lib-extra/
-# 被 build.sh 与 docker-maven-build.sh 在 build-ui.sh 之前调用，无配置时静默跳过（纯开源构建零影响）。
-#
-# 环境变量（真实值一律外部注入、不入库，见 AGENTS.md；CI 在 pipeline 注入，本地可用 dev-local/env.sh）：
-#   DATAPOLY_EXTENSION_GIT_URL      扩展仓库地址（git clone 可用形式）；未设置且无本地目录时为无操作
-#   DATAPOLY_EXTENSION_GIT_REF      拉取的 ref（分支/标签），默认 master
-#   DATAPOLY_EXTENSION_FORCE_SYNC=1 目录已存在时强制 fetch+reset 到 REF（丢弃本地未提交改动，慎用）
+# build-extension.sh — 宿主扩展装配：按本地 datapoly-extension/ 目录构建后端模块 → 投放 lib-extra/
+# 被 build.sh 与 docker-maven-build.sh 在 build-ui.sh 之前调用，目录不存在时静默跳过（纯开源构建零影响）。
+# 扩展仓库是独立 git 仓库，由使用者自行克隆/更新到根目录 datapoly-extension/，本脚本不做任何 git 操作。
 #
 # 后端模块构建：宿主机 JDK 25 优先（与 CI 的 temurin 25 对齐）、无 25 时允许 25 以上（编译目标钉在 25，
 # 低于 25 无法编译，构建中止）、扩展模块不进根 reactor、
@@ -27,31 +23,8 @@ for arg in "$@"; do
 done
 
 EXT_DIR="$ROOT/datapoly-extension"
-GIT_URL="${DATAPOLY_EXTENSION_GIT_URL:-}"
-GIT_REF="${DATAPOLY_EXTENSION_GIT_REF:-master}"
-FORCE_SYNC="${DATAPOLY_EXTENSION_FORCE_SYNC:-0}"
 
-# ---------- ① git 同步（环境变量门控；克隆失败即构建终止，fail-closed） ----------
-if [ -n "$GIT_URL" ]; then
-    if [ ! -e "$EXT_DIR" ]; then
-        echo "[ext] 浅克隆扩展仓库 ${GIT_URL}（ref=${GIT_REF}）"
-        git clone --depth 1 --branch "$GIT_REF" "$GIT_URL" "$EXT_DIR"
-    elif [ "$FORCE_SYNC" = "1" ]; then
-        if [ -d "$EXT_DIR/.git" ]; then
-            echo "[ext] 强制同步扩展仓库到 ref=${GIT_REF}（覆盖本地未提交改动）"
-            git -C "$EXT_DIR" fetch --depth 1 origin "$GIT_REF"
-            git -C "$EXT_DIR" reset --hard FETCH_HEAD
-        else
-            echo "[ext] datapoly-extension 存在但不是 git 仓库，无法强制同步，按现有目录构建" >&2
-        fi
-    else
-        echo "[ext] datapoly-extension 已存在，按本地工作区构建（强制刷新: DATAPOLY_EXTENSION_FORCE_SYNC=1）"
-    fi
-else
-    echo "[ext] DATAPOLY_EXTENSION_GIT_URL 未设置，跳过扩展仓库同步"
-fi
-
-# ---------- ② 发现扩展后端模块（排除 front 联调的 .host 稀疏快照） ----------
+# ---------- ① 发现扩展后端模块（排除 front 联调的 .host 稀疏快照） ----------
 if [ ! -d "$EXT_DIR" ]; then
     echo "[ext] datapoly-extension 不存在，跳过扩展装配（纯开源构建不受影响）"
     exit 0
@@ -66,7 +39,7 @@ if [ "$(wc -l < "$POM_LIST")" -eq 0 ]; then
     exit 0
 fi
 
-# ---------- ③ 宿主机 JDK：优先 JDK 25（与 CI 的 temurin 25 对齐）；扩展模块编译目标为 25
+# ---------- ② 宿主机 JDK：优先 JDK 25（与 CI 的 temurin 25 对齐）；扩展模块编译目标为 25
 #     （根 pom maven.compiler.release=25），低于 25 无法编译、25 以上亦可 ----------
 jdkmajor() {
     "$1/bin/java" -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | sed 's/^1$/8/'
@@ -115,7 +88,7 @@ while IFS= read -r pom; do
     fi
 done < "$POM_LIST"
 
-# ---------- ④ 本地仓库缺核心链时安装（扩展 pom 依赖 datapoly-core，parent 经 relativePath 解析根 pom） ----------
+# ---------- ③ 本地仓库缺核心链时安装（扩展 pom 依赖 datapoly-core，parent 经 relativePath 解析根 pom） ----------
 LOCAL_REPO="$HOME/.m2/repository"
 NEED_INSTALL=0
 for a in datapoly-common datapoly-template datapoly-persistence datapoly-cache datapoly-core; do
@@ -130,7 +103,7 @@ if [ "$NEED_INSTALL" = 1 ]; then
     mvn -B -ntp install -pl datapoly-common,datapoly-template,datapoly-persistence,datapoly-cache,datapoly-core -am "$TEST_FLAG"
 fi
 
-# ---------- ⑤ 逐个构建扩展模块 ----------
+# ---------- ④ 逐个构建扩展模块 ----------
 while IFS= read -r pom; do
     [ -f "$pom" ] || continue
     d=$(dirname "$pom")
@@ -138,7 +111,7 @@ while IFS= read -r pom; do
     mvn -B -ntp -f "$pom" clean package "$TEST_FLAG"
 done < "$POM_LIST"
 
-# ---------- ⑥ 投放扩展产物进 lib-extra/：跳过 datapoly-* 开源模块系列 jar（防扩展 target 里经
+# ---------- ⑤ 投放扩展产物进 lib-extra/：跳过 datapoly-* 开源模块系列 jar（防扩展 target 里经
 #     installed 版本解析的核心链覆盖本次构建），扩展自身 jar 与第三方依赖一律复制 ----------
 rm -f "$ROOT"/lib-extra/*.jar
 while IFS= read -r pom; do

@@ -60,10 +60,9 @@ git repository, excluded by .gitignore and never committed to the host repo): `b
 modules and `front/` holds extension UI (bundled into the management UI via the webpack `@extension` alias).
 
 ```
-# Either point the build at the extension repository — it is shallow-cloned / refreshed under datapoly-extension/
-export DATAPOLY_EXTENSION_GIT_URL=<extension-repository-url>   # git-clone-able URL
-export DATAPOLY_EXTENSION_GIT_REF=master                       # branch/tag, defaults to master
-# -- or skip the env vars and clone the repository under datapoly-extension/ by hand once
+# The extension repository is a standalone git repo; clone it under the host root by hand
+# (build scripts never pull it automatically — update it yourself via git pull)
+git clone <extension-repository-url> datapoly-extension
 
 # Assemble extensions only: build backend modules (host JDK 25 required, below 25 not supported, compile target 25)
 # and drop the jars into lib-extra/
@@ -75,7 +74,7 @@ sh build.sh
 sh build-docker/build_and_push_image.sh
 ```
 
-The assembly step runs when `DATAPOLY_EXTENSION_GIT_URL` is set or `datapoly-extension/` already exists: the
+The assembly step runs when `datapoly-extension/` already exists: the
 extension jars then ship with the release into `lib/common`, on the runtime classpath of manager / executor /
 gateway; otherwise the step is skipped and pure OSS builds are unaffected.
 
