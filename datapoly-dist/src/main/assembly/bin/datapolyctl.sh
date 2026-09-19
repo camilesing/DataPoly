@@ -55,6 +55,20 @@ export JSON_TIMEZONE=$(get_config_value "JSON_TIMEZONE" "${APP_CONF_PATH}/config
 export DATAPOLY_MANAGER_URL=$(get_config_value "DATAPOLY_MANAGER_URL" "${APP_CONF_PATH}/config.ini")
 export DATAPOLY_GATEWAY_URL=$(get_config_value "DATAPOLY_GATEWAY_URL" "${APP_CONF_PATH}/config.ini")
 
+# 飞书登录（datapoly-extension-feishu 扩展模块）：config.ini 里留空即关闭。仅在确实
+# 配置了值时才导出——否则会把 enabled 这类布尔属性导出成空串，宽松绑定会因无法转换而启动失败
+export_feishu_config() {
+    local key=$1
+    local value=$(get_config_value "$key" "${APP_CONF_PATH}/config.ini")
+    if [ -n "$value" ]; then
+        export "$key=$value"
+    fi
+}
+export_feishu_config "DATAPOLY_FEISHU_ENABLED"
+export_feishu_config "DATAPOLY_FEISHU_APP_ID"
+export_feishu_config "DATAPOLY_FEISHU_APP_SECRET"
+export_feishu_config "DATAPOLY_FEISHU_REDIRECT_URI"
+
 # JVM参数可以在这里设置
 # 堆 4G、年轻代/老年代 1:3：长驻对象（Hazelcast token/API 响应缓存、Eureka、Spring 框架
 # 对象）占堆内大头，老年代空间优先；年轻代 1G 足以容纳数据任务流式批次与 ≤200 行的

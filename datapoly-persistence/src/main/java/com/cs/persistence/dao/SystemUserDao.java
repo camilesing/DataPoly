@@ -34,4 +34,13 @@ public class SystemUserDao {
         }
     }
 
+    /**
+     * Creates a user row; the generated id is filled back into the entity.
+     * Account providers that authenticate outside DataPoly create their rows
+     * through this method, so the caller owns the password/salt and role values.
+     */
+    public void insert(SystemUserEntity userEntity) {
+        systemUserMapper.insert(userEntity);
+    }
+
 }

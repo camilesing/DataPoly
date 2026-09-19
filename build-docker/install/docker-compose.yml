@@ -44,6 +44,12 @@ services:
       DATAPOLY_DS_ENCRYPT: false
       # 部署后请务必设置：覆盖种子 admin 口令（S5）
       DATAPOLY_ADMIN_PASSWORD: ${DATAPOLY_ADMIN_PASSWORD:-}
+      # 飞书登录（datapoly-extension-feishu，relaxed binding 映射为 datapoly.feishu.*）：
+      # 真实值由 install/.env 注入，勿写回本文件；三项凭证缺一或开关关闭时登录页不显示飞书按钮
+      DATAPOLY_FEISHU_ENABLED: ${DATAPOLY_FEISHU_ENABLED:-false}
+      DATAPOLY_FEISHU_APP_ID: ${DATAPOLY_FEISHU_APP_ID:-}
+      DATAPOLY_FEISHU_APP_SECRET: ${DATAPOLY_FEISHU_APP_SECRET:-}
+      DATAPOLY_FEISHU_REDIRECT_URI: ${DATAPOLY_FEISHU_REDIRECT_URI:-}
     #      DATAPOLY_MANAGER_URL: http://www.example.com:8090
     #      DATAPOLY_GATEWAY_URL: http://www.example.com:8091
     depends_on:
