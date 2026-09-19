@@ -59,6 +59,8 @@ public class SystemUserServiceTest {
         Assert.assertNotNull(accessToken);
         Assert.assertEquals(USERNAME, accessToken.getAppKey());
         Assert.assertFalse(accessToken.getAccessToken().isEmpty());
+        // The role travels with the login response so the UI can filter by it
+        Assert.assertEquals("ADMIN", accessToken.getRole());
     }
 
     @Test
@@ -131,6 +133,7 @@ public class SystemUserServiceTest {
         user.setRealName(username);
         user.setSalt(salt);
         user.setPassword(PasswordUtils.encryptPassword(rawPassword, salt));
+        user.setRole("ADMIN");
         return user;
     }
 

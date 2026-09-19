@@ -43,6 +43,16 @@
         </button>
       </form>
 
+      <!-- Extension mount point (contract: datapoly-extension/front exports `loginExtras`,
+           a component list rendered below the password login button; the in-repo stub keeps
+           it empty, so a plain open-source build renders nothing here). -->
+      <div class="extension-login"
+           v-if="loginExtras.length">
+        <component v-for="(extra, index) in loginExtras"
+                   :key="index"
+                   :is="extra"></component>
+      </div>
+
       <div class="footer-links">
         <p class="copyright">© {{ currentYear }} The DataPoly Authors</p>
       </div>
@@ -51,6 +61,8 @@
 </template>
 
 <script>
+import extension from '@extension'
+
 export default {
   name: 'LoginPage',
   data () {
@@ -59,6 +71,9 @@ export default {
         username: '',
         password: ''
       },
+      // Components contributed by the UI extension (e.g. the Feishu login button);
+      // empty when the '@extension' entry is the in-repo stub.
+      loginExtras: extension.loginExtras || [],
       errors: {},
       loading: false
     }
@@ -122,6 +137,7 @@ export default {
           window.sessionStorage.setItem('token', res.data.data.accessToken);
           window.sessionStorage.setItem('username', this.loginForm.username);
           window.sessionStorage.setItem('realname', res.data.data.realName);
+          window.sessionStorage.setItem('role', res.data.data.role || '');
           this.$http.get("/datapoly/manager/api/v1/health/version").then(
             res => {
               if (0 === res.data.code) {
@@ -354,6 +370,15 @@ export default {
   50% {
     opacity: 0.7;
   }
+}
+
+.extension-login {
+  position: relative;
+  z-index: 1;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #334155;
+  text-align: center;
 }
 
 .footer-links {

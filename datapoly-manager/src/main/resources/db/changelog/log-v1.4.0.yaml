@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.4.0-user-role-ddl
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: db/migration/V1_4_0__user-role-ddl.sql
