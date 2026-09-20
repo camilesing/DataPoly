@@ -84,7 +84,7 @@ public class ApiAssignmentDao {
 
     public ApiAssignmentEntity getByUk(HttpMethodEnum method, String path) {
         QueryWrapper<ApiAssignmentEntity> queryWrapper = new QueryWrapper<>();
-        queryWrapper.lambda().eq(ApiAssignmentEntity::getMethod, method.name())
+        queryWrapper.lambda().eq(ApiAssignmentEntity::getMethod, method)
                 .eq(ApiAssignmentEntity::getPath, path);
         ApiAssignmentEntity apiConfigEntity = apiAssignmentMapper.selectOne(queryWrapper);
         if (null != apiConfigEntity) {
