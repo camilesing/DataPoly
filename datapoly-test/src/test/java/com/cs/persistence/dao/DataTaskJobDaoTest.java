@@ -1,6 +1,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.persistence.dao;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.cs.common.enums.DataTaskStatus;
 import com.cs.core.datatask.DataTaskTestSupport;
 import com.cs.persistence.PersistenceTestSupport;
@@ -192,5 +193,10 @@ public class DataTaskJobDaoTest {
         recorder.stub("selectList", Collections.singletonList(entity), Collections.singletonList(entity));
         assertEquals(entity, dao.search(null, null).get(0));
         assertEquals(entity, dao.search(5L, DataTaskStatus.RUNNING).get(0));
+        // status column carries EnumTypeHandler, so the wrapper must bind the enum itself,
+        // never status.name(): MyBatis-Plus would route a String through EnumTypeHandler and fail
+        QueryWrapper<?> wrapper = (QueryWrapper<?>) recorder.calls.get("selectList").get(1)[0];
+        wrapper.getSqlSegment();
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(DataTaskStatus.RUNNING));
     }
 }

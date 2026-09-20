@@ -145,7 +145,7 @@ public class DataTaskJobDao {
         QueryWrapper<DataTaskJobEntity> queryWrapper = new QueryWrapper<>();
         queryWrapper.lambda()
                 .eq(null != defId, DataTaskJobEntity::getDefId, defId)
-                .eq(null != status, DataTaskJobEntity::getStatus, null == status ? null : status.name())
+                .eq(null != status, DataTaskJobEntity::getStatus, status)
                 .orderByDesc(DataTaskJobEntity::getId);
         return dataTaskJobMapper.selectList(queryWrapper);
     }

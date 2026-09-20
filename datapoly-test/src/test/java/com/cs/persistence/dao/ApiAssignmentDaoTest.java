@@ -1,6 +1,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.persistence.dao;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.cs.common.enums.HttpMethodEnum;
 import com.cs.core.datatask.DataTaskTestSupport;
 import com.cs.persistence.PersistenceTestSupport;
@@ -173,6 +174,11 @@ public class ApiAssignmentDaoTest {
 
         assertEquals(1, dao.getByUk(HttpMethodEnum.GET, "/p").getContextList().size());
         assertNull(dao.getByUk(HttpMethodEnum.POST, "/missing"));
+        // method column carries EnumTypeHandler, so the wrapper must bind the enum itself,
+        // never method.name(): MyBatis-Plus would route a String through EnumTypeHandler and fail
+        QueryWrapper<?> wrapper = (QueryWrapper<?>) assignmentRecorder.argsOf("selectOne")[0];
+        wrapper.getSqlSegment();
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(HttpMethodEnum.GET));
     }
 
     @Test
