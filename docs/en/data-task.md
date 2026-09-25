@@ -308,12 +308,26 @@ merging the returned `artifactUri`/`info` into the job record exactly like any o
 `false` keeps the ordinary path, so one sink can serve both modes (see the extension module's `oss` delivery,
 which switches on the datasource type).
 
-`DataTaskStatementRequest` carries `jobId / taskName / sinkType / sinkConfig / sql` (already rendered) /
-`sqlParameters` (the `#{}` bind values; a non-empty list means the statement cannot be handed over wholesale and
-has to be rewritten with `${}` inlining) / `query` (whether the rendered statement is a query — `SELECT`/`WITH`
+`DataTaskStatementRequest` carries `jobId / taskName / sinkType / sinkConfig / sql` (already rendered; handed over
+with `#{}` rendered as literals when the sink declares `requiresInlinedParameters()`) / `sqlParameters` (the `#{}`
+bind values the rendering left behind — empty once inlined, and non-empty only when the host did not inline or a
+value has no literal form) / `query` (whether the rendered statement is a query — `SELECT`/`WITH`
 after leading whitespace, parens and comments) / `params` (raw boundary values, for diagnostics) /
 `datasourceId / product / dataSource` (the definition's pooled datasource, shared with the synchronous API path) /
 `submittedBy` / `cancelled` (the same cooperative-cancel predicate the row pipeline uses).
+
+These engines usually accept no bind parameters (`UNLOAD` does not), which a sink declares through
+`requiresInlinedParameters()`: once `handlesStatement` returns `true`, the engine renders the same statement a
+second time with every `#{}` turned into a SQL literal — strings quoted and escaped for `\` and `'`, numbers,
+booleans and null in their own shape, with `${}` and `dollarAllowed` semantics untouched — and asks
+`handlesStatement` again about the rewritten statement (declining it discards the rewrite and returns to the row
+pipeline). Definitions therefore keep the parameterized `#{}` style and only reach for `${}` to splice structural
+fragments such as table names or ordering; `<foreach>` IN lists, dynamic tags and object sub-parameters all work,
+because the placeholders and values are the ones the row pipeline renders. Inputs that cannot be inlined **fail
+loudly** instead of being guessed at: an array/object bound to a single placeholder (the message points at
+`<foreach>`), `NaN`/`Infinity`, or a placeholder count that does not match the value count. Sinks that do not
+declare the capability keep the bound rendering untouched — implementations executing the statement themselves
+through a `PreparedStatement` are unaffected.
 
 Server-side export commands usually accept **queries only** (`UNLOAD FROM (<sql>)` does), so
 `handlesStatement` should include `isQuery()` in its decision: DML, DDL and definitions that already spell out a
@@ -362,7 +376,8 @@ nodes; jobs of lost workers are marked FAILED once the lease expires and callers
 - Anyone able to author definitions effectively gains **arbitrary query power over the target datasource** (the SQL
   runs as-is); use the platform account model to control who may create tasks and reach which datasources.
 - `${}` raw substitution is disabled by default (injection/concatenation risk) and only allowed when a definition
-  explicitly opts in via `dollarAllowed=true`; prefer `#{}` parameterization.
+  explicitly opts in via `dollarAllowed=true`; prefer `#{}` parameterization — statement sinks included: the engine
+  renders bind values as escaped literals for them, so the switch stays off.
 - The row cap (`maxRows` / `max-rows-default`) and statement timeout (`query-timeout-seconds`) are resource
   backstops — **do not remove or unbound them**; filter or archive in SQL for very large result sets.
 - Definitions with PENDING/RUNNING jobs cannot be deleted; edits never affect submitted jobs (snapshot isolation).
@@ -379,5 +394,8 @@ nodes; jobs of lost workers are marked FAILED once the lease expires and callers
 | `artifactInfo.truncated=true` | output hit the row cap (definition `maxRows` or `max-rows-default`); raise the cap or split the SQL into batches for full extracts |
 | Cancellation is slow to take effect | cancelling a RUNNING job is cooperative and lands within ≤ `flush-interval-ms` (5 s by default); PENDING jobs cancel immediately |
 | Preview works but the submitted job fails | preview never touches the sink — the failure is almost certainly on the delivery side (sink missing, invalid `sinkConfig`, target-side auth); check `errorMessage` and executor logs |
+| FAILED with `accepts no bind placeholders` | the host jars predate the `requiresInlinedParameters()` contract and did not inline `#{}` for that sink: upgrade host and extension jars, or rewrite the definition with `${param}` inlining plus the `dollarAllowed` switch |
+| FAILED with `not a scalar and cannot be inlined` | an array/object was bound to a single placeholder: expand arrays with `<foreach>` and reference object fields individually |
+| FAILED with `EntityNotExist.Role` | MaxCompute lacks the role it needs to write the bucket: run the project's one-key authorization (which creates `AliyunODPSDefaultRole`), or create a RAM role trusted by MaxCompute and name its ARN in `odps.role-arn` (`ODPS_ROLE_ARN`) / the task's `sinkConfig.roleArn`; the OSS endpoint inside the `UNLOAD ... LOCATION` is MaxCompute's, so the platform process's own OSS keys do not authorize this write |
 | FAILED with `Java heap space` / executor repeated `GC overhead limit exceeded` | first check executor heap vs host memory overcommit (the release script `datapolyctl.sh` defaults to a 4G heap per service — leave headroom when co-locating); the engine now keeps PostgreSQL-family drivers fetching in `fetch-size` batches, while the row cap (`maxRows`) and the sink's own memory behavior stay under your control |
 | Duplicate deliveries after deploying multiple executors? | Not possible: claiming is an atomic `FOR UPDATE SKIP LOCKED` operation in the meta store — a job is RUNNING on at most one node |

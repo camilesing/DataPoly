@@ -78,16 +78,29 @@ public class DataTaskJobEngineTest {
 
     /** Same registration type as {@link StubSink}: one sink, two delivery modes. */
     private static class StubStatementSink extends StubSink implements DataTaskStatementSink {
+        final List<DataTaskStatementRequest> consulted = new ArrayList<>();
         final List<DataTaskStatementRequest> executed = new ArrayList<>();
         boolean handles = true;
+        boolean inlineParameters;
+        boolean declineInlined;
         boolean throwOnExecute;
         boolean cancelledAtSubmission;
         Runnable duringExecution;
 
         @Override
         public boolean handlesStatement(DataTaskStatementRequest request) {
-            // mirrors the real contract: only queries can be wrapped by a server-side export
-            return handles && request.isQuery();
+            consulted.add(request);
+            if (!handles || !request.isQuery()) {
+                // mirrors the real contract: only queries can be wrapped by a server-side export
+                return false;
+            }
+            // a sink that only accepts a statement it can run as-is declines the rewritten one
+            return !(declineInlined && request.getSqlParameters().isEmpty());
+        }
+
+        @Override
+        public boolean requiresInlinedParameters() {
+            return inlineParameters;
         }
 
         @Override
@@ -275,6 +288,13 @@ public class DataTaskJobEngineTest {
     private DataTaskJobEntity statementJob(DataTaskDefEntity def) {
         DataTaskJobEntity job = jobFor(def);
         job.setParamsJson("{\"sale_date\":\"2013\"}");
+        return job;
+    }
+
+    /** Definition in the parameterized style: one query, one #{} bind value. */
+    private DataTaskJobEntity boundStatementJob() {
+        DataTaskJobEntity job = jobFor(definition());
+        job.setParamsJson("{\"x\":10}");
         return job;
     }
 
@@ -498,6 +518,97 @@ public class DataTaskJobEngineTest {
         Assert.assertEquals(1, sink.sessions.size());
         Assert.assertTrue(sink.sessions.get(0).completed);
         Assert.assertEquals(Long.valueOf(1L), jobDao.successRows);
+    }
+
+    @Test
+    public void declaredInliningHandsTheStatementOverWithLiterals() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        sink.inlineParameters = true;
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = boundStatementJob();
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, mustNotStream());
+
+        localEngine.run(77L);
+
+        Assert.assertFalse(rowPipelineRan);
+        Assert.assertEquals(1, sink.executed.size());
+        DataTaskStatementRequest request = sink.executed.get(0);
+        // the #{} value arrives as a literal and nothing is left for the sink to bind
+        Assert.assertEquals("SELECT raw_a, raw_b FROM demo WHERE x >= 10", request.getSql());
+        Assert.assertTrue(request.getSqlParameters().isEmpty());
+        Assert.assertTrue(request.isQuery());
+        // the sink judged the statement it would actually execute, not just the bound rendering
+        Assert.assertEquals(2, sink.consulted.size());
+        Assert.assertEquals("SELECT raw_a, raw_b FROM demo WHERE x >= ?", sink.consulted.get(0).getSql());
+        Assert.assertTrue(jobDao.successInfoJson.contains("\"parameterInlining\":true"));
+        Assert.assertTrue(jobDao.successInfoJson.contains("\"statementDelegated\":true"));
+        Assert.assertEquals(DataTaskStatus.SUCCESS, events.get(0).getStatus());
+    }
+
+    @Test
+    public void sinksThatDoNotDeclareInliningKeepTheirBoundRendering() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = boundStatementJob();
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, mustNotStream());
+
+        localEngine.run(77L);
+
+        DataTaskStatementRequest request = sink.executed.get(0);
+        Assert.assertEquals("SELECT raw_a, raw_b FROM demo WHERE x >= ?", request.getSql());
+        Assert.assertEquals(1, request.getSqlParameters().size());
+        Assert.assertEquals(1, sink.consulted.size());
+        Assert.assertFalse(jobDao.successInfoJson.contains("parameterInlining"));
+    }
+
+    @Test
+    public void decliningTheRewrittenStatementFallsBackToTheRowPipeline() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        sink.inlineParameters = true;
+        sink.declineInlined = true;
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        jobDao.current = boundStatementJob();
+
+        cannedRows = 1;
+        DataTaskJobEngine localEngine = engine(jobDao, sink, new ChannelScript() {
+            @Override
+            public void drive(DataTaskJobEngine.ResultChannel channel) throws Exception {
+                channel.start(new ArrayList<>(Arrays.asList("raw_a", "raw_b")),
+                        Collections.<ColumnMetadata>emptyList());
+                List<Object[]> batch = new ArrayList<>();
+                batch.add(new Object[]{"a1", 10});
+                channel.batch(batch);
+            }
+        });
+
+        localEngine.run(77L);
+
+        // the row pipeline still needs the bound rendering, so the rewrite is discarded entirely
+        Assert.assertTrue(rowPipelineRan);
+        Assert.assertTrue(sink.executed.isEmpty());
+        Assert.assertEquals(2, sink.consulted.size());
+        Assert.assertEquals(Long.valueOf(1L), jobDao.successRows);
+        Assert.assertFalse(jobDao.successInfoJson.contains("parameterInlining"));
+    }
+
+    @Test
+    public void statementsThatCannotBeInlinedFailWithTheReasonOnTheRecord() throws Exception {
+        final StubStatementSink sink = new StubStatementSink();
+        sink.inlineParameters = true;
+        final RecordingJobDao jobDao = new RecordingJobDao();
+        DataTaskJobEntity job = jobFor(definition());
+        job.setParamsJson("{\"x\":[1,2]}"); // an array bound as one placeholder has no literal form
+        jobDao.current = job;
+
+        DataTaskJobEngine localEngine = engine(jobDao, sink, mustNotStream());
+
+        localEngine.run(77L);
+
+        Assert.assertTrue(String.valueOf(jobDao.failureMessage), jobDao.failureMessage.contains("x"));
+        Assert.assertTrue(sink.executed.isEmpty());
+        Assert.assertEquals(DataTaskStatus.FAILED, events.get(0).getStatus());
     }
 
     @Test

@@ -36,5 +36,21 @@ public interface DataTaskStatementSink extends DataTaskSink {
     /** @return true to have the engine delegate this definition's statement to the sink */
     boolean handlesStatement(DataTaskStatementRequest request);
 
+    /**
+     * Whether the engine must render {@code #{}} parameters as SQL literals before handing the
+     * statement over, for engines whose JDBC route accepts no bind parameters ({@code UNLOAD}
+     * being the usual example). Answering {@code true} lets definitions keep the parameterized
+     * {@code #{}} style: the engine replaces each placeholder with its value, quoted and escaped
+     * for the statement text, and only then calls {@link #handlesStatement} again (declining the
+     * rewritten statement puts the definition back on the row pipeline).
+     *
+     * <p>The default keeps every existing implementation — and every definition authored for it —
+     * on the behaviour it had before: placeholders stay bound, and a sink that cannot execute them
+     * reports that itself.</p>
+     */
+    default boolean requiresInlinedParameters() {
+        return false;
+    }
+
     SinkOutcome executeStatement(DataTaskStatementRequest request) throws Exception;
 }

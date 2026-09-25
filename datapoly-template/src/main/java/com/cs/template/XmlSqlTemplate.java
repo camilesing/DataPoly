@@ -130,6 +130,30 @@ public class XmlSqlTemplate {
      *        #{} parameterized placeholders are unaffected
      */
     public SqlMeta process(Map<String, Object> params, boolean dollarSubstitutionAllowed) {
+        Rendered rendered = render(params, dollarSubstitutionAllowed);
+        return new SqlMeta(rendered.sql, rendered.values);
+    }
+
+    /**
+     * Renders the template and then turns every {@code #{} } the renderer left behind into an SQL
+     * literal, for delivery paths whose engine accepts no bind parameters (server-side exports such
+     * as MaxCompute's {@code UNLOAD}). Template semantics are untouched: {@code ${} } substitution,
+     * including the ban that {@code dollarSubstitutionAllowed == false} enforces, resolves exactly
+     * as in {@link #process(Map, boolean)} — only the placeholder style of {@code #{} } changes.
+     *
+     * @throws ParameterInliningException when a value is not a scalar or the placeholder count does
+     *        not match the value count
+     */
+    public SqlMeta processInlined(Map<String, Object> params, boolean dollarSubstitutionAllowed) {
+        Rendered rendered = render(params, dollarSubstitutionAllowed);
+        if (rendered.values.isEmpty()) {
+            return new SqlMeta(rendered.sql, rendered.values);
+        }
+        return new SqlMeta(SqlLiteralInliner.inline(rendered.sql, rendered.values, rendered.names),
+                Collections.emptyList());
+    }
+
+    private Rendered render(Map<String, Object> params, boolean dollarSubstitutionAllowed) {
         if (!dollarSubstitutionAllowed && containsDollarToken(xmlSql)) {
             throw new DollarSubstitutionException(
                     "Dollar substitution ${} is not allowed for this API, use #{} instead");
@@ -139,6 +163,7 @@ public class XmlSqlTemplate {
         SqlSource sqlSource = builder.parseScriptNode(inputParams);
         BoundSql boundSql = sqlSource.getBoundSql(params);
 
+        List<String> paramNames = new ArrayList<>();
         List<Object> paramValues = new ArrayList<>();
         for (ParameterMapping parameterMapping : boundSql.getParameterMappings()) {
             String name = parameterMapping.getProperty();
@@ -156,9 +181,24 @@ public class XmlSqlTemplate {
                     value = params.get(name);
                 }
             }
+            paramNames.add(name);
             paramValues.add(value);
         }
 
-        return new SqlMeta(boundSql.getSql(), paramValues);
+        return new Rendered(boundSql.getSql(), paramNames, paramValues);
+    }
+
+    /** One rendering: the statement, and the bind names/values in placeholder order. */
+    private static final class Rendered {
+
+        private final String sql;
+        private final List<String> names;
+        private final List<Object> values;
+
+        private Rendered(String sql, List<String> names, List<Object> values) {
+            this.sql = sql;
+            this.names = names;
+            this.values = values;
+        }
     }
 }
