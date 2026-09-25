@@ -1,6 +1,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
@@ -31,9 +32,11 @@ public class DataTaskBaseResponse {
     @Schema(description = "是否启用")
     private Boolean enabled;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @Schema(description = "创建时间")
     private Timestamp createTime;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @Schema(description = "修改时间")
     private Timestamp updateTime;
 }

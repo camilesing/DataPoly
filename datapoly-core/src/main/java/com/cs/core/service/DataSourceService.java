@@ -17,6 +17,7 @@ import com.cs.persistence.entity.DataSourceEntity;
 import com.cs.persistence.util.PageUtils;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Service;
@@ -30,8 +31,15 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class DataSourceService {
+
+    /**
+     * Cap for the driver message carried out by a connection test; driver stacks can be far longer than
+     * anything a user needs to read in a toast.
+     */
+    private static final int CONNECT_ERROR_MESSAGE_MAX_LENGTH = 500;
 
     @Resource
     private DataSourceDao dataSourceDao;
@@ -114,11 +122,17 @@ public class DataSourceService {
                 .getVersionDriverFile(dataSourceEntity.getType(),
                         dataSourceEntity.getVersion());
         String driverPath = driverPathFile.getAbsolutePath();
-        HikariDataSource ds = DataSourceUtils.createDataSource(dataSourceEntity, driverPath);
         try {
-            testConnection(ds, request.getType());
-        } finally {
-            DataSourceUtils.closeHikariDataSource(ds);
+            HikariDataSource ds = DataSourceUtils.createDataSource(dataSourceEntity, driverPath);
+            try {
+                testConnection(ds, request.getType());
+            } finally {
+                DataSourceUtils.closeHikariDataSource(ds);
+            }
+        } catch (CommonException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw connectFailure(e);
         }
     }
 
@@ -131,8 +145,43 @@ public class DataSourceService {
                 .getVersionDriverFile(dataSourceEntity.getType(),
                         dataSourceEntity.getVersion());
         String driverPath = driverPathFile.getAbsolutePath();
-        HikariDataSource ds = DataSourceUtils.getHikariDataSource(dataSourceEntity, driverPath);
-        testConnection(ds, dataSourceEntity.getType());
+        try {
+            HikariDataSource ds = DataSourceUtils.getHikariDataSource(dataSourceEntity, driverPath);
+            testConnection(ds, dataSourceEntity.getType());
+        } catch (CommonException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw connectFailure(e);
+        }
+    }
+
+    /**
+     * A connection test exists to tell the caller why a datasource does not work, so the driver/server
+     * message is raised as a business error (code 10, business failures stay HTTP 200) instead of being
+     * masked as a generic internal error. The stack still goes to the log for support.
+     */
+    static CommonException connectFailure(Throwable cause) {
+        String message = causeMessage(cause);
+        log.warn("Datasource connection test failed: {}", message, cause);
+        CommonException exception = new CommonException(ResponseErrorCode.ERROR_CANNOT_CONNECT_REMOTE,
+                "datasource.connect.failed", message);
+        exception.initCause(cause);
+        return exception;
+    }
+
+    /**
+     * Deepest cause message: JDBC driver stacks (ODPS and friends) put the actionable text - permission
+     * denied, unknown host, bad credentials - at the bottom, while the outer layers only repeat it.
+     * Whitespace is collapsed so a multi-line driver dump stays readable in one response field.
+     */
+    static String causeMessage(Throwable cause) {
+        Throwable root = cause;
+        while (null != root.getCause() && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String message = StringUtils.defaultIfBlank(root.getMessage(), cause.getMessage());
+        message = StringUtils.defaultIfBlank(message, root.getClass().getName());
+        return StringUtils.abbreviate(message.replaceAll("\\s+", " ").trim(), CONNECT_ERROR_MESSAGE_MAX_LENGTH);
     }
 
     public void createDataSource(DataSourceSaveRequest request) {
