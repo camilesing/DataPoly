@@ -98,6 +98,11 @@ services:
       OSS_WEBHOOK_TOKEN: ${OSS_WEBHOOK_TOKEN:-}
       OSS_WEBHOOK_CONNECT_TIMEOUT_MS: ${OSS_WEBHOOK_CONNECT_TIMEOUT_MS:-5000}
       OSS_WEBHOOK_READ_TIMEOUT_MS: ${OSS_WEBHOOK_READ_TIMEOUT_MS:-5000}
+      # ODPS(MaxCompute) 服务端导出路径（经 relaxed binding 映射为 odps.*，详见扩展 odps.yaml）：
+      # oss-endpoint 是 MaxCompute 写目标 bucket 时用的 OSS endpoint（同地域内网端点），
+      # 留空则该路径报错要求配置；role-arn 是 MaxCompute 承担的 RAM 角色，项目已一键授权时可留空
+      ODPS_OSS_ENDPOINT: ${ODPS_OSS_ENDPOINT:-}
+      ODPS_ROLE_ARN: ${ODPS_ROLE_ARN:-}
     depends_on:
       mysqldb:
         condition: service_healthy

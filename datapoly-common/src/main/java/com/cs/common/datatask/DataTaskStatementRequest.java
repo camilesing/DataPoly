@@ -40,17 +40,21 @@ public class DataTaskStatementRequest {
     private String sinkConfig;
 
     /**
-     * Statement rendered from the definition template. For server-side execution this
-     * text must be complete: drivers of these engines generally accept no bind
-     * parameters, so callers author such definitions with {@code ${param}} inlining
-     * ({@code dollarAllowed}) rather than {@code #{param}}.
+     * Statement rendered from the definition template. For server-side execution this text
+     * must be complete: drivers of these engines generally accept no bind parameters, so
+     * {@code #{param}} definitions are handed over inlined — the engine turns each bind value
+     * into a quoted, escaped literal as soon as the sink declares
+     * {@link DataTaskStatementSink#requiresInlinedParameters()} — while {@code ${param}}
+     * substitution stays subject to the definition's {@code dollarAllowed} switch.
      */
     private String sql;
 
     /**
-     * Bind values the renderer left behind as placeholders; a non-empty list means
-     * {@link #sql} is not executable as-is and the definition must be rewritten with
-     * inlined parameters.
+     * Bind values the renderer left behind as placeholders; a non-empty list means {@link #sql}
+     * still carries {@code ?} placeholders and is not executable as-is. The engine inlines them
+     * first for sinks that ask for it (see {@link #sql}), so on that path this list arrives empty
+     * and a non-empty one means the parameters could not be inlined — or that the host predates
+     * inlining and the definition must be rewritten with {@code ${param}} substitution.
      */
     private List<Object> sqlParameters;
 

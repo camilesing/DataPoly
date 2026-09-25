@@ -287,11 +287,23 @@ public interface DataTaskStatementSink extends DataTaskSink {
 `executeStatement`，把返回的 `artifactUri`/`info` 与普通 sink 一样合并进执行记录。返回 `false` 则走常规路径，
 因此同一个 sink 可以两种模式并存（按数据源类型切换的现成例子见扩展模块的 `oss` 投递）。
 
-`DataTaskStatementRequest` 携带：`jobId / taskName / sinkType / sinkConfig / sql`（**已渲染**的语句）/
-`sqlParameters`（`#{}` 绑定值；非空即说明该语句不能整条交给源引擎，需改成 `${}` 内联） / `query`
+`DataTaskStatementRequest` 携带：`jobId / taskName / sinkType / sinkConfig / sql`（**已渲染**的语句；sink 声明
+`requiresInlinedParameters()` 时，语句以 `#{}` 字面量化后的形式交给它） / `sqlParameters`（渲染遗留的 `#{}`
+绑定值，内联后为空；非空只说明宿主尚未内联、或该值无法内联） / `query`
 （渲染后的语句是否为查询，忽略前导空白/括号/注释后的 `SELECT`/`WITH`） / `params`（原始参数，诊断用）/
 `datasourceId / product / dataSource`（定义所指向数据源的连接池，与 API 数据面共用）/
 `submittedBy` / `cancelled`（与行式路径同一判据的取消探针）。
+
+这类引擎通常不接受绑定参数（`UNLOAD` 即如此），所以 sink 用 `requiresInlinedParameters()` 声明该事实：引擎在
+`handlesStatement` 返回 true 后，把同一语句以**字面量化**形式再渲染一次——`#{}` 的值按类型转成 SQL 字面量
+（字符串加引号并转义 `\` 与 `'`，数字/布尔/null 各按其形），`${}` 与 `dollarAllowed` 的语义不变——然后用新
+语句再问一次 `handlesStatement`（改判 false 则丢弃改写、回到行式管线）。于是定义可以照常使用 `#{}`，`${}` 只
+在需要拼接表名/排序等结构片段时使用；`<foreach>` 展开的 IN 列表、动态标签、OBJECT 子参数都照常工作，因为
+占位符与取值和行式路径用的是同一套渲染结果。
+
+无法安全内联的输入会让任务**明确失败**而不是猜：数组/对象整体绑定到单个占位符（提示改用 `<foreach>` 展开）、
+`NaN`/`Infinity`、占位符数量与绑定值数量不一致（例如 SQL 里写了裸 `?`）。未声明该能力的 sink 保持原有绑定
+语义——自己用 `PreparedStatement` 执行的实现不受影响。
 
 服务端导出命令通常只接受**查询语句**（`UNLOAD FROM (<sql>)` 即如此），所以 `handlesStatement` 应把
 `isQuery()` 纳入判定：DML、DDL 以及用户已手写完整导出命令的定义都会因此留在原有执行路径上，不会因为
@@ -334,7 +346,7 @@ executor 侧前缀 `datapoly.data-task.*`（`application.yaml` 均可用 `DATAPO
 - 能创建任务定义的用户**等同拥有目标数据源的任意查询能力**（SQL 在数据源上原样执行），请用平台账号
   体系控制谁能建任务、谁能访问哪些数据源。
 - `${}` 原生替换默认禁止（存在注入拼接风险），仅在定义显式 `dollarAllowed=true` 时放行；优先使用 `#{}`
-  参数化。
+  参数化——语句型投递也不例外：绑定值由引擎按类型渲染成转义字面量，无需打开该开关。
 - 行数上限（`maxRows` / `max-rows-default`）与语句超时（`query-timeout-seconds`）是资源兜底，**不建议
   移除或调到失控**；超大结果集应在 SQL 侧做归档/过滤。
 - 定义存在 PENDING/RUNNING 任务时禁止删除；编辑定义不影响已提交任务（快照隔离）。
@@ -351,5 +363,8 @@ executor 侧前缀 `datapoly.data-task.*`（`application.yaml` 均可用 `DATAPO
 | `artifactInfo.truncated=true` | 命中行数上限被截断（定义 `maxRows` 或 `max-rows-default`）；需要全量就调大上限或改写 SQL 分批 |
 | 取消迟迟不生效 | RUNNING 任务的取消是协作式的，生效延迟 ≤ `flush-interval-ms`（默认 5 秒）；PENDING 任务取消立即生效 |
 | preview 正常但正式任务失败 | preview 不触碰 sink——失败几乎必然在投递侧（sink 未部署、`sinkConfig` 不合法、目标端鉴权失败），看 `errorMessage` 与 executor 日志 |
+| FAILED，错误含 `accepts no bind placeholders` | 宿主 jar 早于 `requiresInlinedParameters()` 契约、未把 `#{}` 内联给该 sink：升级宿主与扩展 jar，或把定义改为 `${param}` 内联并打开「允许 ${} 替换」 |
+| FAILED，错误含 `not a scalar and cannot be inlined` | 数组/对象整体绑定到了单个占位符：数组用 `<foreach>` 展开成多个 `#{}`，对象按子字段分别引用 |
+| FAILED，错误含 `EntityNotExist.Role` | MaxCompute 写 OSS 的角色授权缺失：给项目做「一键授权」（生成 `AliyunODPSDefaultRole`），或创建受信于 MaxCompute 的 RAM 角色并在 `odps.role-arn`（`ODPS_ROLE_ARN`）/ 任务 `sinkConfig.roleArn` 指定其 ARN；注意 UNLOAD 的 `LOCATION` 里出现的是 MaxCompute 侧的 OSS endpoint，与平台进程用哪对 AK 无关 |
 | FAILED，`Java heap space` / executor 反复 `GC overhead limit exceeded` | 先核对 executor 堆与宿主内存是否超配（发行脚本 `datapolyctl.sh` 默认每服务 4G 堆，同机多服务需留余量）；引擎已保证 PostgreSQL 系驱动按 `fetch-size` 分批拉取，行数上限（`maxRows`）与 sink 自身内存行为仍需控制 |
 | 多 executor 部署后任务重复投递？ | 不会。认领是元库事务内 `FOR UPDATE SKIP LOCKED` 原子操作，一条任务只会被一个节点置为 RUNNING |

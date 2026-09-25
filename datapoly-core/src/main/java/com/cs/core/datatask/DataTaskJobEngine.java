@@ -241,22 +241,26 @@ public class DataTaskJobEngine {
                 // server-side delivery: the sink runs the statement itself (the data never
                 // travels through this process), so the row pipeline stays out of the way
                 DataTaskStatementSink statementSink = (DataTaskStatementSink) resolved;
-                DataTaskStatementRequest statementRequest = DataTaskStatementRequest.builder()
-                        .jobId(jobId)
-                        .taskName(job.getDefName())
-                        .sinkType(snapshot.getSinkType())
-                        .sinkConfig(snapshot.getSinkConfig())
-                        .sql(sqlMeta.getSql())
-                        .sqlParameters(sqlMeta.getParameter())
-                        .query(sqlMeta.isQuerySQL())
-                        .params(params)
-                        .datasourceId(dsEntity.getId())
-                        .product(dsEntity.getType())
-                        .dataSource(dataSource)
-                        .submittedBy(job.getSubmittedBy())
-                        .cancelled(() -> isJobCancelled(jobId))
-                        .build();
-                if (statementSink.handlesStatement(statementRequest)) {
+                DataTaskStatementRequest statementRequest = statementRequest(job, jobId, snapshot,
+                        dsEntity, dataSource, sqlMeta, params);
+                boolean claimed = statementSink.handlesStatement(statementRequest);
+                if (claimed && statementSink.requiresInlinedParameters() && !sqlMeta.getParameter().isEmpty()) {
+                    // the engine behind this sink takes no bind parameters: hand the same statement
+                    // over with every #{} rendered as a literal, then let the sink judge again what
+                    // it would actually execute (declining puts the definition back on the row
+                    // pipeline, which still needs the bound rendering above)
+                    SqlMeta inlined = template.processInlined(params,
+                            Boolean.TRUE.equals(snapshot.getDollarAllowed()));
+                    DataTaskStatementRequest inlinedRequest = statementRequest(job, jobId, snapshot,
+                            dsEntity, dataSource, inlined, params);
+                    if (statementSink.handlesStatement(inlinedRequest)) {
+                        statementRequest = inlinedRequest;
+                        artifactInfo.put("parameterInlining", Boolean.TRUE);
+                    } else {
+                        claimed = false;
+                    }
+                }
+                if (claimed) {
                     delegated = true;
                     SinkOutcome outcome = runDelegatedStatement(statementSink, statementRequest, jobId);
                     artifactInfo.put("statementDelegated", Boolean.TRUE);
@@ -335,6 +339,30 @@ public class DataTaskJobEngine {
         }
         publish(new DataTaskEvent(jobId, job.getDefId(), job.getDefName(), terminal,
                 delivered, artifactUri, failureMessage, sinkType));
+    }
+
+    /**
+     * Builds one statement request from a rendering; rebuilt after parameter inlining so the
+     * sink is consulted about the exact statement it would execute.
+     */
+    private DataTaskStatementRequest statementRequest(DataTaskJobEntity job, Long jobId, DataTaskDefEntity snapshot,
+                                                      DataSourceEntity dsEntity, HikariDataSource dataSource,
+                                                      SqlMeta sqlMeta, Map<String, Object> params) {
+        return DataTaskStatementRequest.builder()
+                .jobId(jobId)
+                .taskName(job.getDefName())
+                .sinkType(snapshot.getSinkType())
+                .sinkConfig(snapshot.getSinkConfig())
+                .sql(sqlMeta.getSql())
+                .sqlParameters(sqlMeta.getParameter())
+                .query(sqlMeta.isQuerySQL())
+                .params(params)
+                .datasourceId(dsEntity.getId())
+                .product(dsEntity.getType())
+                .dataSource(dataSource)
+                .submittedBy(job.getSubmittedBy())
+                .cancelled(() -> isJobCancelled(jobId))
+                .build();
     }
 
     /** Manager-side synchronous preview: no job record, no sink involvement. */
