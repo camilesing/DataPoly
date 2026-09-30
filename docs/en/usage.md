@@ -8,6 +8,62 @@ user guide is being prepared.
 > Illustrated guide materials are staged under `docs/images/en_US/`, to be organized into the official guide.
 ---
 
+## GraphQL APIs (GRAPHQL engine)
+
+For authors who want **typed inputs/outputs and on-demand field selection** without writing scripts: switch the
+execute engine to **GraphQL API** in the API editor and define the interface as one SDL document. Every root field
+of `type Query` (and the optional `type Mutation`) carries its SQL template via the built-in `@sql` directive;
+the schema is assembled at runtime (no physical classes are generated) and clients query per the GraphQL spec.
+
+```graphql
+type Query {
+  users(id: Long, nameLike: String): [User]
+    @sql(sql: """SELECT id, name, age, birthday FROM t_user WHERE 1=1
+      <if test="id != null"> AND id = #{id}</if>
+      <if test="nameLike != null and nameLike != ''"> AND name LIKE CONCAT('%', #{nameLike}, '%')</if>""")
+}
+type Mutation {
+  addUser(name: String): String
+    @sql(sql: """INSERT INTO t_user(name) VALUES (#{name})""")
+}
+type User { id: Long  name: String  age: Int  birthday: Date }
+```
+
+**Rules and conventions**
+
+- One GraphQL API = **exactly one SDL document** (a single template). Saving validates syntax, the presence of
+  `Query`, and `@sql` on every root field; the method is fixed to **POST**; request parameters are the fixed pair
+  `query` (the GraphQL document, required) and `variables` (an object, optional), generated automatically on save.
+- SQL inside `@sql` behaves exactly like the SQL engine: `#{}` binds prepared-statement placeholders,
+  `<if>/<where>/<foreach>` dynamic tags work; field arguments merged over `variables` feed the template;
+  open=true public APIs still forbid `${}` literal substitution.
+- Scalars: built-in `Long`, `Date` (yyyy-MM-dd), `Time` (HH:mm:ss), `DateTime`
+  (ISO `yyyy-MM-dd'T'HH:mm:ss`); everything else is standard GraphQL. User declarations of the same
+  names win over the built-ins.
+- Output type field names must match the SQL column labels (after the naming strategy); the selected field set
+  prunes the output automatically.
+- Pagination follows the `apiPageNum`/`apiPageSize` convention: put them in `variables` (declaring them in the
+  query document is not required).
+- The response is the GraphQL-spec `{data, errors}`: field-level SQL failures land in `errors` instead of failing
+  the transport. Setting the response format to "data only" emits pure GraphQL JSON (the system format wraps it
+  as `{"code":200,"message":"success","data":{...}}`).
+- The SQL text is an XML fragment: `<` and `&` outside tags must be escaped (same as the SQL engine).
+
+**Execution settings (executor side, `datapoly.executor.graphql.*`)**
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `timeout-seconds` | 60 | Overall timeout per query execution |
+| `max-depth` | 10 | Maximum selection-set depth |
+| `introspection-enabled` | true | Whether introspection (`__schema`/`__type`) is allowed |
+
+**Current limitations (v1)**: no nested/relational fields (e.g. `user.orders` parent-child arguments); no
+cross-field transaction (each root field runs on its own connection); no selection-set column pushdown.
+For complex logic keep using the SCRIPT (Groovy) engine.
+
+---
+
+
 ## Async Data Tasks (DataTask)
 
 Run a configured SQL query plus output reshaping as an **asynchronous job**: after

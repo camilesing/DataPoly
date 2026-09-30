@@ -11,6 +11,7 @@ API。它支持多种数据库，允许用户通过配置 SQL(或DSL) 语句来�
 DataPoly的功能包括：
 
 - **SQL直接构建API**：通过配置增删改查SQL和参数即可生成 RESTful API。
+- **GraphQL接口支持**：以 GraphQL SDL 定义接口（`type Query` 根字段通过 `@sql` 指令挂 SQL 模板），运行时装配 schema，调用方可按需选择字段与传参，请求体为标准的 `{query, variables}`。
 - **多数据库支持**：支持常见的20+种数据库，其中包含多款国产数据库。
 - **MyBatis语法支持**：支持MyBatis的动态SQL语法。
 - **Groovy脚本支持**：支持groovy语法构建复杂场景下的接口逻辑。
@@ -70,7 +71,7 @@ DataPoly作为微服务架构下的数据访问中间件，适合以下场景：
 └── datapoly
     ├── datapoly-common           // datapoly通用定义模块
     ├── datapoly-mcp              // datapoly的MCP协议模块
-    ├── datapoly-template         // datapoly的SQL内容模板模块
+    ├── datapoly-template         // datapoly的SQL/GraphQL内容模板模块
     ├── datapoly-cache            // datapoly执行器缓存模块
     ├── datapoly-persistence      // datapoly的数据库持久化模块
     ├── datapoly-core             // datapoly接口核心实现模块

@@ -17,5 +17,11 @@
             <artifactId>mybatis</artifactId>
         </dependency>
 
+        <!-- GraphQL SDL 解析与 schema 装配（GraphqlSdlTemplate），与 XmlSqlTemplate 同级的模板层能力 -->
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+        </dependency>
+
     </dependencies>
 </project>

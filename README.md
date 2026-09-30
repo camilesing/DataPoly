@@ -8,8 +8,9 @@ Language: [简体中文](README.zh.md) [English](README.md)
 
 DataPoly is an open-source SQL/DSL data access middleware: pick a data source, configure SQL or scripts, and set a
 path to create RESTful APIs — no backend code required. It supports 20+ databases including mainstream Chinese
-domestic ones, with MyBatis dynamic SQL, Groovy scripting, token authentication, Sentinel flow control,
-Hazelcast/Redis caching, online API docs, and LLM MCP services.
+domestic ones, with MyBatis dynamic SQL, Groovy scripting, GraphQL APIs (SDL definitions with `@sql`-bound SQL and
+runtime schema assembly), token authentication, Sentinel flow control, Hazelcast/Redis caching, online API docs,
+and LLM MCP services.
 
 ## Quick Start With Docker Compose
 ```

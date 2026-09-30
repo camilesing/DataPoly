@@ -12,6 +12,7 @@ source, input SQL or scripts, and configure a simple path to quickly generate AP
 DataPoly provides the following features:
 
 - **SQL-driven API Creation**: Generate RESTful APIs by configuring CRUD SQL statements and parameters.
+- **GraphQL API Support**: Define APIs with GraphQL SDL (root fields of `type Query` carry their SQL template via the `@sql` directive); the schema is assembled at runtime and clients choose fields and arguments with a standard `{query, variables}` request body.
 - **Multi-Database Support**: Supports 20+ common databases, including several domestic Chinese databases.
 - **MyBatis Syntax Support**: Supports MyBatis dynamic SQL syntax.
 - **Groovy Script Support**: Supports Groovy syntax for building complex interface logic.
@@ -71,7 +72,7 @@ To date, the supported databases include:
 └── datapoly
     ├── datapoly-common           // Common definitions module
     ├── datapoly-mcp              // MCP protocol module
-    ├── datapoly-template         // SQL content template module
+    ├── datapoly-template         // SQL/GraphQL content template module
     ├── datapoly-cache            // Executor cache module
     ├── datapoly-persistence      // Database persistence module
     ├── datapoly-core             // Core API implementation module

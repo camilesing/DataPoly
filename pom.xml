@@ -126,6 +126,14 @@
                 <version>4.0.33</version>
             </dependency>
 
+            <!-- 钉版勿回退：graphql-java 运行时装配 GraphQL schema（GRAPHQL 引擎）；26.x 基线 JDK 17+，
+                 本项目 JDK 25 基线兼容，升版前需确认 Instrumentation/Scalar API 无破坏性变更 -->
+            <dependency>
+                <groupId>com.graphql-java</groupId>
+                <artifactId>graphql-java</artifactId>
+                <version>26.1</version>
+            </dependency>
+
             <dependency>
                 <groupId>cn.hutool</groupId>
                 <artifactId>hutool-all</artifactId>
