@@ -15,7 +15,7 @@ and LLM MCP services.
 ## Quick Start With Docker Compose
 ```
 sh ./build.sh
-sh ./docker-maven-build.sh
+sh ./build-docker/build_and_push_image.sh
 cd build-docker/install 
 docker compose up -d
 ```
