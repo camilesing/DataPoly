@@ -9,10 +9,11 @@ Maven 多模块，BSD-3-Clause。本机构建与 CI 统一 JDK 25（LTS；temuri
 
 ## 模块速览与常用命令
 
-SQL/DSL → RESTful API 的数据访问中间件（Boot 3.5.x LTS + Cloud 2025.0.x，jakarta 命名空间）。Maven 模块：common（通用定义）、mcp（LLM MCP 协议）、template（SQL 内容模板）、persistence（数据库持久化）、core（接口核心实现）、cache（执行缓存）、executor/gateway/manager（三服务，见下）、test（集中全部测试）、dist（发行打包）；`datapoly-manager-ui` 为前端（非 Maven）；`drivers/` 装配 20+ 数据库 JDBC 驱动；`build-docker/` 镜像与 compose 一键安装。改动前按需读 docs/{zh,en}/ 下 overview.md、build-deploy.md、data-task.md（涉及 DataTask 必读）。API 文档注解用 springdoc/swagger v3（io.swagger.v3.oas.annotations），勿引入 springfox。
+SQL/DSL/GraphQL → RESTful API 的数据访问中间件（Boot 3.5.x LTS + Cloud 2025.0.x，jakarta 命名空间）。Maven 模块：common（通用定义）、mcp（LLM MCP 协议）、template（SQL/GraphQL 内容模板）、persistence（数据库持久化）、core（接口核心实现）、cache（执行缓存）、executor/gateway/manager（三服务，见下）、test（集中全部测试）、dist（发行打包）；`datapoly-manager-ui` 为前端（非 Maven）；`drivers/` 装配 20+ 数据库 JDBC 驱动；`build-docker/` 镜像与 compose 一键安装。执行引擎三选一：SQL、SCRIPT、GRAPHQL（`ExecuteEngineEnum`；GRAPHQL 引擎以单份 SDL 文档定义接口，`type Query` 根字段经 `@sql` 指令挂 SQL 模板、运行时装配 schema，详见 docs/*/usage.md）。改动前按需读 docs/{zh,en}/ 下 overview.md、usage.md、build-deploy.md、data-task.md（涉及 DataTask 必读）。API 文档注解用 springdoc/swagger v3（io.swagger.v3.oas.annotations），勿引入 springfox。
 
 - 全量测试（CI 同款）：`mvn test -pl datapoly-test -am`
 - 发行构建：`./build.sh`（前置 build-extension.sh 与 build-ui.sh 再 mvn package）；容器内构建：`./docker-maven-build.sh`
+- 构建三服务镜像：`sh build-docker/build_and_push_image.sh`（内部走 docker-maven-build.sh，同步发行目录后出镜像并补打 `:latest` 供 compose 消费；`IMAGE_NAMESPACE` 覆盖命名空间、`PUSH_IMAGES=1` 连带推送，首参 debug 透传 build-ui.sh）。本地 compose 覆盖写进被忽略的 `build-docker/install/docker-compose.override.yaml`，勿提交。
 
 ## 一、网络分段（必须遵守）
 
