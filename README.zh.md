@@ -11,7 +11,7 @@ DataPoly 是一款开源的 SQL/DSL 数据访问中间件：只需选择数据�
 ## 使用 Docker Compose 快速启动
 ```
 sh ./build.sh
-sh ./docker-maven-build.sh
+sh ./build-docker/build_and_push_image.sh
 cd build-docker/install
 docker compose up -d
 ```
