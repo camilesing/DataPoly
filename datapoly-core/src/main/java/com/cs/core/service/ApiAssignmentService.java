@@ -4,6 +4,7 @@ package com.cs.core.service;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.exceptions.ExceptionUtil;
+import com.cs.common.consts.Constants;
 import com.cs.common.dto.*;
 import com.cs.common.dto.ParamValue.BaseParamValue;
 import com.cs.common.enums.*;
@@ -21,6 +22,8 @@ import com.cs.core.util.*;
 import com.cs.persistence.dao.*;
 import com.cs.persistence.entity.*;
 import com.cs.persistence.util.*;
+import com.cs.template.GraphqlSdlException;
+import com.cs.template.GraphqlSdlTemplate;
 import com.cs.template.XmlSqlTemplate;
 import com.google.common.base.Charsets;
 import com.zaxxer.hikari.HikariDataSource;
@@ -373,6 +376,9 @@ public class ApiAssignmentService {
         if (CollectionUtils.isEmpty(request.getContextList())) {
             throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "api.context.list.required");
         }
+        if (ExecuteEngineEnum.GRAPHQL == request.getEngine()) {
+            validateGraphqlAssignment(request);
+        }
         if (null == request.getNamingStrategy()) {
             request.setNamingStrategy(NamingStrategyEnum.CAMEL_CASE);
         }
@@ -495,6 +501,9 @@ public class ApiAssignmentService {
         }
 
         List<ApiContextEntity> contextList = getContextListEntity(request.getContextList());
+        if (ExecuteEngineEnum.GRAPHQL == request.getEngine()) {
+            validateGraphqlAssignment(request);
+        }
 
         ApiAssignmentEntity assignmentEntity = new ApiAssignmentEntity();
         assignmentEntity.setId(request.getId());
@@ -533,12 +542,50 @@ public class ApiAssignmentService {
     }
 
     /**
+     * GRAPHQL engine save-time contract: exactly one SDL document, POST-only, and the fixed
+     * query/variables request parameters replace whatever was submitted (the real arguments live
+     * inside the GraphQL document and are declared by the SDL itself).
+     */
+    private static void validateGraphqlAssignment(ApiAssignmentSaveRequest request) {
+        if (request.getContextList().size() != 1) {
+            throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "api.graphql.context.single");
+        }
+        if (HttpMethodEnum.POST != request.getMethod()) {
+            throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "api.graphql.method.post");
+        }
+        try {
+            new GraphqlSdlTemplate(request.getContextList().get(0)).validate();
+        } catch (GraphqlSdlException e) {
+            throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "api.graphql.sdl.invalid", e.getMessage());
+        }
+        request.setParams(graphqlFixedParams());
+    }
+
+    private static List<ItemParam> graphqlFixedParams() {
+        ItemParam query = new ItemParam();
+        query.setName(Constants.PARAM_GRAPHQL_QUERY);
+        query.setType(ParamTypeEnum.STRING);
+        query.setLocation(ParamLocationEnum.REQUEST_BODY);
+        query.setRequired(true);
+        query.setRemark("GraphQL query document");
+        ItemParam variables = new ItemParam();
+        variables.setName(Constants.PARAM_GRAPHQL_VARIABLES);
+        variables.setType(ParamTypeEnum.OBJECT);
+        variables.setLocation(ParamLocationEnum.REQUEST_BODY);
+        variables.setRequired(false);
+        variables.setRemark("GraphQL variables object");
+        variables.setChildren(Collections.emptyList());
+        return new ArrayList<>(Arrays.asList(query, variables));
+    }
+
+    /**
      * ${} usage detection warning (S3, warn-only): ${} in open=true public APIs is forcibly rejected at execution time;
      * warn the admin early at save/publish time; non-public APIs only get an injection-risk warning.
      */
     private static void warnDollarSubstitution(String action, String apiName, Boolean open,
                                                ExecuteEngineEnum engine, List<String> contextList) {
-        if (ExecuteEngineEnum.SQL != engine || CollectionUtils.isEmpty(contextList)) {
+        boolean sqlEngine = ExecuteEngineEnum.SQL == engine || ExecuteEngineEnum.GRAPHQL == engine;
+        if (!sqlEngine || CollectionUtils.isEmpty(contextList)) {
             return;
         }
         boolean hasDollar = contextList.stream().anyMatch(XmlSqlTemplate::containsDollarToken);

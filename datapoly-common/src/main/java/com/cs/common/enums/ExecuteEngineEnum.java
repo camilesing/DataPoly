@@ -3,6 +3,6 @@
 package com.cs.common.enums;
 
 public enum ExecuteEngineEnum {
-    SQL, SCRIPT,
+    SQL, SCRIPT, GRAPHQL,
     ;
 }

@@ -104,9 +104,11 @@
                                       @change="agreeEngineChange"
                                       v-model="createParam.engine">
                         <el-radio-button label="SQL"
-                                         :disabled="$route.query.id>0 && createParam.engine==='SCRIPT'">{{ $t('common2.sqlStatement') }}</el-radio-button>
+                                         :disabled="isUpdatePage() && createParam.engine!=='SQL'">{{ $t('common2.sqlStatement') }}</el-radio-button>
                         <el-radio-button label="SCRIPT"
-                                         :disabled="$route.query.id>0 && createParam.engine==='SQL'">{{ $t('common2.groovyScript') }}</el-radio-button>
+                                         :disabled="isUpdatePage() && createParam.engine!=='SCRIPT'">{{ $t('common2.groovyScript') }}</el-radio-button>
+                        <el-radio-button label="GRAPHQL"
+                                         :disabled="isUpdatePage() && createParam.engine!=='GRAPHQL'">{{ $t('common2.graphqlSdl') }}</el-radio-button>
                       </el-radio-group>
                     </el-form-item>
                   </el-col>
@@ -155,6 +157,24 @@
                     </el-form-item>
                   </el-col>
                 </el-row>
+                <el-row v-if="createParam.engine==='GRAPHQL'">
+                  <el-col :span="24">
+                    <el-form-item label-width="65px">
+                      <span slot="label"
+                            style="display:inline-block;">
+                        {{ $t('common2.graphqlSdl') }}
+                        <el-tooltip effect="dark"
+                                    :content="$t('common2.parseGraphqlTip')"
+                                    placement="bottom">
+                          <i class='el-icon-question' />
+                        </el-tooltip>
+                      </span>
+                      <graphql-editer ref="graphqlEditer"
+                                      :editorHeightNum="editorHeightNum"
+                                      :content="createParam.script"></graphql-editer>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
 
                 <el-tabs type="border-card"
                          tab-position="left">
@@ -174,7 +194,7 @@
                         <el-button type="primary"
                                    size="mini"
                                    icon="el-icon-arrow-down"
-                                   v-if="!isOnlyShowDetail"
+                                   v-if="!isOnlyShowDetail && createParam.engine!=='GRAPHQL'"
                                    @click="handleAddInputParams">
                           {{ $t('common2.addInputParams') }}
                         </el-button>
@@ -183,7 +203,7 @@
                         <el-button type="primary"
                                    size="mini"
                                    icon="el-icon-arrow-down"
-                                   v-if="!isOnlyShowDetail"
+                                   v-if="!isOnlyShowDetail && createParam.engine!=='GRAPHQL'"
                                    @click="handleAddPagableParams">
                           {{ $t('common2.pageParams') }}
                         </el-button>
@@ -365,15 +385,18 @@
                                   :required=true
                                   prop="method">
                       <el-select v-model="createParam.method"
-                                 :disabled="isOnlyShowDetail || $route.query.id>0">
+                                 :disabled="isOnlyShowDetail || $route.query.id>0 || createParam.engine==='GRAPHQL'">
                         <el-option label="GET"
-                                   value="GET"></el-option>
+                                   value="GET"
+                                   :disabled="createParam.engine==='GRAPHQL'"></el-option>
                         <el-option label="PUT"
-                                   value="PUT"></el-option>
+                                   value="PUT"
+                                   :disabled="createParam.engine==='GRAPHQL'"></el-option>
                         <el-option label="POST"
                                    value="POST"></el-option>
                         <el-option label="DELETE"
-                                   value="DELETE"></el-option>
+                                   value="DELETE"
+                                   :disabled="createParam.engine==='GRAPHQL'"></el-option>
                       </el-select>
                     </el-form-item>
                   </el-col>
@@ -799,6 +822,7 @@
 <script>
 import multiSqlEditer from '@/components/codeEditer/multiSqlEditer'
 import scriptEditer from '@/components/codeEditer/scriptEditer'
+import graphqlEditer from '@/components/codeEditer/graphqlEditer'
 import urlencode from "urlencode";
 import qs from "qs";
 import JsonViewer from 'vue-json-viewer';
@@ -856,6 +880,7 @@ export default {
       },
       keywordHints: [],
       inputParams: [],
+      inputParamsAreGraphqlFixed: false,
       debugParams: [],
       debugResponse: {},
       debugConsoleLog: "",
@@ -924,7 +949,7 @@ export default {
       default: false
     }
   },
-  components: { multiSqlEditer, scriptEditer, JsonViewer },
+  components: { multiSqlEditer, scriptEditer, graphqlEditer, JsonViewer },
   methods: {
     initParamTypeList () {
       this.paramTypeList = [
@@ -1007,6 +1032,11 @@ export default {
             this.$refs.sqlEditors.resetEditor();
           }
           this.createParam.sqls = detail.sqlList.map(obj => obj['sqlText'])
+        } else if (this.createParam.engine === 'GRAPHQL') {
+          this.createParam.script = detail.sqlList[0].sqlText
+          if (this.$refs.graphqlEditer) {
+            this.$refs.graphqlEditer.resetEditor(this.createParam.script)
+          }
         } else {
           this.createParam.script = detail.sqlList[0].sqlText
           if (this.$refs.scriptEditer) {
@@ -1437,6 +1467,42 @@ export default {
       if (this.createParam.engine === 'SCRIPT') {
         this.$refs.scriptEditer.setTableHints(this.keywordHints);
       }
+      if (this.createParam.engine === 'GRAPHQL') {
+        // GraphQL queries travel in the POST body ({query, variables}); request parameters are fixed
+        this.createParam.method = 'POST';
+        this.inputParamsAreGraphqlFixed = true;
+        this.inputParams = this.graphqlFixedParams();
+      } else if (this.inputParamsAreGraphqlFixed) {
+        // Only drop the fixed pair when leaving GRAPHQL; SQL/SCRIPT authored params survive switches
+        this.inputParamsAreGraphqlFixed = false;
+        this.inputParams = [];
+      }
+    },
+    graphqlFixedParams: function () {
+      return [
+        {
+          id: this.uuid(),
+          name: 'query',
+          location: 'REQUEST_BODY',
+          type: 'STRING',
+          isArray: false,
+          required: true,
+          defaultValue: '',
+          remark: this.$t('common2.graphqlQueryParam'),
+          children: []
+        },
+        {
+          id: this.uuid(),
+          name: 'variables',
+          location: 'REQUEST_BODY',
+          type: 'OBJECT',
+          isArray: false,
+          required: false,
+          defaultValue: '',
+          remark: this.$t('common2.graphqlVariablesParam'),
+          children: []
+        }
+      ]
     },
     handleAddInputParams: function () {
       this.inputParams.push(
@@ -1716,13 +1782,15 @@ export default {
       this.debugResponse = {}
       this.debugConsoleLog = ""
       var sqls = []
-      var isSql = true;
+      var contentTip = this.$t('common2.checkSqlContent');
       if (this.createParam.engine === 'SQL') {
-        isSql = true
         sqls = this.$refs.sqlEditors.queryContent()
-      } else {
-        isSql = false
+      } else if (this.createParam.engine === 'SCRIPT') {
+        contentTip = this.$t('common2.checkScriptContent');
         sqls = this.$refs.scriptEditer.queryContent()
+      } else {
+        contentTip = this.$t('common2.checkGraphqlContent');
+        sqls = this.$refs.graphqlEditer.queryContent()
       }
 
       if (!this.createParam.dataSourceId) {
@@ -1736,7 +1804,7 @@ export default {
       }
 
       if (this.checkSqlsOrScriptEmpty(sqls)) {
-        this.$alert(isSql ? this.$t('common2.checkSqlContent') : this.$t('common2.checkScriptContent'), this.$t('common2.parseError'),
+        this.$alert(contentTip, this.$t('common2.parseError'),
           {
             confirmButtonText: this.$t('common.confirm'),
             type: "error"
@@ -1744,29 +1812,59 @@ export default {
         );
       } else {
         this.debugParams = []
-        this.inputParams.forEach(item => {
-          if (item.children && item.children.length > 0) {
-            for (let it of item.children) {
-              if (!it.arrayValues) {
-                Vue.set(it, 'arrayValues', []);
-              }
-            }
-          }
-          this.debugParams.push(
+        if (this.createParam.engine === 'GRAPHQL') {
+          // Fixed debug inputs: the query document plus a variables JSON object sent as text
+          this.debugParams = [
             {
-              id: item.id,
-              name: item.name,
-              type: item.type,
-              isArray: item.isArray,
-              required: item.required,
-              defaultValue: item.defaultValue,
-              remark: item.remark,
+              id: this.uuid(),
+              name: 'query',
+              type: 'STRING',
+              isArray: false,
+              required: true,
+              defaultValue: '',
+              remark: this.$t('common2.graphqlQueryParam'),
               value: null,
               arrayValues: [],
-              children: item.children
+              children: []
             },
-          )
-        })
+            {
+              id: this.uuid(),
+              name: 'variables',
+              type: 'STRING',
+              isArray: false,
+              required: false,
+              defaultValue: '',
+              remark: this.$t('common2.graphqlVariablesParam'),
+              value: null,
+              arrayValues: [],
+              children: []
+            }
+          ]
+        } else {
+          this.inputParams.forEach(item => {
+            if (item.children && item.children.length > 0) {
+              for (let it of item.children) {
+                if (!it.arrayValues) {
+                  Vue.set(it, 'arrayValues', []);
+                }
+              }
+            }
+            this.debugParams.push(
+              {
+                id: item.id,
+                name: item.name,
+                type: item.type,
+                isArray: item.isArray,
+                required: item.required,
+                defaultValue: item.defaultValue,
+                remark: item.remark,
+                value: null,
+                arrayValues: [],
+                children: item.children
+              },
+            )
+          })
+        }
         this.showDebugDrawer = true
       }
     },
@@ -1780,8 +1878,10 @@ export default {
       var sqls = []
       if (this.createParam.engine === 'SQL') {
         sqls = this.$refs.sqlEditors.queryContent()
-      } else {
+      } else if (this.createParam.engine === 'SCRIPT') {
         sqls = this.$refs.scriptEditer.queryContent()
+      } else {
+        sqls = this.$refs.graphqlEditer.queryContent()
       }
 
       this.$http({

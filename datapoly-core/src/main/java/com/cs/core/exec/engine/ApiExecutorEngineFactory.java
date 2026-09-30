@@ -16,6 +16,7 @@ public class ApiExecutorEngineFactory {
     static {
         engineMap.put(ExecuteEngineEnum.SQL, SqlExecutorService::new);
         engineMap.put(ExecuteEngineEnum.SCRIPT, ScriptExecutorService::new);
+        engineMap.put(ExecuteEngineEnum.GRAPHQL, GraphqlExecutorService::new);
     }
 
     public static ApiExecutorEngine getExecutor(ExecuteEngineEnum engine, HikariDataSource dataSource,

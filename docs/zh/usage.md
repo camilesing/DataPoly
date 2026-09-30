@@ -7,6 +7,56 @@
 > 图文教程素材已就位于 `docs/images/zh_CN/`，待整理为正式教程。
 ---
 
+## GraphQL 接口（GRAPHQL 引擎）
+
+面向希望获得**类型化出入参与按需选字段**能力、又不想写脚本的场景：在接口编辑页把执行引擎切到
+**GraphQL接口**，用一份 SDL 文档定义接口，`type Query`（及可选 `type Mutation`）的每个根字段通过
+内置指令 `@sql` 挂 SQL 模板，schema 在运行时装配（不生成物理类），发布后调用方按 GraphQL 规范查询。
+
+```graphql
+type Query {
+  users(id: Long, nameLike: String): [User]
+    @sql(sql: """SELECT id, name, age, birthday FROM t_user WHERE 1=1
+      <if test="id != null"> AND id = #{id}</if>
+      <if test="nameLike != null and nameLike != ''"> AND name LIKE CONCAT('%', #{nameLike}, '%')</if>""")
+}
+type Mutation {
+  addUser(name: String): String
+    @sql(sql: """INSERT INTO t_user(name) VALUES (#{name})""")
+}
+type User { id: Long  name: String  age: Int  birthday: Date }
+```
+
+**规则与约定**
+
+- 一个 GraphQL 接口 = **恰好一份 SDL 文档**（单条模板），保存时校验语法、`Query` 存在、根字段必须带
+  `@sql`；接口方法固定为 **POST**；入参固定为 `query`（GraphQL 查询语句，必填）与 `variables`
+  （变量对象，选填），保存时自动生成，无需手工配置。
+- `@sql` 内的 SQL 与 SQL 引擎同构：`#{}` 走预编译参数绑定、`<if>/<where>/<foreach>` 等动态标签可用；
+  字段参数与 `variables` 合并后注入模板；open=true 公开接口照旧强制禁 `${}` 字面量替换。
+- 标量：内置 `Long`、`Date`（yyyy-MM-dd）、`Time`（HH:mm:ss）、`DateTime`
+  （ISO `yyyy-MM-dd'T'HH:mm:ss`），其余为 GraphQL 标准标量；同名声明以用户文档为准。
+- 输出类型字段名需与 SQL 列名（按命名策略转换后）一致；调用方选择的字段集自动裁剪输出。
+- 分页沿用 `apiPageNum`/`apiPageSize` 约定：放入 `variables` 即生效（与查询语句中是否声明无关）。
+- 响应为 GraphQL 规范的 `{data, errors}`：字段级 SQL 失败进入 `errors` 而非断言为请求失败；
+  建议接口的响应格式选"仅返回 data"以输出纯 GraphQL JSON（系统格式会再包一层
+  `{"code":200,"message":"success","data":{...}}`）。
+- SQL 文本是 XML 片段：标签外的 `<`、`&` 需转义（与 SQL 引擎一致）。
+
+**执行配置（executor 侧，`datapoly.executor.graphql.*`）**
+
+| 配置键 | 默认 | 说明 |
+| --- | --- | --- |
+| `timeout-seconds` | 60 | 单次查询整体执行超时 |
+| `max-depth` | 10 | 查询选择集最大深度 |
+| `introspection-enabled` | true | 是否允许内省（`__schema`/`__type`） |
+
+**当前限制（v1）**：不支持嵌套/关联字段（如 `user.orders` 的父子传参）；无跨字段事务（每个根字段
+独立连接执行）；不做 selection set 列裁剪下推。复杂逻辑请继续使用 SCRIPT（Groovy）引擎。
+
+---
+
+
 ## 异步数据任务（DataTask）
 
 把"一段配置好的 SQL 查询 + 出参格式调整"作为**异步作业**运行：提交后由 executor 后台 worker 认领执行，

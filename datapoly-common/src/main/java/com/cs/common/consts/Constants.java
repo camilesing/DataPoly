@@ -14,6 +14,10 @@ public abstract class Constants {
     public static final String PARAM_PAGE_NUMBER = "apiPageNum";
     public static final String PARAM_PAGE_SIZE = "apiPageSize";
 
+    /** GRAPHQL engine fixed request parameters: the query document and its variables, both REQUEST_BODY */
+    public static final String PARAM_GRAPHQL_QUERY = "query";
+    public static final String PARAM_GRAPHQL_VARIABLES = "variables";
+
     public static final String GATEWAY_APPLICATION_NAME = "datapoly-gateway";
 
     public static final String MANAGER_APPLICATION_NAME = "datapoly-manager";
