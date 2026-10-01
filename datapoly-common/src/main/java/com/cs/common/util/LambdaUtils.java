@@ -19,13 +19,17 @@ public class LambdaUtils {
     }
 
     public static void ifDoMayThrow(boolean condition, ThrowableRunnable action) throws Exception {
-        action.run();
+        if (condition) {
+            action.run();
+        }
     }
 
     public static void ifDoIgnoreThrow(boolean condition, ThrowableRunnable action) {
-        try {
-            action.run();
-        } catch (Exception ignore) {  // NOSORNA
+        if (condition) {
+            try {
+                action.run();
+            } catch (Exception ignore) {  // NOSONAR
+            }
         }
     }
 

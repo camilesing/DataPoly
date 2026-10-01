@@ -86,7 +86,7 @@ export default {
     },
     tableHints: {
       type: Object,
-      default: () => { }
+      default: () => ({})
     },
     canAddSql: {
       type: Boolean,
@@ -132,7 +132,7 @@ export default {
       this.editableTabs = [];
     },
     addTab: function (sqlContent) {
-      if (this.editableTabs.length > 6) {
+      if (this.editableTabs.length >= 6) {
         alert(this.$t('common2.sqlWindowMaxAlert'))
         return
       }

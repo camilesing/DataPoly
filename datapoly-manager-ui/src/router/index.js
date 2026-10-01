@@ -180,6 +180,12 @@ const constantRouter = new Router({
       path: '/login',
       name: 'menu.login',
       component: () => import('@/views/login')
+    },
+
+    // catch-all: unknown URLs previously rendered a blank page
+    {
+      path: '*',
+      redirect: '/dashboard'
     }
   ]
 });

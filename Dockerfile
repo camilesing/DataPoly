@@ -27,8 +27,8 @@ WORKDIR /opt/app
 # 仓库根下 datapoly-extension/front/src,缺省回退 stub;仅生产构建,debug 变体仍走 build-ui.sh
 COPY . /opt/app
 WORKDIR /opt/app/datapoly-manager-ui
-RUN npm config set registry http://mirrors.cloud.tencent.com/npm/ \
- && npm install --no-audit --no-fund --no-package-lock --legacy-peer-deps \
+RUN npm config set registry https://registry.npmmirror.com \
+ && npm ci --no-audit --no-fund --legacy-peer-deps \
  && npm run build
 
 # ---- Stage 2: Maven 打包(与 docker-maven-build.sh 同为 temurin 25,支持 arm64) ----

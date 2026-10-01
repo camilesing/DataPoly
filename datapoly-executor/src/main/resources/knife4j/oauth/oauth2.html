@@ -54,12 +54,22 @@
             }
             return flag;
         }
+        //写回localStorage时剥离clientSecret：token交换完成后密钥不再需要，避免长期滞留
+        OAuth2.prototype.persistCache = function () {
+            var persisted = {};
+            for (var key in this.cacheValue) {
+                if (this.cacheValue.hasOwnProperty(key) && key !== 'clientSecret') {
+                    persisted[key] = this.cacheValue[key];
+                }
+            }
+            window.localStorage.setItem(this.state, JSON.stringify(persisted));
+        }
 
         OAuth2.prototype.implicit = function () {
             this.cacheValue.accessToken = this.tokenType + " " + this.accessToken;
             this.cacheValue.tokenType = this.tokenType;
             this.cacheValue.granted = true;
-            window.localStorage.setItem(this.state, JSON.stringify(this.cacheValue))
+            this.persistCache()
             window.close();
         }
         OAuth2.prototype.authorizationCode = function () {
@@ -86,7 +96,7 @@
                     that.cacheValue.accessToken = data.token_type + " " + data.access_token;
                     that.cacheValue.tokenType = data.token_type;
                     that.cacheValue.granted = true;
-                    window.localStorage.setItem(that.state, JSON.stringify(that.cacheValue))
+                    that.persistCache()
                     window.close();
                 }
 

@@ -45,7 +45,7 @@ export default {
     hadleLogout () {
       window.sessionStorage.clear();
       this.$http({
-        method: 'GET',
+        method: 'POST',
         url: '/user/logout'
       }),
         this.$router.push("/login");

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.5.0-access-record-api-id-bigint
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: db/migration/V1_5_0__access-record-api-id-bigint.sql

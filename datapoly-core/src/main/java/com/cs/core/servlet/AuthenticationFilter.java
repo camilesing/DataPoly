@@ -28,6 +28,7 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy;
 
@@ -63,9 +64,8 @@ public class AuthenticationFilter implements Filter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(Charsets.UTF_8.name());
         String path = request.getRequestURI().substring(Constants.API_PATH_PREFIX.length() + 2);
-        HttpMethodEnum method = HttpMethodEnum.exists(request.getMethod())
-                ? HttpMethodEnum.valueOf(request.getMethod().toUpperCase())
-                : HttpMethodEnum.GET;
+        HttpMethodEnum method = Optional.ofNullable(HttpMethodEnum.of(request.getMethod().toUpperCase()))
+                .orElse(HttpMethodEnum.GET);
         // Local short-TTL metadata cache (A2): deploys/offlines take effect within one TTL at most; negative results (404 path) are also cached
         ApiAssignmentEntity apiConfigEntity = executorMetadataCache.getApiAssignment(method, path,
                 () -> apiOnlineDao.getByUk(method, path));

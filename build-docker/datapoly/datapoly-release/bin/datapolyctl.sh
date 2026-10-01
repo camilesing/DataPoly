@@ -53,13 +53,33 @@ else
 fi
 
 # 执行命令：保留一次自动重试（aarch64 首启 SIGBUS 等竞态可自愈），
-# 但结尾必须以 JVM 的真实退出码退出——勿再加会吞掉失败状态的收尾 echo
+# 但结尾必须以 JVM 的真实退出码退出——勿再加会吞掉失败状态的收尾 echo。
+# 容器内本脚本是 PID 1、JVM 是其子进程：TERM/INT 必须显式转发给 JVM，
+# 否则 docker stop 的优雅停机窗口形同虚设、超时后直接 SIGKILL。
 [ -d "${APP_HOME}/run" ] || mkdir -p "${APP_HOME}/run"
 echo "cd ${APP_HOME} && $JAVA -cp $CLASSPATH $JVMFLAGS $APP_MAIN_CLASS"
+SIGNALED=0
 runModule() {
-  cd "${APP_HOME}" && "$JAVA" -cp "$CLASSPATH" $JVMFLAGS "$APP_MAIN_CLASS"
+  cd "${APP_HOME}"
+  "$JAVA" -cp "$CLASSPATH" $JVMFLAGS "$APP_MAIN_CLASS" &
+  CHILD=$!
+  trap 'SIGNALED=1; kill -TERM "$CHILD" 2>/dev/null' TERM INT
+  wait "$CHILD"
+  status=$?
+  if [ "$status" -gt 128 ] && [ "$SIGNALED" = "1" ]; then
+    # wait was interrupted by the forwarded signal: the JVM is still shutting
+    # down, reap its real exit code before deciding anything
+    wait "$CHILD"
+    status=$?
+  fi
+  trap - TERM INT
+  return "$status"
 }
 runModule || {
+  if [ "$SIGNALED" = "1" ]; then
+    # graceful stop requested by the container runtime — not a crash, do not retry
+    exit 0
+  fi
   # one automatic retry: startup races (e.g. aarch64 first-boot SIGBUS) leave the
   # container exited-0 otherwise; a single relaunch is enough to self-heal
   echo "JVM exited abnormally (code $?), retrying once..."

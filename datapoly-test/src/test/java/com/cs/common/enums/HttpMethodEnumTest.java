@@ -24,4 +24,16 @@ public class HttpMethodEnumTest {
         assertFalse(HttpMethodEnum.exists("PATCH"));
         assertFalse(HttpMethodEnum.exists(null));
     }
+
+    @Test
+    public void testOfMatchesExistsAndReturnsNullForUnknown() {
+        for (HttpMethodEnum method : HttpMethodEnum.values()) {
+            assertTrue(HttpMethodEnum.exists(method.name()));
+            assertSame(method, HttpMethodEnum.of(method.name()));
+        }
+        assertNull(HttpMethodEnum.of("get"));
+        assertNull(HttpMethodEnum.of("PATCH"));
+        assertNull(HttpMethodEnum.of(null));
+        assertNull(HttpMethodEnum.of(""));
+    }
 }

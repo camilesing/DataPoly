@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StopWatch;
 
 import jakarta.annotation.Resource;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -40,15 +41,28 @@ public class VersionUpgradeRunner implements ApplicationRunner {
         StopWatch stopWatch = new StopWatch();
         stopWatch.start("UpgradeVersion");
         List<Long> idList = apiAssignmentDao.getUpgradeOnlineAssignments();
+        List<Long> upgradedIds = new ArrayList<>(idList.size());
         for (Long id : idList) {
-            if (null == versionCommitDao.getLatestVersion(id)) {
-                runner.upgradeApiAssignment(apiAssignmentDao.getById(id, true));
+            // one poison record must not abort manager startup: failures keep their upgrade
+            // flag and are retried on the next startup
+            try {
+                if (null == versionCommitDao.getLatestVersion(id)) {
+                    ApiAssignmentEntity assignment = apiAssignmentDao.getById(id, true);
+                    if (null == assignment) {
+                        log.warn("API assignment {} disappeared before upgrade, skip it.", id);
+                    } else {
+                        runner.upgradeApiAssignment(assignment);
+                    }
+                }
+                upgradedIds.add(id);
+            } catch (Exception e) {
+                log.error("Upgrade version control failed for API assignment {}, keep flag for next startup.", id, e);
             }
         }
-        apiAssignmentDao.resetUpgradeOnlineAssignments(idList);
+        apiAssignmentDao.resetUpgradeOnlineAssignments(upgradedIds);
         stopWatch.stop();
-        log.info("Success upgrade version control for {} APIs, total cost {} ms .",
-                idList.size(), stopWatch.getTotalTimeMillis());
+        log.info("Success upgrade version control for {} APIs ({} kept for retry), total cost {} ms .",
+                upgradedIds.size(), idList.size() - upgradedIds.size(), stopWatch.getTotalTimeMillis());
     }
 
     @Transactional(rollbackFor = Exception.class)

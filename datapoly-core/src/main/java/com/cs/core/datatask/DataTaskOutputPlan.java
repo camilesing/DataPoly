@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Resolves how raw query columns become delivered columns: subset/reorder by the
@@ -19,6 +20,13 @@ import java.util.*;
  * {@link DataTypeFormatEnum} pattern profile. Pure data structure, safe to reuse.
  */
 public class DataTaskOutputPlan {
+
+    /** DateTimeFormatter is immutable and shared; patterns come from the output plan config. */
+    private static final Map<String, DateTimeFormatter> TEMPORAL_FORMATTERS = new ConcurrentHashMap<>();
+
+    /** SimpleDateFormat is mutable and not thread-safe, hence one map per thread. */
+    private static final ThreadLocal<Map<String, SimpleDateFormat>> DATE_FORMATTERS =
+            ThreadLocal.withInitial(HashMap::new);
 
     @Getter
     private final List<String> outputColumns;
@@ -164,11 +172,16 @@ public class DataTaskOutputPlan {
     private static String formatTemporal(Object value, String pattern) {
         try {
             if (value instanceof java.util.Date) {
-                // Timestamp/java.sql.Date/Time all subclass java.util.Date
-                return new SimpleDateFormat(pattern).format((java.util.Date) value);
+                // Timestamp/java.sql.Date/Time all subclass java.util.Date.
+                // SimpleDateFormat is not thread-safe: each thread keeps one instance per
+                // pattern instead of rebuilding it for every cell
+                SimpleDateFormat format = DATE_FORMATTERS.get()
+                        .computeIfAbsent(pattern, SimpleDateFormat::new);
+                return format.format((java.util.Date) value);
             }
             if (value instanceof TemporalAccessor) {
-                return DateTimeFormatter.ofPattern(pattern).format((TemporalAccessor) value);
+                return TEMPORAL_FORMATTERS.computeIfAbsent(pattern, DateTimeFormatter::ofPattern)
+                        .format((TemporalAccessor) value);
             }
         } catch (Exception ignore) {
             // fall through to the raw value on any pattern mismatch

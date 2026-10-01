@@ -45,8 +45,20 @@ public final class SqlTemplateGuard {
         try {
             Environment environment = SpringUtil.getBean(Environment.class);
             String value = environment.getProperty(key);
-            return (null == value || value.isEmpty()) ? defaultValue : Boolean.parseBoolean(value.trim());
+            if (null == value || value.isEmpty()) {
+                return defaultValue;
+            }
+            String trimmed = value.trim();
+            if (!"true".equalsIgnoreCase(trimmed) && !"false".equalsIgnoreCase(trimmed)) {
+                // a typo silently degrades to a boolean default; surface it instead
+                log.warn("Property [{}] has non-boolean value [{}], falling back to {}",
+                        key, trimmed, defaultValue);
+                return defaultValue;
+            }
+            return Boolean.parseBoolean(trimmed);
         } catch (Exception e) {
+            log.warn("Failed to read property [{}] from the environment, falling back to {}: {}",
+                    key, defaultValue, e.getMessage());
             return defaultValue;
         }
     }

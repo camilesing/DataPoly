@@ -29,11 +29,14 @@ public class DsVarModule implements VarModuleInterface {
     private Map<String, Object> params;
     private NamingStrategyEnum strategy;
     private boolean printSqlLog;
+    private boolean dollarSubstitutionAllowed;
 
-    public DsVarModule(Map<String, Object> params, NamingStrategyEnum strategy, boolean printSqlLog) {
+    public DsVarModule(Map<String, Object> params, NamingStrategyEnum strategy, boolean printSqlLog,
+                       boolean dollarSubstitutionAllowed) {
         this.params = params;
         this.strategy = strategy;
         this.printSqlLog = printSqlLog;
+        this.dollarSubstitutionAllowed = dollarSubstitutionAllowed;
     }
 
     @Override
@@ -49,7 +52,8 @@ public class DsVarModule implements VarModuleInterface {
         }
         File driverPath = driverLoadService.getVersionDriverFile(dsEntity.getType(), dsEntity.getVersion());
         HikariDataSource dataSource = DataSourceUtils.getHikariDataSource(dsEntity, driverPath.getAbsolutePath());
-        return new DbVarModule(dataSource, dsEntity.getType(), params, strategy, printSqlLog);
+        // same ${} policy as the main db module: secondary datasources must not bypass the open-API ban
+        return new DbVarModule(dataSource, dsEntity.getType(), params, strategy, printSqlLog, dollarSubstitutionAllowed);
     }
 }
 
