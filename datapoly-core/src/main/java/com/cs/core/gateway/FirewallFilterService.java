@@ -63,17 +63,21 @@ public class FirewallFilterService {
     }
 
     public boolean canAccess(String address) {
-        if (null == this.loaded) {
+        // one snapshot per call: refresh() may swap the reference between the checks below,
+        // mixing status from the old rules with addresses from the new ones
+        LoadedFirewallRules rules = this.loaded;
+        if (null == rules) {
             loadWithBackoff();
+            rules = this.loaded;
         }
 
-        if (OnOffEnum.OFF.equals(loaded.status)) {
+        if (OnOffEnum.OFF.equals(rules.status)) {
             return true;
         }
-        if (WhiteBlackEnum.WHITE.equals(loaded.mode)) {
-            return loaded.addresses.contains(address);
-        } else if (WhiteBlackEnum.BLACK.equals(loaded.mode)) {
-            return !loaded.addresses.contains(address);
+        if (WhiteBlackEnum.WHITE.equals(rules.mode)) {
+            return rules.addresses.contains(address);
+        } else if (WhiteBlackEnum.BLACK.equals(rules.mode)) {
+            return !rules.addresses.contains(address);
         } else {
             return false;
         }

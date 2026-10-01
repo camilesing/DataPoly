@@ -50,7 +50,7 @@ public class AuthenticationController {
         }
     }
 
-    @GetMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "认证登出", description = "登出系统")
     @Parameters({
             @Parameter(in = ParameterIn.HEADER, name = "token", description = "token标记", required = true)

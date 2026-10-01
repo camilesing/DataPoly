@@ -33,17 +33,13 @@ public class LambdaUtilsTest {
         }
     }
 
-    /**
-     * Documents current behaviour: the condition argument is ignored and the action
-     * always runs. Suspected bug kept as-is per repo policy; flagged in the report.
-     */
     @Test
-    public void testIfDoMayThrowRunsRegardlessOfCondition() throws Exception {
+    public void testIfDoMayThrowHonoursCondition() throws Exception {
         AtomicInteger counter = new AtomicInteger();
         LambdaUtils.ifDoMayThrow(false, counter::incrementAndGet);
-        assertEquals(1, counter.get());
+        assertEquals(0, counter.get());
         LambdaUtils.ifDoMayThrow(true, counter::incrementAndGet);
-        assertEquals(2, counter.get());
+        assertEquals(1, counter.get());
     }
 
     @Test
@@ -55,7 +51,7 @@ public class LambdaUtilsTest {
         });
         assertEquals(1, counter.get());
         LambdaUtils.ifDoIgnoreThrow(false, counter::incrementAndGet);
-        assertEquals("condition is not honoured by ifDoIgnoreThrow either", 2, counter.get());
+        assertEquals("condition must be honoured by ifDoIgnoreThrow", 1, counter.get());
     }
 
     @Test

@@ -73,6 +73,13 @@ public class GraphqlExecutorService extends AbstractExecutorEngine {
                 }
             });
 
+    /**
+     * Assembly happens under this lock, not the cache-wide monitor: computeIfAbsent on a
+     * synchronizedMap would serialize every concurrent request's cache lookup for the whole
+     * (expensive) build. Lookups/puts only touch the map monitor briefly.
+     */
+    private static final Object SCHEMA_ASSEMBLY_LOCK = new Object();
+
     /** Per-request execution context: everything a cached data fetcher must not bake in. */
     private record RequestContext(HikariDataSource dataSource, ProductTypeEnum productType,
                                   NamingStrategyEnum strategy, boolean dollarSubstitutionAllowed,
@@ -95,8 +102,7 @@ public class GraphqlExecutorService extends AbstractExecutorEngine {
         }
         Map<String, Object> variables = readVariables(params.get(Constants.PARAM_GRAPHQL_VARIABLES));
 
-        GraphQL graphql = SCHEMA_CACHE.computeIfAbsent(DigestUtil.sha256Hex(scripts.get(0).getSqlText()),
-                digest -> buildGraphQL(scripts.get(0).getSqlText()));
+        GraphQL graphql = getOrBuildGraphQL(scripts.get(0).getSqlText());
 
         RequestContext context = new RequestContext(this.dataSource, this.productType, strategy,
                 dollarSubstitutionAllowed, this.printSqlLog, variables);
@@ -106,13 +112,17 @@ public class GraphqlExecutorService extends AbstractExecutorEngine {
                 .context(context)
                 .build();
         long timeoutSeconds = getIntegerProperty(TIMEOUT_KEY, DEFAULT_TIMEOUT_SECONDS);
+        Future<ExecutionResult> future = graphql.executeAsync(input);
         try {
-            ExecutionResult result = graphql.executeAsync(input).get(timeoutSeconds, TimeUnit.SECONDS);
+            ExecutionResult result = future.get(timeoutSeconds, TimeUnit.SECONDS);
             return Collections.singletonList(result.toSpecification());
         } catch (TimeoutException e) {
+            // cancel the abandoned execution: fetchers keep holding JDBC connections otherwise
+            future.cancel(true);
             throw new CommonException(ResponseErrorCode.ERROR_INTERNAL_ERROR, "api.graphql.execute.timeout",
                     timeoutSeconds);
         } catch (InterruptedException e) {
+            future.cancel(true);
             Thread.currentThread().interrupt();
             throw new CommonException(ResponseErrorCode.ERROR_INTERNAL_ERROR, e);
         } catch (ExecutionException e) {
@@ -124,6 +134,22 @@ public class GraphqlExecutorService extends AbstractExecutorEngine {
                 throw runtimeException;
             }
             throw new CommonException(ResponseErrorCode.ERROR_INTERNAL_ERROR, cause);
+        }
+    }
+
+    private static GraphQL getOrBuildGraphQL(String sdl) {
+        String digest = DigestUtil.sha256Hex(sdl);
+        GraphQL graphql = SCHEMA_CACHE.get(digest);
+        if (null != graphql) {
+            return graphql;
+        }
+        synchronized (SCHEMA_ASSEMBLY_LOCK) {
+            graphql = SCHEMA_CACHE.get(digest);
+            if (null == graphql) {
+                graphql = buildGraphQL(sdl);
+                SCHEMA_CACHE.put(digest, graphql);
+            }
+            return graphql;
         }
     }
 
@@ -145,7 +171,7 @@ public class GraphqlExecutorService extends AbstractExecutorEngine {
         return Collections.emptyMap();
     }
 
-    private GraphQL buildGraphQL(String sdl) {
+    private static GraphQL buildGraphQL(String sdl) {
         GraphqlSdlTemplate template = new GraphqlSdlTemplate(sdl);
         GraphQLSchema schema = template.buildGraphQLSchema(
                 (coordinates, sql) -> sqlDataFetcher(new XmlSqlTemplate(sql)));
@@ -186,8 +212,10 @@ public class GraphqlExecutorService extends AbstractExecutorEngine {
                 return SqlJdbcUtils.execute(context.productType(), connection, sqlMeta, context.strategy(),
                         page, size, isPaging, context.printSqlLog());
             } catch (SQLException e) {
+                // the JDBC message can quote SQL fragments/table names — keep it server-side only
+                log.error("GraphQL field SQL execution failed", e);
                 return DataFetcherResult.newResult().error(GraphqlErrorBuilder.newError()
-                        .message("SQL execution failed: " + e.getMessage())
+                        .message("SQL execution failed")
                         .build()).build();
             }
         };

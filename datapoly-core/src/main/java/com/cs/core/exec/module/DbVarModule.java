@@ -220,7 +220,7 @@ public class DbVarModule implements VarModuleInterface {
     @Comment("comment.db.delete")
     public int delete(@Comment("comment.param.sqlOrXml") String sqlOrXml) {
         if (printSqlLog) {
-            log.info("Enter update() function, SQL:{},params:{}", sqlOrXml, params);
+            log.info("Enter delete() function, SQL:{},params:{}", sqlOrXml, params);
         }
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
         SqlMeta sqlMeta = processTemplate(template);

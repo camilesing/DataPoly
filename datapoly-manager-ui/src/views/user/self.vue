@@ -167,22 +167,26 @@ export default {
     },
     handleClose () { },
     savePassword () {
-      this.$http({
-        method: 'POST',
-        url: '/datapoly/manager/api/v1/user/changePassword',
-        data: qs.stringify({
-          oldPassword: this.pwdModify.password,
-          newPassword: this.pwdModify.newPassword
-        }),
-      }).then(res => {
-        console.log(res);
-        if (0 === res.data.code) {
-          this.showPassword = false;
-          this.$message.success(this.$t('user.modifyPasswordSuccess'));
-        } else {
-          this.showPassword = true;
-          this.$message(res.data.message);
+      this.$refs.modifyPwdForm.validate(valid => {
+        if (!valid) {
+          return;
         }
+        this.$http({
+          method: 'POST',
+          url: '/datapoly/manager/api/v1/user/changePassword',
+          data: qs.stringify({
+            oldPassword: this.pwdModify.password,
+            newPassword: this.pwdModify.newPassword
+          }),
+        }).then(res => {
+          if (0 === res.data.code) {
+            this.showPassword = false;
+            this.$message.success(this.$t('user.modifyPasswordSuccess'));
+          } else {
+            this.showPassword = true;
+            this.$message(res.data.message);
+          }
+        });
       });
     },
     clearPassword () {

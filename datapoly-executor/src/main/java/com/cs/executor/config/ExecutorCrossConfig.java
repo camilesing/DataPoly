@@ -17,7 +17,9 @@ public class ExecutorCrossConfig implements WebMvcConfigurer {
     /**
      * CORS allowed origins (S5/H7): comma-separated whitelist, defaults to * for compatibility.
      * allowCredentials is only set when an explicit whitelist is configured,
-     * avoiding the wildcard-origin-plus-credentials combination.
+     * avoiding the wildcard-origin-plus-credentials combination — the wildcard check must
+     * catch mixed lists such as "*,https://good.example" too, where * would otherwise be
+     * handed to allowedOriginPatterns as a credentials-reflecting pattern.
      */
     @Value("${datapoly.cors.allowed-origins:*}")
     private String allowedOrigins;
@@ -28,7 +30,7 @@ public class ExecutorCrossConfig implements WebMvcConfigurer {
                 .map(String::trim)
                 .filter(StringUtils::isNotBlank)
                 .toArray(String[]::new);
-        boolean wildcard = (1 == origins.length && ALL.equals(origins[0]));
+        boolean wildcard = Arrays.asList(origins).contains(ALL);
         registry.addMapping("/**")
                 .allowedOriginPatterns(origins)
                 .allowedMethods("GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS")

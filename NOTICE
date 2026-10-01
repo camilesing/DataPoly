@@ -8,17 +8,19 @@ It includes third-party software under the licenses noted below.
    Upstream: https://github.com/modelcontextprotocol/java-sdk
    Vendored source: datapoly-mcp/datapoly-mcp-core and
    datapoly-mcp/datapoly-mcp-springmvc (package io.modelcontextprotocol.*).
-   License text: datapoly-mcp/LICENSE-MIT
+   License text: licenses/LICENSE-MIT (source tree: datapoly-mcp/LICENSE-MIT)
 
 2. knife4j front-end assets (Apache License 2.0)
    Upstream: https://github.com/xiaoymin/knife4j
    Vendored resources: datapoly-executor/src/main/resources/knife4j/
-   License text: datapoly-executor/src/main/resources/knife4j/LICENSE-APACHE-2.0.txt
+   License text: licenses/LICENSE-APACHE-2.0.txt (source tree:
+   datapoly-executor/src/main/resources/knife4j/LICENSE-APACHE-2.0.txt)
 
 3. Swagger UI distribution files (Apache License 2.0)
    Upstream: https://github.com/swagger-api/swagger-ui
    Vendored resources: datapoly-executor/src/main/resources/swagger/
-   License text: datapoly-executor/src/main/resources/swagger/LICENSE-APACHE-2.0.txt
+   License text: licenses/LICENSE-APACHE-2.0.txt (source tree:
+   datapoly-executor/src/main/resources/swagger/LICENSE-APACHE-2.0.txt)
 
 4. The built-in management UI is built with Vue.js and third-party npm
    packages (Vue, Element UI, ECharts, CodeMirror, axios, etc.), used under

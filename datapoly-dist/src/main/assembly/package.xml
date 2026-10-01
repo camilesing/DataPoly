@@ -33,6 +33,16 @@
             <outputDirectory></outputDirectory>
         </file>
 
+        <!-- NOTICE 引用的第三方许可文本必须随包分发（重分发义务），tarball 内统一放 licenses/ -->
+        <file>
+            <source>${project.parent.basedir}/datapoly-mcp/LICENSE-MIT</source>
+            <outputDirectory>licenses</outputDirectory>
+        </file>
+        <file>
+            <source>${project.parent.basedir}/datapoly-executor/src/main/resources/knife4j/LICENSE-APACHE-2.0.txt</source>
+            <outputDirectory>licenses</outputDirectory>
+        </file>
+
         <file>
             <source>src/main/assembly/bin/datapolyctl.sh</source>
             <outputDirectory>bin</outputDirectory>

@@ -35,7 +35,7 @@ public class VersionCommitController {
     }
 
     @Operation(summary = "回滚指定版本")
-    @GetMapping(value = "/revert/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/revert/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity revertVersion(@PathVariable("id") Long bizId, @RequestParam("commitId") Long commitId) {
         apiAssignmentService.revertVersion(bizId, commitId);
         return ResultEntity.success();

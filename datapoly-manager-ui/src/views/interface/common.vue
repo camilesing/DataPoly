@@ -864,7 +864,7 @@ export default {
         flowCount: 5,
         cacheKeyType: 'NONE',
         cacheKeyExpr: '',
-        cacheExpireSeconds: '300',
+        cacheExpireSeconds: 300,
       },
       showDebugDrawer: false,
       gatewayApiPrefix: 'http://127.0.0.1:8081/api/',
@@ -875,9 +875,7 @@ export default {
         disabled: false,
         isLeaf: false
       },
-      tableHints: {
-        'mysql': ['user']
-      },
+      tableHints: {},
       keywordHints: [],
       inputParams: [],
       inputParamsAreGraphqlFixed: false,
@@ -1626,7 +1624,7 @@ export default {
       if (sqls === null || sqls === undefined || !Array.isArray(sqls) || sqls.length === 0 || sqls.includes('')) {
         return true
       }
-      for (let str in sqls) {
+      for (let str of sqls) {
         if (str === null || str === undefined || str.trim() === '' || str.trim().length === 0) {
           return true
         }
@@ -2090,7 +2088,7 @@ export default {
         }
       ).then(() => {
         this.$http({
-          method: "GET",
+          method: "POST",
           headers: {
             'Content-Type': 'application/json'
           },

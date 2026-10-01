@@ -16,9 +16,9 @@ public class JedisClient {
     }
 
     private Jedis getJedis() {
-        Jedis jedis = this.jedisPool.getResource();
-        jedis.ping();
-        return jedis;
+        // no per-op PING: connection liveness is the pool's job (JedisPoolConfig defaults
+        // testWhileIdle on), and a throwing ping here would leak the borrowed resource
+        return this.jedisPool.getResource();
     }
 
     public <T> T doAction(Function<Jedis, T> function) {

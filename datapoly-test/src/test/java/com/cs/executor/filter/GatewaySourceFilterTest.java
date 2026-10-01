@@ -41,4 +41,18 @@ public class GatewaySourceFilterTest {
         Assert.assertFalse(GatewaySourceFilter.matches("172.28.0.0/33", "172.28.0.1"));
     }
 
+    @Test
+    public void ipv4MappedIpv6IsNormalizedToIpv4() {
+        // dual-stack listeners report the remote as ::ffff:a.b.c.d — IPv4 rules must still apply
+        Assert.assertTrue(GatewaySourceFilter.matches("127.0.0.1", "::ffff:127.0.0.1"));
+        Assert.assertTrue(GatewaySourceFilter.matches("::ffff:127.0.0.1", "127.0.0.1"));
+        Assert.assertTrue(GatewaySourceFilter.matches("172.28.0.0/24", "::ffff:172.28.0.40"));
+        Assert.assertFalse(GatewaySourceFilter.matches("172.28.0.0/24", "::ffff:172.28.1.40"));
+        Assert.assertFalse(GatewaySourceFilter.matches("172.28.0.40", "::ffff:172.28.0.41"));
+        // prefix match is case-insensitive
+        Assert.assertTrue(GatewaySourceFilter.matches("10.0.0.0/8", "::FFFF:10.99.8.7"));
+        // a real (non-mapped) IPv6 address still fails IPv4-only rules — fail-closed
+        Assert.assertFalse(GatewaySourceFilter.matches("172.28.0.0/24", "2001:db8::1"));
+    }
+
 }

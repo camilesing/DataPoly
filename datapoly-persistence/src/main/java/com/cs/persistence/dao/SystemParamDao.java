@@ -3,12 +3,12 @@
 package com.cs.persistence.dao;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.cs.persistence.entity.SystemParamEntity;
 import com.cs.persistence.mapper.SystemParamMapper;
 import org.springframework.stereotype.Repository;
 
 import jakarta.annotation.Resource;
-import java.util.Objects;
 
 @Repository
 public class SystemParamDao {
@@ -23,11 +23,12 @@ public class SystemParamDao {
     }
 
     public void updateByParamKey(String paramKey, String paramValue) {
-        SystemParamEntity entity = getByParamKey(paramKey);
-        if (Objects.nonNull(entity)) {
-            entity.setParamValue(paramValue);
-            systemParamMapper.updateById(entity);
-        }
+        // conditional UPDATE instead of read-modify-write: concurrent updates no longer
+        // lose one silently, and a row deleted in between just affects zero rows.
+        // String columns (not lambdas) keep this usable without MybatisPlus table metadata.
+        UpdateWrapper<SystemParamEntity> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.set("param_value", paramValue).eq("param_key", paramKey);
+        systemParamMapper.update(null, updateWrapper);
     }
 
 }

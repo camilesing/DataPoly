@@ -22,7 +22,9 @@ import java.util.Objects;
  * <p>Two-layer validation:
  * <ol>
  *   <li>The TCP remote address must match the CIDR whitelist
- *       {@code datapoly.executor.gateway.trusted-cidrs} (IPv4 CIDR only; IPv6 exact match);</li>
+ *       {@code datapoly.executor.gateway.trusted-cidrs} (IPv4 CIDR only; IPv6 exact match;
+ *       IPv4-mapped IPv6 forms such as {@code ::ffff:127.0.0.1} are normalized to plain
+ *       IPv4 first so dual-stack listeners still match IPv4 rules);</li>
  *   <li>Optional shared-secret header {@code X-DATAPOLY-Gateway-Token}: when
  *       {@code datapoly.executor.gateway.auth-token} is configured, it must match in constant time.</li>
  * </ol>
@@ -106,6 +108,8 @@ public class GatewaySourceFilter implements Filter {
         if (StringUtils.isBlank(pattern) || StringUtils.isBlank(addr)) {
             return false;
         }
+        pattern = normalizeIpv4Mapped(pattern);
+        addr = normalizeIpv4Mapped(addr);
         if (pattern.equals(addr)) {
             return true;
         }
@@ -174,6 +178,18 @@ public class GatewaySourceFilter implements Filter {
         return Objects.equals("127.0.0.1", addr)
                 || Objects.equals("::1", addr)
                 || Objects.equals("0:0:0:0:0:0:0:1", addr);
+    }
+
+    /**
+     * Strips the IPv4-mapped IPv6 prefix ({@code ::ffff:a.b.c.d} → {@code a.b.c.d}) so the
+     * IPv4-only exact/CIDR/loopback rules apply to dual-stack remotes; anything else is
+     * returned unchanged (and then simply fails to match IPv4 rules, i.e. fail-closed).
+     */
+    private static String normalizeIpv4Mapped(String addr) {
+        if (addr.regionMatches(true, 0, "::ffff:", 0, 7) && addr.indexOf('.', 7) > 0) {
+            return addr.substring(7);
+        }
+        return addr;
     }
 
 }

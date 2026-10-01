@@ -98,7 +98,6 @@ public class ExportImportService {
         model.setOutputs(assignmentEntity.getOutputs());
         model.setOpen(assignmentEntity.getOpen());
         model.setAlarm(assignmentEntity.getAlarm());
-        model.setContentType(assignmentEntity.getContentType());
         model.setEngine(assignmentEntity.getEngine());
         model.setResponseFormat(assignmentEntity.getResponseFormat());
         model.setNamingStrategy(assignmentEntity.getNamingStrategy());

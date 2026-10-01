@@ -7,6 +7,7 @@ import com.cs.common.enums.OnOffEnum;
 import com.cs.common.exception.CommonException;
 import com.cs.common.exception.ResponseErrorCode;
 import com.cs.core.dto.*;
+import com.cs.core.util.AlarmEndpointGuard;
 import com.cs.core.util.AlarmModelUtils;
 import com.cs.persistence.dao.UnifyAlarmDao;
 import com.cs.persistence.entity.UnifyAlarmEntity;
@@ -45,6 +46,7 @@ public class UnifyAlarmOpsService {
     }
 
     public void updateUnifyAlarmConfig(UpdateAlarmConfigRequest request) {
+        AlarmEndpointGuard.checkEndpointAllowed(request.getEndpoint());
         unifyAlarmDao.update(
                 request.getStatus(),
                 request.getEndpoint(),
@@ -105,6 +107,7 @@ public class UnifyAlarmOpsService {
             throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT,
                     "alarm endpoint must be an http(s) URL: " + config.getEndpoint());
         }
+        AlarmEndpointGuard.checkEndpointAllowed(config.getEndpoint());
         HttpHeaders headers = new HttpHeaders();
         MediaType type = MediaType.parseMediaType(config.getContentType().replace(";", "") + "; charset=UTF-8");
         headers.setContentType(type);

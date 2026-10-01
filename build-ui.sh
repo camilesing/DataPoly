@@ -31,7 +31,7 @@ docker run --rm \
   -w /opt/app/datapoly-manager-ui \
   node:24-alpine@sha256:a34e14ef1df25b58258956049ab5a71ea7f0d498e41d0b514f4b8de09af09456 \
   sh -c "npm config set registry https://registry.npmmirror.com && \
-         npm install --no-audit --no-fund --no-package-lock --legacy-peer-deps && \
+         npm ci --no-audit --no-fund --legacy-peer-deps && \
          $BUILD_CMD"
 
 # 先清后拷，避免旧 hash 产物残留；仅在容器构建成功后执行（set -e 保证）。

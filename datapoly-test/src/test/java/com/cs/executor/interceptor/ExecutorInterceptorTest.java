@@ -102,4 +102,37 @@ public class ExecutorInterceptorTest {
         ExecutorInterceptor interceptor = new ExecutorInterceptor(daoReturning(null));
         Assert.assertTrue(interceptor.preHandle(apidocRequest("/api/anything"), RESPONSE, new Object()));
     }
+
+    @Test
+    public void percentEncodedPrefixIsDecodedBeforeCheck() throws Exception {
+        ExecutorInterceptor interceptor = new ExecutorInterceptor(daoReturning(null));
+        // "/%61pidoc" is "/apidoc" after decoding — the lockdown must not be bypassable
+        Assert.assertFalse(interceptor.preHandle(apidocRequest("/%61pidoc/swagger.json"), RESPONSE, new Object()));
+        Assert.assertFalse(interceptor.preHandle(apidocRequest("/apid%6Fc/swagger.json"), RESPONSE, new Object()));
+    }
+
+    @Test
+    public void plusInPathStaysLiteral() throws Exception {
+        ExecutorInterceptor interceptor = new ExecutorInterceptor(daoReturning(param("true")));
+        // '+' is a literal character in a path, not an encoded space; "/api+doc" is not apidoc
+        Assert.assertTrue(interceptor.preHandle(apidocRequest("/api+doc/whatever"), RESPONSE, new Object()));
+    }
+
+    @Test
+    public void apiDocSwitchLookupIsCachedWithinTtl() throws Exception {
+        final int[] calls = {0};
+        SystemParamDao countingDao = new SystemParamDao() {
+            @Override
+            public SystemParamEntity getByParamKey(String paramKey) {
+                calls[0]++;
+                return null;
+            }
+        };
+        ExecutorInterceptor interceptor = new ExecutorInterceptor(countingDao);
+        for (int i = 0; i < 5; i++) {
+            Assert.assertFalse(interceptor.preHandle(apidocRequest("/apidoc/swagger.json"), RESPONSE, new Object()));
+        }
+        Assert.assertEquals("closed-switch probes within the TTL must hit the DB once",
+                1, calls[0]);
+    }
 }

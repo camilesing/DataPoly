@@ -95,13 +95,24 @@ public class SystemParamServiceTest {
 
     @Test
     public void testUpdateByParamKeyConvertsAndPersists() {
-        // service lookup + dao re-lookup both resolve via selectOne
-        recorder.stub("selectOne",
-                param(ParamTypeEnum.BOOLEAN, "false"), param(ParamTypeEnum.BOOLEAN, "false"));
+        // service lookup resolves via selectOne; the dao itself no longer re-reads the row
+        recorder.stub("selectOne", param(ParamTypeEnum.BOOLEAN, "false"));
         service.updateByParamKey("k", "true");
-        assertEquals(1, recorder.count("updateById"));
-        SystemParamEntity updated = (SystemParamEntity) recorder.calls.get("updateById").get(0)[0];
-        assertEquals("true", updated.getParamValue());
+        assertEquals(1, recorder.count("update"));
+        Object[] call = recorder.calls.get("update").get(0);
+        assertNull("conditional update carries no entity payload", call[0]);
+        com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<?> wrapper =
+                (com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<?>) call[1];
+        // the where segment renders lazily: render it first so its params land in the map
+        String customSql = wrapper.getCustomSqlSegment();
+        assertTrue("param_value must be set",
+                wrapper.getSqlSet().contains("param_value"));
+        assertTrue("row must be selected by param_key",
+                customSql.contains("param_key"));
+        assertTrue("converted value must be bound",
+                wrapper.getParamNameValuePairs().containsValue("true"));
+        assertTrue("row key must be bound",
+                wrapper.getParamNameValuePairs().containsValue("k"));
     }
 
     @Test
@@ -117,7 +128,7 @@ public class SystemParamServiceTest {
             fail("missing key must throw on update");
         } catch (CommonException expected) {
         }
-        assertEquals(0, recorder.count("updateById"));
+        assertEquals(0, recorder.count("update"));
     }
 
     @Test

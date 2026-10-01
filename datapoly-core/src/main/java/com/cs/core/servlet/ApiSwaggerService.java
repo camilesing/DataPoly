@@ -122,7 +122,9 @@ public class ApiSwaggerService {
 
             Operation operation = new Operation();
             operation.setOperationId(String.valueOf(assignment.getId()));
-            operation.addTagsItem(moduleIdMap.get(assignment.getModuleId()).getName());
+            // module row may have been deleted after the assignment referenced it
+            operation.addTagsItem(Optional.ofNullable(moduleIdMap.get(assignment.getModuleId()))
+                    .map(ApiModuleEntity::getName).orElse(assignment.getName()));
             // FIX: when importing the API doc into apifox, the method name failed to display as the API name
             operation.setSummary(assignment.getName());
             operation.setDescription(
@@ -131,8 +133,13 @@ public class ApiSwaggerService {
             // Input parameters
             List<ItemParam> params = assignment.getParams();
             if (!CollectionUtils.isEmpty(params)) {
+                // legacy/hand-edited rows may miss location or type — those entries are
+                // skipped instead of breaking the whole swagger doc
                 List<ItemParam> paramList =
-                        params.stream().filter(i -> i.getLocation().isParameter()).collect(Collectors.toList());
+                        params.stream()
+                                .filter(i -> null != i.getLocation() && null != i.getType()
+                                        && i.getLocation().isParameter())
+                                .collect(Collectors.toList());
                 for (ItemParam param : paramList) {
                     ParamTypeEnum type = param.getType();
 
@@ -141,7 +148,7 @@ public class ApiSwaggerService {
                     parameter.setName(param.getName());
 
                     Schema schema = new Schema().type(type.getJsType());
-                    if (param.getIsArray()) {
+                    if (Boolean.TRUE.equals(param.getIsArray())) {
                         ArraySchema arraySchema = new ArraySchema().items(schema);
                         parameter.setSchema(arraySchema);
                     } else {
@@ -158,7 +165,8 @@ public class ApiSwaggerService {
 
                 List<ItemParam> requestBodyList =
                         params.stream()
-                                .filter(i -> i.getLocation().isRequestBody())
+                                .filter(i -> null != i.getLocation() && null != i.getType()
+                                        && i.getLocation().isRequestBody())
                                 .collect(Collectors.toList());
                 if (requestBodyList.size() > 0) {
                     RequestBody requestBody = new RequestBody();
@@ -170,7 +178,7 @@ public class ApiSwaggerService {
                         ParamTypeEnum type = param.getType();
 
                         Schema schema = new Schema().type(type.getJsType()).description(param.getRemark());
-                        if (param.getIsArray()) {
+                        if (Boolean.TRUE.equals(param.getIsArray())) {
                             if (type.isObject()) {
                                 Schema subObjectSchema =
                                         new ObjectSchema().name(param.getName()).description(param.getRemark());
@@ -178,7 +186,8 @@ public class ApiSwaggerService {
                                     for (BaseParam baseParam : param.getChildren()) {
                                         Schema subSchema =
                                                 new Schema()
-                                                        .type(baseParam.getType().getJsType())
+                                                        .type(Optional.ofNullable(baseParam.getType())
+                                                                .map(ParamTypeEnum::getJsType).orElse(null))
                                                         .description(baseParam.getRemark());
                                         if (Optional.ofNullable(baseParam.getIsArray()).orElse(false)) {
                                             ArraySchema subArraySchema = new ArraySchema().items(subSchema);
@@ -202,7 +211,8 @@ public class ApiSwaggerService {
                                     for (BaseParam baseParam : param.getChildren()) {
                                         Schema subSchema =
                                                 new Schema()
-                                                        .type(baseParam.getType().getJsType())
+                                                        .type(Optional.ofNullable(baseParam.getType())
+                                                                .map(ParamTypeEnum::getJsType).orElse(null))
                                                         .description(baseParam.getRemark());
                                         if (Optional.ofNullable(baseParam.getIsArray()).orElse(false)) {
                                             ArraySchema subArraySchema = new ArraySchema().items(subSchema);
@@ -343,6 +353,11 @@ public class ApiSwaggerService {
                 dataSchema.setDescription("data");
                 for (OutParam param : outputs) {
                     ParamTypeEnum typeItem = param.getType();
+                    if (null == typeItem) {
+                        log.warn("Skip output param [{}] without type when generating the swagger doc",
+                                param.getName());
+                        continue;
+                    }
                     if (Optional.ofNullable(param.getIsArray()).orElse(false)) {
                         Schema subSchema =
                                 new Schema()
@@ -353,13 +368,14 @@ public class ApiSwaggerService {
                         dataSchema.addProperties(param.getName(), subArraySchema);
                     } else {
                         Schema propertiesItem;
-                        if (Optional.ofNullable(typeItem.isObject()).orElse(false)) {
+                        if (Boolean.TRUE.equals(typeItem.isObject())) {
                             propertiesItem = new ObjectSchema().description(param.getRemark());
                             if (!CollectionUtils.isEmpty(param.getChildren())) {
                                 for (OutParam subParam : param.getChildren()) {
                                     Schema subSchema =
                                             new Schema()
-                                                    .type(subParam.getType().getJsType())
+                                                    .type(Optional.ofNullable(subParam.getType())
+                                                            .map(ParamTypeEnum::getJsType).orElse(null))
                                                     .description(subParam.getRemark())
                                                     .format(getTypeFormat(subParam.getType()));
                                     if (Optional.ofNullable(subParam.getIsArray()).orElse(false)) {
@@ -388,6 +404,11 @@ public class ApiSwaggerService {
                 rootSchema = new ObjectSchema();
                 for (OutParam param : outputs) {
                     ParamTypeEnum typeItem = param.getType();
+                    if (null == typeItem) {
+                        log.warn("Skip output param [{}] without type when generating the swagger doc",
+                                param.getName());
+                        continue;
+                    }
                     if (Optional.ofNullable(param.getIsArray()).orElse(false)) {
                         Schema subSchema =
                                 new Schema()
@@ -398,13 +419,14 @@ public class ApiSwaggerService {
                         rootSchema.addProperties(param.getName(), subArraySchema);
                     } else {
                         Schema propertiesItem;
-                        if (Optional.ofNullable(typeItem.isObject()).orElse(false)) {
+                        if (Boolean.TRUE.equals(typeItem.isObject())) {
                             propertiesItem = new ObjectSchema().description(param.getRemark());
                             if (!CollectionUtils.isEmpty(param.getChildren())) {
                                 for (OutParam subParam : param.getChildren()) {
                                     Schema subSchema =
                                             new Schema()
-                                                    .type(subParam.getType().getJsType())
+                                                    .type(Optional.ofNullable(subParam.getType())
+                                                            .map(ParamTypeEnum::getJsType).orElse(null))
                                                     .description(subParam.getRemark())
                                                     .format(getTypeFormat(subParam.getType()));
                                     if (Optional.ofNullable(subParam.getIsArray()).orElse(false)) {
@@ -452,6 +474,9 @@ public class ApiSwaggerService {
 
     private String getTypeFormat(ParamTypeEnum type) {
         String format = null;
+        if (null == type) {
+            return null;
+        }
         switch (type) {
             case LONG:
                 format = "int64";

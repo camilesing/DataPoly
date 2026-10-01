@@ -3,7 +3,6 @@
 package com.cs.core.serdes.datetime;
 
 import cn.hutool.core.date.DatePattern;
-import com.cs.core.util.JacksonUtils;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
@@ -12,10 +11,18 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LocalDateTimeValueSerializer extends StdSerializer<LocalDateTime> {
 
     private static final String DEFAULT_PATTERN = DatePattern.NORM_DATETIME_PATTERN;
+
+    /**
+     * Formatters are immutable; assembling one per serialize() call is wasted work on hot
+     * response paths, so they are cached per pattern (patterns come from API config).
+     */
+    private static final Map<String, DateTimeFormatter> FORMATTER_CACHE = new ConcurrentHashMap<>();
 
     private String pattern;
 
@@ -29,10 +36,8 @@ public class LocalDateTimeValueSerializer extends StdSerializer<LocalDateTime> {
             throws IOException {
         if (value != null) {
             // Use DateTimeFormatter instead of SimpleDateFormat for LocalDateTime
-            // Read timezone from config; fall back to Asia/Shanghai if not configured
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern)
-                    .withZone(ZoneId.of(JacksonUtils.getTimezone()));
-            jsonGenerator.writeString(value.format(DateTimeFormatter.ofPattern(pattern)));
+            jsonGenerator.writeString(value.format(
+                    FORMATTER_CACHE.computeIfAbsent(pattern, DateTimeFormatter::ofPattern)));
         }
     }
 }

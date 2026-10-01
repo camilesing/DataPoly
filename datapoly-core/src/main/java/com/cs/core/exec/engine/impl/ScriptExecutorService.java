@@ -139,7 +139,7 @@ public class ScriptExecutorService extends AbstractExecutorEngine {
             }
         }
         moduleList.add(new ReqVarModule(params));
-        moduleList.add(new DsVarModule(params, strategy, printSqlLog));
+        moduleList.add(new DsVarModule(params, strategy, printSqlLog, dollarSubstitutionAllowed));
         moduleList.add(new DbVarModule(dataSource, productType, params, strategy, printSqlLog, dollarSubstitutionAllowed));
         return moduleList;
     }
