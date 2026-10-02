@@ -223,4 +223,12 @@ div h3 {
 .content_card {
   padding-top: 20px;
 }
+
+.content_card a {
+  color: var(--dp-primary-light);
+}
+
+.content_card a:hover {
+  color: var(--dp-cyan);
+}
 </style>

@@ -1,0 +1,69 @@
+/*
+ * DataPoly Manager UI — dark "tech" design tokens.
+ *
+ * Single source of truth for the whole UI. Element UI components are
+ * re-skinned in element-dark.css against these variables; page-level
+ * scoped styles should reference them instead of hard-coded colors.
+ */
+:root {
+  /* backgrounds */
+  --dp-bg-page: #0a0f1e;            /* app content canvas */
+  --dp-bg-layout: #0d1426;          /* sidebar / header */
+  --dp-bg-card: #111a2e;            /* cards, tables, panels */
+  --dp-bg-elevated: #16213a;        /* dialogs, dropdowns, popovers */
+  --dp-bg-inset: #0c1322;           /* wells: code blocks, table headers */
+  --dp-bg-hover: rgba(59, 130, 246, 0.08);
+  --dp-bg-active: rgba(59, 130, 246, 0.16);
+
+  /* text */
+  --dp-text-primary: #e2e8f0;
+  --dp-text-secondary: #94a3b8;
+  --dp-text-muted: #64748b;
+  --dp-text-placeholder: #52607a;
+
+  /* brand */
+  --dp-primary: #3b82f6;
+  --dp-primary-light: #60a5fa;
+  --dp-cyan: #22d3ee;
+  --dp-gradient: linear-gradient(135deg, #3b82f6 0%, #22d3ee 100%);
+  --dp-gradient-soft: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(34, 211, 238, 0.14) 100%);
+
+  /* status */
+  --dp-success: #34d399;
+  --dp-warning: #fbbf24;
+  --dp-danger: #f87171;
+  --dp-info: #94a3b8;
+
+  /* translucent status fills (tags, alerts) */
+  --dp-success-bg: rgba(52, 211, 153, 0.14);
+  --dp-warning-bg: rgba(251, 191, 36, 0.14);
+  --dp-danger-bg: rgba(248, 113, 113, 0.14);
+  --dp-info-bg: rgba(148, 163, 184, 0.14);
+  --dp-primary-bg: rgba(59, 130, 246, 0.14);
+
+  /* borders */
+  --dp-border: rgba(148, 163, 184, 0.14);
+  --dp-border-strong: rgba(148, 163, 184, 0.25);
+
+  /* effects */
+  --dp-glow-primary: 0 0 18px rgba(59, 130, 246, 0.28);
+  --dp-glow-cyan: 0 0 18px rgba(34, 211, 238, 0.22);
+  --dp-shadow-card: 0 2px 12px rgba(2, 6, 18, 0.45);
+  --dp-shadow-pop: 0 8px 30px rgba(2, 6, 18, 0.6);
+
+  /* shape */
+  --dp-radius: 8px;
+  --dp-radius-small: 5px;
+
+  /* overlay */
+  --dp-modal: rgba(4, 8, 20, 0.62);
+
+  /* chart palette (see also src/assets/chart-theme.js) */
+  --dp-chart-1: #22d3ee;
+  --dp-chart-2: #3b82f6;
+  --dp-chart-3: #818cf8;
+  --dp-chart-4: #34d399;
+  --dp-chart-5: #fbbf24;
+  --dp-chart-6: #f87171;
+  --dp-chart-7: #f472b6;
+}

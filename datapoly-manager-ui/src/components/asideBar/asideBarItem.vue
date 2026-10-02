@@ -56,10 +56,6 @@ export default {
 </script>
 
 <style scoped>
-.el-menu-item.is-active {
-  background-color: #1890ff !important;
-}
-
 /* Hide label text */
 .el-menu--collapse .asideBarItem-container span{
   display: none;

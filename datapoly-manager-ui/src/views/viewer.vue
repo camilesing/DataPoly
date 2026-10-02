@@ -1,6 +1,8 @@
 <template>
   <div class="viewer-container">
-    <router-view></router-view>
+    <transition name="dp-fade" mode="out-in">
+      <router-view></router-view>
+    </transition>
   </div>
 </template>
  

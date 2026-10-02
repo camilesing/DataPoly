@@ -6,7 +6,7 @@
       <el-row class="descriptions-row">
         <slot v-if="$slots.default" />
         <div v-else
-             style="text-align: center; color: grey;">{{ $t('common2.noData') }}</div>
+             style="text-align: center; color: var(--dp-text-muted);">{{ $t('common2.noData') }}</div>
       </el-row>
     </div>
   </div>
@@ -28,7 +28,7 @@ export default {
 <style scoped>
 .descriptions .descriptions-title {
   margin-bottom: 20px;
-  color: rgba(0, 0, 0, 0.85);
+  color: var(--dp-text-primary);
   font-weight: 700;
   font-size: 16px;
   line-height: 1.5;

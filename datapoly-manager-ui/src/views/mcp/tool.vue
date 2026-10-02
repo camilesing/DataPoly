@@ -21,7 +21,7 @@
         </div>
       </div>
 
-      <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+      <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                 :data="tableData"
                 size="small"
                 border>

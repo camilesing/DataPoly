@@ -39,7 +39,7 @@
         </div>
       </el-dialog>
 
-      <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+      <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                 :data="tableData"
                 size="small"
                 border>
@@ -957,27 +957,27 @@ export default {
   flex-direction: column;
   align-items: center;
   padding: 16px 8px;
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--dp-border);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .db-type-item:hover {
-  border-color: #409eff;
-  background-color: #f5f7fa;
+  border-color: var(--dp-primary);
+  background-color: var(--dp-bg-hover);
   transform: scale(1.05);
 }
 
 .db-type-item-selected {
-  border-color: #409eff;
-  background-color: #ecf5ff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+  border-color: var(--dp-primary);
+  background-color: var(--dp-primary-bg);
+  box-shadow: 0 0 0 2px var(--dp-primary-bg);
 }
 
 .db-type-item span {
   margin-top: 8px;
   font-size: 12px;
-  color: #606266;
+  color: var(--dp-text-secondary);
 }
 </style>

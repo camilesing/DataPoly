@@ -61,7 +61,7 @@ export default {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  color: rgba(0, 0, 0, 0.65);
+  color: var(--dp-text-primary);
   font-size: 14px;
   line-height: 1.5;
   width: 100%;
@@ -70,7 +70,7 @@ export default {
 .descriptions-item .descriptions-item-content .descriptions-item-label {
   flex-grow: 0;
   flex-shrink: 0;
-  color: rgba(0, 0, 0, 0.85);
+  color: var(--dp-text-secondary);
   font-weight: 400;
   font-size: 14px;
   line-height: 2;

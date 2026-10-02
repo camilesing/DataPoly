@@ -29,7 +29,7 @@
                        icon="el-icon-document-add"
                        @click="dialogVisible=true">{{ $t('common2.addDriverJar') }}</el-button>
           </div>
-          <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+          <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                     :data="versionDrivers"
                     size="small"
                     stripe
@@ -153,7 +153,7 @@ export default {
 
 .demo-table-expand label {
   width: 90px;
-  color: #99a9bf;
+  color: var(--dp-text-secondary);
 }
 
 .demo-table-expand .el-form-item {
@@ -183,7 +183,7 @@ export default {
 
 .container .el-card__header {
   padding: 8px 10px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--dp-border);
   box-sizing: border-box;
 }
 
@@ -199,13 +199,13 @@ export default {
   white-space: nowrop;
   cursor: pointer; /* pointer on hover */
   padding: 10px 0;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--dp-border);
   width: 100%;
 }
 
 .container .navsBox .active {
-  background: #bcbcbe6e;
-  color: rgb(46, 28, 88);
+  background: var(--dp-bg-active);
+  color: var(--dp-primary-light);
 }
 
 .container .contentBox {

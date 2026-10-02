@@ -138,6 +138,16 @@
 </template>
 <script>
 import CountTo from "vue-count-to";
+import {
+  CHART_COLORS,
+  CHART_BASE,
+  CHART_AXIS,
+  CHART_TOOLTIP,
+  CHART_LEGEND,
+  CHART_TEXT_COLOR,
+  CHART_TEXT_PRIMARY,
+  CHART_AXIS_LINE
+} from "@/assets/chart-theme";
 
 export default {
   name: "Dashboard",
@@ -175,9 +185,10 @@ export default {
       moduleChart: null,
       dsApiChart: null,
       dsTypeData: {
-        title: { text: '' },
-        tooltip: { trigger: 'item' },
-        legend: { orient: 'vertical', left: 'right' },
+        ...CHART_BASE,
+        title: { text: '', textStyle: { color: CHART_TEXT_PRIMARY } },
+        tooltip: { trigger: 'item', ...CHART_TOOLTIP },
+        legend: { orient: 'vertical', left: 'right', ...CHART_LEGEND },
         series: [{
           name: '',
           type: 'pie',
@@ -193,10 +204,11 @@ export default {
         }]
       },
       engineData: {
-        title: { text: '' },
-        tooltip: { trigger: 'item' },
-        legend: { orient: 'vertical', left: 'right' },
-        color: ['#40c9c6', '#36a3f7'],
+        ...CHART_BASE,
+        title: { text: '', textStyle: { color: CHART_TEXT_PRIMARY } },
+        tooltip: { trigger: 'item', ...CHART_TOOLTIP },
+        legend: { orient: 'vertical', left: 'right', ...CHART_LEGEND },
+        color: [CHART_COLORS[0], CHART_COLORS[1]],
         series: [{
           name: '',
           type: 'pie',
@@ -212,10 +224,11 @@ export default {
         }]
       },
       methodData: {
-        title: { text: '' },
-        tooltip: { trigger: 'item' },
-        legend: { orient: 'vertical', left: 'right' },
-        color: ['#40c9c6', '#36a3f7', '#f4516c', '#34bfa3', '#e6a23c'],
+        ...CHART_BASE,
+        title: { text: '', textStyle: { color: CHART_TEXT_PRIMARY } },
+        tooltip: { trigger: 'item', ...CHART_TOOLTIP },
+        legend: { orient: 'vertical', left: 'right', ...CHART_LEGEND },
+        color: [CHART_COLORS[0], CHART_COLORS[1], CHART_COLORS[2], CHART_COLORS[3], CHART_COLORS[4]],
         series: [{
           name: '',
           type: 'pie',
@@ -231,50 +244,57 @@ export default {
         }]
       },
       moduleData: {
-        title: { text: '' },
-        color: ['#36a3f7'],
+        ...CHART_BASE,
+        title: { text: '', textStyle: { color: CHART_TEXT_PRIMARY } },
+        color: [CHART_COLORS[1]],
         tooltip: {
           trigger: 'axis',
-          axisPointer: { type: 'shadow' }
+          axisPointer: { type: 'shadow' },
+          ...CHART_TOOLTIP
         },
-        legend: {},
+        legend: { ...CHART_LEGEND },
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-        xAxis: { type: 'value', boundaryGap: [0, 0.01] },
-        yAxis: { type: 'category', data: [] },
+        xAxis: { type: 'value', boundaryGap: [0, 0.01], ...CHART_AXIS },
+        yAxis: { type: 'category', data: [], ...CHART_AXIS },
         series: [{ type: 'bar', data: [] }]
       },
       dsApiData: {
-        title: { text: '' },
-        color: ['#36a3f7'],
+        ...CHART_BASE,
+        title: { text: '', textStyle: { color: CHART_TEXT_PRIMARY } },
+        color: [CHART_COLORS[1]],
         tooltip: {
           trigger: 'axis',
-          axisPointer: { type: 'shadow' }
+          axisPointer: { type: 'shadow' },
+          ...CHART_TOOLTIP
         },
-        legend: {},
+        legend: { ...CHART_LEGEND },
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-        xAxis: { type: 'value', boundaryGap: [0, 0.01] },
-        yAxis: { type: 'category', data: [] },
+        xAxis: { type: 'value', boundaryGap: [0, 0.01], ...CHART_AXIS },
+        yAxis: { type: 'category', data: [], ...CHART_AXIS },
         series: [{ type: 'bar', data: [] }]
       },
       barChartData: {
+        ...CHART_BASE,
         title: {
-          text: ''
+          text: '',
+          textStyle: { color: CHART_TEXT_PRIMARY }
         },
         tooltip: {
-          trigger: "axis"
+          trigger: "axis",
+          ...CHART_TOOLTIP
         },
         legend: {
           data: [
             {
               name: '',
               textStyle: {
-                color: '#000'
+                color: CHART_TEXT_COLOR
               }
             },
             {
               name: '',
               textStyle: {
-                color: '#000'
+                color: CHART_TEXT_COLOR
               }
             }
           ]
@@ -292,7 +312,7 @@ export default {
           axisLabel: {
             interval: 0,
             textStyle: {
-              color: '#000',
+              color: CHART_TEXT_COLOR,
               fontSize: 10
             },
             margin: 8
@@ -300,7 +320,7 @@ export default {
           axisLine: {
             show: true,
             lineStyle: {
-              color: 'rgb(2,121,253)'
+              color: CHART_AXIS_LINE
             }
           },
           axisTick: {
@@ -308,7 +328,8 @@ export default {
           }
         },
         yAxis: {
-          type: "value"
+          type: "value",
+          ...CHART_AXIS
         },
         series: [
           {
@@ -326,15 +347,19 @@ export default {
         ]
       },
       pieChartData: {
+        ...CHART_BASE,
         title: {
-          text: ''
+          text: '',
+          textStyle: { color: CHART_TEXT_PRIMARY }
         },
         tooltip: {
-          trigger: 'item'
+          trigger: 'item',
+          ...CHART_TOOLTIP
         },
         legend: {
           orient: 'vertical',
           left: 'right',
+          ...CHART_LEGEND
         },
         series: [
           {
@@ -356,17 +381,20 @@ export default {
         ]
       },
       topPathData: {
+        ...CHART_BASE,
         title: {
-          text: ''
+          text: '',
+          textStyle: { color: CHART_TEXT_PRIMARY }
         },
-        color: ['#40c9c6'],
+        color: [CHART_COLORS[0]],
         tooltip: {
           trigger: 'axis',
           axisPointer: {
             type: 'shadow'
-          }
+          },
+          ...CHART_TOOLTIP
         },
-        legend: {},
+        legend: { ...CHART_LEGEND },
         grid: {
           left: '3%',
           right: '4%',
@@ -375,11 +403,13 @@ export default {
         },
         xAxis: {
           type: 'value',
-          boundaryGap: [0, 0.01]
+          boundaryGap: [0, 0.01],
+          ...CHART_AXIS
         },
         yAxis: {
           type: 'category',
-          data: []
+          data: [],
+          ...CHART_AXIS
         },
         series: [
           {
@@ -389,17 +419,20 @@ export default {
         ]
       },
       topAppData: {
+        ...CHART_BASE,
         title: {
-          text: ''
+          text: '',
+          textStyle: { color: CHART_TEXT_PRIMARY }
         },
-        color: ['#36a3f7'],
+        color: [CHART_COLORS[1]],
         tooltip: {
           trigger: 'axis',
           axisPointer: {
             type: 'shadow'
-          }
+          },
+          ...CHART_TOOLTIP
         },
-        legend: {},
+        legend: { ...CHART_LEGEND },
         grid: {
           left: '3%',
           right: '4%',
@@ -408,11 +441,13 @@ export default {
         },
         xAxis: {
           type: 'value',
-          boundaryGap: [0, 0.01]
+          boundaryGap: [0, 0.01],
+          ...CHART_AXIS
         },
         yAxis: {
           type: 'category',
-          data: []
+          data: [],
+          ...CHART_AXIS
         },
         series: [
           {
@@ -422,17 +457,20 @@ export default {
         ]
       },
       topAddrData: {
+        ...CHART_BASE,
         title: {
-          text: ''
+          text: '',
+          textStyle: { color: CHART_TEXT_PRIMARY }
         },
-        color: ['#34bfa3'],
+        color: [CHART_COLORS[3]],
         tooltip: {
           trigger: 'axis',
           axisPointer: {
             type: 'shadow'
-          }
+          },
+          ...CHART_TOOLTIP
         },
-        legend: {},
+        legend: { ...CHART_LEGEND },
         grid: {
           left: '3%',
           right: '4%',
@@ -441,11 +479,13 @@ export default {
         },
         xAxis: {
           type: 'value',
-          boundaryGap: [0, 0.01]
+          boundaryGap: [0, 0.01],
+          ...CHART_AXIS
         },
         yAxis: {
           type: 'category',
-          data: []
+          data: [],
+          ...CHART_AXIS
         },
         series: [
           {
@@ -684,20 +724,20 @@ export default {
 
 <style scoped>
 .dashbord {
-  background-color: #f0f3f4;
+  background-color: var(--dp-bg-page);
 }
 
 .color-green1 {
-  color: #40c9c6 !important;
+  color: #22d3ee !important;
 }
 .color-blue {
-  color: #36a3f7 !important;
+  color: #3b82f6 !important;
 }
 .color-red {
-  color: #f4516c !important;
+  color: #34d399 !important;
 }
 .color-green2 {
-  color: #34bfa3 !important;
+  color: #818cf8 !important;
 }
 
 .infoCrads {
@@ -710,16 +750,25 @@ export default {
 
 .infoCrads .el-col .cardItem {
   height: 100px;
-  background: #fff;
-  border-radius: 6px;
+  background: var(--dp-bg-card);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
+  box-shadow: var(--dp-shadow-card);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.infoCrads .el-col .cardItem:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: var(--dp-glow-primary);
+  transform: translateY(-2px);
 }
 
 .cardItem {
-  color: #666;
+  color: var(--dp-text-secondary);
 }
 
 .cardItem .cardItem_txt {
@@ -730,21 +779,51 @@ export default {
   font-size: 28px;
   font-weight: bold;
   margin: 0;
+  color: var(--dp-text-primary) !important;
 }
 
 .cardItem .cardItem_txt .cardItem_p1 {
   font-size: 14px;
   margin: 4px 0 0 0;
-  color: #999;
+  color: var(--dp-text-secondary);
 }
 
 .cardItem .cardItem_icon {
   font-size: 48px;
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardItem .cardItem_icon i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  font-size: 32px;
+  border-radius: var(--dp-radius);
+}
+
+.cardItem .cardItem_icon i.color-green1 {
+  background: rgba(34, 211, 238, 0.14);
+}
+
+.cardItem .cardItem_icon i.color-blue {
+  background: rgba(59, 130, 246, 0.14);
+}
+
+.cardItem .cardItem_icon i.color-green2 {
+  background: rgba(129, 140, 248, 0.14);
+}
+
+.cardItem .cardItem_icon i.color-red {
+  background: rgba(52, 211, 153, 0.14);
 }
 
 .dash-tabs {
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--dp-shadow-card);
 }
 
 .chart-row {
@@ -752,9 +831,10 @@ export default {
 }
 
 .chart-panel {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
+  background: var(--dp-bg-card);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
+  box-shadow: var(--dp-shadow-card);
   width: 100%;
   height: 350px;
 }
@@ -774,7 +854,12 @@ export default {
 .filter-row {
   margin-bottom: 16px;
   padding: 12px;
-  background: #fafafa;
-  border-radius: 4px;
+  background: var(--dp-bg-inset);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
+}
+
+.filter-row span {
+  color: var(--dp-text-secondary);
 }
 </style>

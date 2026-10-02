@@ -80,16 +80,16 @@ export default {
 
 .el-aside {
   float: left;
-  background: #002140;
-  color: #333;
+  background: var(--dp-bg-layout);
+  color: var(--dp-text-primary);
   text-align: left;
+  border-right: 1px solid var(--dp-border);
 }
 
 .el-aside .title {
   height: 60px;
-  background: #001529;
   line-height: 64px;
-  background: #002140;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%);
   text-align: center;
 }
 
@@ -97,24 +97,32 @@ export default {
   width: 50px;
   height: 50px;
   vertical-align: middle;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.35));
 }
 
 .el-aside .title .title-text {
-  color: #fff;
+  color: var(--dp-text-primary);
   font-weight: 600;
   font-size: 20px;
   vertical-align: middle;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #e2e8f0 20%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .el-header {
   padding: 0px;
-  color: #ffffff;
+  color: var(--dp-text-primary);
   width: 100%;
   height: 60px;
-  background: #fff;
+  background: var(--dp-bg-layout);
   display: flex;
   align-items: center;
   line-height: 60px;
+  border-bottom: 1px solid var(--dp-border);
+  box-shadow: 0 1px 12px rgba(2, 6, 18, 0.35);
 }
 
 .el-header .header-right {
@@ -134,14 +142,19 @@ export default {
   height: 100%;
   padding-left: 2px;
   font-size: 22px;
-  color: #838383;
+  color: var(--dp-text-secondary);
   margin-right: 20px;
   cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.el-header .collapse:hover {
+  color: var(--dp-primary-light);
 }
 
 .el-main {
   padding: 0px;
   float: left;
-  background-color: #eaedf1;
+  background-color: var(--dp-bg-page);
 }
 </style>

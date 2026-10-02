@@ -1,0 +1,83 @@
+/*
+ * DataPoly Manager UI — dark base styles & shared utilities.
+ *
+ * Loaded after element-dark.css. Page components should use the CSS
+ * variables and the helpers below instead of re-declaring effects.
+ */
+
+::selection {
+  background: rgba(59, 130, 246, 0.35);
+  color: #f1f5f9;
+}
+
+/* dark scrollbars everywhere (app + body-level popups) */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+}
+
+/* route-switch transition used by viewer.vue */
+.dp-fade-enter-active,
+.dp-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.dp-fade-enter,
+.dp-fade-leave-to {
+  opacity: 0;
+}
+
+/* ---- shared utilities ---- */
+
+/* gradient headline / numeric highlight */
+.dp-gradient-text {
+  background: var(--dp-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* dark panel with a subtle hover glow; pair with page card containers */
+.dp-panel {
+  background: var(--dp-bg-card);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
+  box-shadow: var(--dp-shadow-card);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dp-panel--hoverable:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: var(--dp-glow-primary);
+  transform: translateY(-2px);
+}
+
+/* thin glowing top rule for hero cards / headers */
+.dp-topline::before {
+  content: '';
+  display: block;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--dp-gradient);
+  box-shadow: var(--dp-glow-primary);
+  opacity: 0.85;
+}

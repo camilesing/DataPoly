@@ -218,10 +218,18 @@ export default {
 }
 
 .my-label {
-  background: #e1f3d8;
+  background: var(--dp-success-bg);
 }
 
 .my-content {
-  background: #fde2e2;
+  background: var(--dp-danger-bg);
+}
+
+.box-card a {
+  color: var(--dp-primary-light);
+}
+
+.box-card a:hover {
+  color: var(--dp-cyan);
 }
 </style>
