@@ -44,12 +44,12 @@
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
-                         type="warning"
+                         type="success"
                          icon="el-icon-edit"
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('module.edit') }}</el-button>
               <el-button size="small"
-                         type="success"
+                         type="danger"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"
                          round>{{ $t('module.delete') }}</el-button>

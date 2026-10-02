@@ -44,7 +44,7 @@
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
-                         type="danger"
+                         type="success"
                          icon="el-icon-document"
                          @click="handleShowToken(scope.$index, scope.row)"
                          round>{{ $t('mcp.view') }}</el-button>
@@ -54,7 +54,7 @@
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('mcp.edit') }}</el-button>
               <el-button size="small"
-                         type="success"
+                         type="danger"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"
                          round>{{ $t('mcp.delete') }}</el-button>

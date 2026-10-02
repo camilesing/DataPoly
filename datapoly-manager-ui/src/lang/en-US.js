@@ -138,8 +138,6 @@ export default {
     jdbcUrl: 'JDBC URL',
     driver: 'Database Driver',
     driverVersion: 'Driver Version',
-    detail: 'Detail',
-    detailTitle: 'View DataSource Connection Info',
     addTitle: 'Add DataSource Connection Info',
     editTitle: 'Edit DataSource Connection Info',
     test: 'Test',
