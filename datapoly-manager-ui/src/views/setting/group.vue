@@ -44,7 +44,7 @@
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
-                         type="danger"
+                         type="success"
                          icon="el-icon-document"
                          @click="handleRelation(scope.$index, scope.row)"
                          round>{{ $t('setting.relation') }}</el-button>
@@ -54,7 +54,7 @@
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('setting.edit') }}</el-button>
               <el-button size="small"
-                         type="success"
+                         type="danger"
                          v-if="scope.row.id!==1"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"

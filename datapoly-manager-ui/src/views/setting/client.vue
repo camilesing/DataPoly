@@ -87,7 +87,7 @@
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
-                         type="danger"
+                         type="success"
                          icon="el-icon-document"
                          @click="handleAuthorize(scope.$index, scope.row)"
                          round>{{ $t('setting.authorize') }}</el-button>
@@ -97,7 +97,7 @@
                          @click="handleShowSecret(scope.$index, scope.row)"
                          round>{{ $t('setting.secret') }}</el-button>
               <el-button size="small"
-                         type="success"
+                         type="danger"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"
                          round>{{ $t('setting.delete') }}</el-button>

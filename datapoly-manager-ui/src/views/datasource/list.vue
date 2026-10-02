@@ -74,22 +74,17 @@
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
-                         type="danger"
+                         type="success"
                          icon="el-icon-video-play"
                          @click="handleTest(scope.$index, scope.row)"
                          round>{{ $t('datasource.test') }}</el-button>
-              <el-button size="small"
-                         type="primary"
-                         icon="el-icon-document"
-                         @click="handleMore(scope.$index, scope.row)"
-                         round>{{ $t('datasource.detail') }}</el-button>
               <el-button size="small"
                          type="warning"
                          icon="el-icon-edit"
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('common.edit') }}</el-button>
               <el-button size="small"
-                         type="success"
+                         type="danger"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"
                          round>{{ $t('common.delete') }}</el-button>
@@ -107,104 +102,6 @@
                        layout="total, sizes, prev, pager, next, jumper"
                        :total="totalCount"></el-pagination>
       </div>
-
-      <el-dialog :title="$t('datasource.detailTitle')"
-                 :visible.sync="dialogFormVisible"
-                 :showClose="false"
-                 :before-close="handleClose">
-        <el-form :model="queryForm"
-                 size="mini">
-          <el-form-item :label="$t('datasource.name')"
-                        label-width="120px"
-                        style="width:85%">
-            <el-input v-model="queryForm.name"
-                      auto-complete="off"
-                      :readonly=true></el-input>
-          </el-form-item>
-          <el-form-item :label="$t('datasource.type')"
-                        label-width="120px"
-                        style="width:85%">
-            <el-input v-model="queryForm.type"
-                      auto-complete="off"
-                      :readonly=true></el-input>
-          </el-form-item>
-          <el-form-item :label="$t('datasource.driver')"
-                        label-width="120px"
-                        style="width:85%">
-            <el-input v-model="queryForm.driver"
-                      auto-complete="off"
-                      :readonly=true></el-input>
-          </el-form-item>
-          <el-form-item :label="$t('datasource.driverVersion')"
-                        label-width="120px"
-                        style="width:85%">
-            <el-input v-model="queryForm.version"
-                      auto-complete="off"
-                      :readonly=true></el-input>
-          </el-form-item>
-          <el-form-item :label="$t('datasource.jdbcUrl')"
-                        label-width="120px"
-                        style="width:85%">
-            <el-input type="textarea"
-                      :rows="6"
-                      :spellcheck="false"
-                      v-model="queryForm.url"
-                      auto-complete="off"
-                      :readonly=true></el-input>
-          </el-form-item>
-          <el-form-item :label="$t('datasource.username')"
-                        label-width="120px"
-                        style="width:85%">
-            <el-input v-model="queryForm.username"
-                      auto-complete="off"
-                      :readonly=true></el-input>
-          </el-form-item>
-          <el-form-item :label="$t('datasource.password')"
-                        label-width="120px"
-                        style="width:85%">
-            <el-input type="password"
-                      v-model="queryForm.password"
-                      auto-complete="off"
-                      :readonly=true></el-input>
-          </el-form-item>
-          <el-divider content-position="center">{{ $t('datasource.poolConfig') }}</el-divider>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item :label="$t('datasource.maxPoolSize')" label-width="120px">
-                <el-input v-model="queryForm.poolConfig.maximumPoolSize" :readonly=true :placeholder="$t('datasource.default') + ' 10'"></el-input>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item :label="$t('datasource.minIdle')" label-width="120px">
-                <el-input v-model="queryForm.poolConfig.minimumIdle" :readonly=true :placeholder="$t('datasource.default') + ' 10'"></el-input>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item :label="$t('datasource.maxLifetime')" label-width="120px">
-                <el-input v-model="queryForm.poolConfig.maxLifetime" :readonly=true :placeholder="$t('datasource.default') + ' 3600000'"></el-input>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item :label="$t('datasource.connectionTimeout')" label-width="120px">
-                <el-input v-model="queryForm.poolConfig.connectionTimeout" :readonly=true :placeholder="$t('datasource.default') + ' 60000'"></el-input>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item :label="$t('datasource.idleTimeout')" label-width="120px">
-                <el-input v-model="queryForm.poolConfig.idleTimeout" :readonly=true :placeholder="$t('datasource.default') + ' 60000'"></el-input>
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-form>
-        <div slot="footer"
-             class="dialog-footer">
-          <el-button @click="dialogFormVisible = false">{{ $t('common.close') }}</el-button>
-        </div>
-      </el-dialog>
 
       <el-dialog :title="$t('datasource.addTitle')"
                  :visible.sync="createFormVisible"
@@ -489,16 +386,6 @@ export default {
         password: "",
         poolConfig: POOL_CONFIG_DEFAULTS
       },
-      queryForm: {
-        title: "",
-        type: "",
-        url: "",
-        diver: "",
-        version: "",
-        username: "",
-        password: "",
-        poolConfig: POOL_CONFIG_DEFAULTS
-      },
       createform: {
         title: "",
         type: "",
@@ -551,7 +438,6 @@ export default {
           }
         ]
       },
-      dialogFormVisible: false,
       createFormVisible: false,
       updateFormVisible: false,
       dbTypeDialogVisible: false,
@@ -631,10 +517,6 @@ export default {
           }
         });
       });
-    },
-    handleMore: function (index, row) {
-      this.dialogFormVisible = true;
-      this.queryForm = JSON.parse(JSON.stringify(row));
     },
     handleTest: function (index, row) {
       this.$http.get(

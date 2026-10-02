@@ -138,8 +138,6 @@ export default {
     jdbcUrl: 'JDBC连接串',
     driver: '数据库驱动',
     driverVersion: '驱动版本',
-    detail: '详情',
-    detailTitle: '查看数据库连接信息',
     addTitle: '添加数据源连接信息',
     editTitle: '修改数据源连接信息',
     test: '测试',
