@@ -25,7 +25,7 @@
       <div class="resizable"
            :style="{ width: rightWidth + 'px' }">
         <div v-if="!showDetail">
-          <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+          <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                     :data="tableData"
                     size="small"
                     border>
@@ -145,7 +145,7 @@
               </el-col>
               <el-col :span="20">
                 <el-table :data="interfaceDetail.inputParams"
-                          :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+                          :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                           size="mini"
                           default-expand-all
                           row-key="id"
@@ -207,7 +207,7 @@
               </el-col>
               <el-col :span="20">
                 <el-table :data="interfaceDetail.outputParams"
-                          :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+                          :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                           size="mini"
                           default-expand-all
                           row-key="id"
@@ -237,7 +237,7 @@
             </el-row>
           </el-tab-pane>
           <el-tab-pane :label="$t('service.accessLog')">
-            <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+            <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                       :data="accessLogData"
                       size="small"
                       border>
@@ -343,7 +343,7 @@
                :showClose="false"
                width="40%"
                :before-close="handleClose">
-      <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+      <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                 :data="versionList"
                 highlight-current-row
                 size="mini"
@@ -801,13 +801,13 @@ export default {
   height: 200px;
   cursor: ew-resize;
   display: inline-block;
-  border-left: 1px solid #dcdfe6;
+  border-left: 1px solid var(--dp-border);
   margin-left: 5px;
   margin-right: 2px;
 }
 
 .resizer:hover {
-  background-color: #699eff;
+  background-color: var(--dp-primary);
 }
 
 .detail-row {
@@ -816,11 +816,11 @@ export default {
 }
 
 .btn-style {
-  color: #e9e9f3;
+  color: var(--dp-text-primary);
 }
 
 .btn-text {
   font-size: 12px;
-  color: #6873ce;
+  color: var(--dp-primary-light);
 }
 </style>

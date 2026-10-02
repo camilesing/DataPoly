@@ -73,6 +73,7 @@
 
 <script>
 import * as echarts from 'echarts';
+import { CHART_COLORS } from '@/assets/chart-theme';
 
 export default {
   name: 'TopologyView',
@@ -223,15 +224,15 @@ export default {
           size: 90
         },
         Gateway: {
-          color: 'rgba(16, 185, 129, 0.92)',
+          color: 'rgba(52, 211, 153, 0.92)',
           border: '#6ee7b7',
-          shadow: 'rgba(16,185,129,0.5)',
+          shadow: 'rgba(52,211,153,0.5)',
           size: 80
         },
         Executor: {
-          color: 'rgba(245, 158, 11, 0.92)',
+          color: 'rgba(251, 191, 36, 0.92)',
           border: '#fcd34d',
-          shadow: 'rgba(245,158,11,0.5)',
+          shadow: 'rgba(251,191,36,0.5)',
           size: 75
         }
       };
@@ -241,7 +242,7 @@ export default {
         const pos = positions[node.id] || { x: 0, y: 0 };
 
         let fillColor = style.color;
-        if (node.status === 'warning') fillColor = 'rgba(239,68,68,0.88)';
+        if (node.status === 'warning') fillColor = 'rgba(248,113,113,0.88)';
 
         return {
           id: node.id,
@@ -290,9 +291,9 @@ export default {
       });
 
       const layerLabels = [
-        { x: 18, y: height * 0.15, text: this.$t('common2.managementLayer'), color: '#3b82f6' },
-        { x: 18, y: height * 0.45, text: this.$t('common2.gatewayLayer'), color: '#10b981' },
-        { x: 18, y: height * 0.78, text: this.$t('common2.executorLayer'), color: '#f59e0b' }
+        { x: 18, y: height * 0.15, text: this.$t('common2.managementLayer'), color: CHART_COLORS[1] },
+        { x: 18, y: height * 0.45, text: this.$t('common2.gatewayLayer'), color: CHART_COLORS[3] },
+        { x: 18, y: height * 0.78, text: this.$t('common2.executorLayer'), color: CHART_COLORS[4] }
       ].map((l, idx) => ({
         id: '__layer_' + idx,
         name: l.text,
@@ -379,11 +380,11 @@ export default {
                   color: link.type === 'mg'
                     ? new echarts.graphic.LinearGradient(0, 0, 1, 0, [
                       { offset: 0, color: 'rgba(59,130,246,0.8)' },
-                      { offset: 1, color: 'rgba(16,185,129,0.8)' }
+                      { offset: 1, color: 'rgba(52,211,153,0.8)' }
                     ])
                     : new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-                      { offset: 0, color: 'rgba(16,185,129,0.8)' },
-                      { offset: 1, color: 'rgba(245,158,11,0.8)' }
+                      { offset: 0, color: 'rgba(52,211,153,0.8)' },
+                      { offset: 1, color: 'rgba(251,191,36,0.8)' }
                     ]),
                   width: 2.5,
                   opacity: 0.75,
@@ -391,7 +392,7 @@ export default {
                   shadowBlur: 6,
                   shadowColor: link.type === 'mg'
                     ? 'rgba(59,130,246,0.4)'
-                    : 'rgba(245,158,11,0.3)'
+                    : 'rgba(251,191,36,0.3)'
                 }
               };
             }),
@@ -449,8 +450,8 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(100, 160, 255, 0.15);
+  background: var(--dp-bg-hover);
+  border-bottom: 1px solid var(--dp-border);
   backdrop-filter: blur(8px);
   flex-shrink: 0;
 }
@@ -468,13 +469,13 @@ export default {
 .title-text {
   font-size: 18px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--dp-text-primary);
   letter-spacing: 1px;
 }
 
 .last-refresh {
   font-size: 12px;
-  color: #64748b;
+  color: var(--dp-text-muted);
   margin-left: 8px;
 }
 
@@ -499,18 +500,18 @@ export default {
 }
 
 .manager-dot {
-  background: #3b82f6;
-  color: #3b82f6;
+  background: var(--dp-primary);
+  color: var(--dp-primary);
 }
 
 .gateway-dot {
-  background: #10b981;
-  color: #10b981;
+  background: var(--dp-success);
+  color: var(--dp-success);
 }
 
 .executor-dot {
-  background: #f59e0b;
-  color: #f59e0b;
+  background: var(--dp-warning);
+  color: var(--dp-warning);
 }
 
 .legend-info {
@@ -520,13 +521,13 @@ export default {
 }
 
 .legend-label {
-  color: #cbd5e1;
+  color: var(--dp-text-primary);
   font-size: 13px;
   font-weight: 600;
 }
 
 .legend-desc {
-  color: #64748b;
+  color: var(--dp-text-muted);
   font-size: 11px;
 }
 
@@ -535,21 +536,20 @@ export default {
   align-items: center;
   gap: 6px;
   padding: 7px 18px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: var(--dp-gradient);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dp-radius);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+  transition: box-shadow 0.2s, transform 0.2s;
 }
 
 .refresh-btn:hover {
-  background: linear-gradient(135deg, #60a5fa, #3b82f6);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.6);
+  background: var(--dp-gradient);
+  box-shadow: var(--dp-glow-primary);
   transform: translateY(-1px);
 }
 
@@ -578,7 +578,7 @@ export default {
   padding: 10px 24px;
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(100, 160, 255, 0.08);
+  border-bottom: 1px solid var(--dp-border);
 }
 
 .stat-card {
@@ -586,7 +586,7 @@ export default {
   flex-direction: column;
   align-items: center;
   padding: 8px 20px;
-  border-radius: 10px;
+  border-radius: var(--dp-radius);
   border: 1px solid transparent;
   min-width: 90px;
   transition: transform 0.2s ease;
@@ -609,32 +609,32 @@ export default {
 }
 
 .manager-card {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--dp-primary-bg);
   border-color: rgba(59, 130, 246, 0.3);
 }
-.manager-card .stat-num { color: #60a5fa; }
+.manager-card .stat-num { color: var(--dp-primary-light); }
 .manager-card .stat-label { color: #93c5fd; }
 
 .gateway-card {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.3);
+  background: var(--dp-success-bg);
+  border-color: rgba(52, 211, 153, 0.3);
 }
-.gateway-card .stat-num { color: #34d399; }
+.gateway-card .stat-num { color: var(--dp-success); }
 .gateway-card .stat-label { color: #6ee7b7; }
 
 .executor-card {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.3);
+  background: var(--dp-warning-bg);
+  border-color: rgba(251, 191, 36, 0.3);
 }
-.executor-card .stat-num { color: #fbbf24; }
+.executor-card .stat-num { color: var(--dp-warning); }
 .executor-card .stat-label { color: #fcd34d; }
 
 .total-card {
-  background: rgba(148, 163, 184, 0.1);
-  border-color: rgba(148, 163, 184, 0.25);
+  background: var(--dp-info-bg);
+  border-color: var(--dp-border-strong);
 }
-.total-card .stat-num { color: #e2e8f0; }
-.total-card .stat-label { color: #94a3b8; }
+.total-card .stat-num { color: var(--dp-text-primary); }
+.total-card .stat-label { color: var(--dp-text-secondary); }
 
 .chart-wrapper {
   flex: 1;
@@ -656,7 +656,7 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 20, 40, 0.6);
+  background: var(--dp-modal);
   border-radius: 12px;
   z-index: 10;
   gap: 16px;
@@ -666,13 +666,13 @@ export default {
   width: 44px;
   height: 44px;
   border: 4px solid rgba(59, 130, 246, 0.2);
-  border-top-color: #3b82f6;
+  border-top-color: var(--dp-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 .loading-text {
-  color: #94a3b8;
+  color: var(--dp-text-secondary);
   font-size: 14px;
 }
 
@@ -694,12 +694,12 @@ export default {
 
 .empty-text {
   font-size: 18px;
-  color: #64748b;
+  color: var(--dp-text-muted);
   font-weight: 600;
 }
 
 .empty-sub {
   font-size: 13px;
-  color: #475569;
+  color: var(--dp-text-muted);
 }
 </style>

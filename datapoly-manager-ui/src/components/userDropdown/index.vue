@@ -61,11 +61,23 @@ export default {
   height: 60px;
   padding: 10px 0;
   float: right;
+  color: var(--dp-text-secondary);
+  cursor: pointer;
 }
 
 .user-dropdown-wrap .user-dropdown-photo img {
   width: 30px;
   height: 30px;
   vertical-align: middle;
+  border-radius: 50%;
+  border: 1px solid var(--dp-border-strong);
+}
+
+.user-dropdown-wrap .user-dropdown-text {
+  transition: color 0.2s ease;
+}
+
+.user-dropdown-wrap .user-dropdown-photo:hover .user-dropdown-text {
+  color: var(--dp-primary-light);
 }
 </style>

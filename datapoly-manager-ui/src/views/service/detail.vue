@@ -84,7 +84,7 @@
             </el-col>
             <el-col :span="20">
               <el-table :data="interfaceDetail.inputParams"
-                        :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+                        :header-cell-style="{background:'#0c1322',color:'#94a3b8'}"
                         size="mini"
                         default-expand-all
                         row-key="id"
@@ -146,7 +146,7 @@
             </el-col>
             <el-col :span="20">
               <el-table :data="interfaceDetail.outputParams"
-                        :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+                        :header-cell-style="{background:'#0c1322',color:'#94a3b8'}"
                         size="mini"
                         default-expand-all
                         row-key="id"
@@ -205,7 +205,7 @@
                               style="width: 170px"
                               @change="handleLogFilterChange">
               </el-date-picker>
-              <span style="margin:0 6px;color:#999;">~</span>
+              <span style="margin:0 6px;color:var(--dp-text-muted);">~</span>
               <el-date-picker v-model="logEndTime"
                               type="datetime"
                               value-format="yyyy-MM-dd HH:mm:ss"
@@ -224,7 +224,7 @@
                          @click="handleLogFilterReset">{{ $t('common.reset') }}</el-button>
             </el-col>
           </el-row>
-          <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+          <el-table :header-cell-style="{background:'#0c1322',color:'#94a3b8'}"
                     :data="accessLogData"
                     size="small"
                     border>
@@ -298,7 +298,7 @@
             <el-col :span="8">
               <span class="stat-label">{{ $t('service.timeRange') }}
                 <el-tooltip :content="$t('service.timeRangeHint')" placement="top">
-                  <i class="el-icon-question" style="color:#409eff;cursor:pointer;font-size:14px;margin-left:4px;"></i>
+                  <i class="el-icon-question" style="color:var(--dp-primary);cursor:pointer;font-size:14px;margin-left:4px;"></i>
                 </el-tooltip>
               </span>
               <el-select v-model="statDays"
@@ -328,7 +328,7 @@
             <el-col :span="8">
               <span class="stat-label">{{ $t('service.date') }}
                 <el-tooltip :content="$t('service.dateHint')" placement="top">
-                  <i class="el-icon-question" style="color:#409eff;cursor:pointer;font-size:14px;margin-left:4px;"></i>
+                  <i class="el-icon-question" style="color:var(--dp-primary);cursor:pointer;font-size:14px;margin-left:4px;"></i>
                 </el-tooltip>
               </span>
               <el-date-picker v-model="statDate"
@@ -386,7 +386,7 @@
                :showClose="false"
                width="40%"
                :before-close="handleClose">
-      <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+      <el-table :header-cell-style="{background:'#0c1322',color:'#94a3b8'}"
                 :data="versionList"
                 highlight-current-row
                 size="mini"
@@ -423,6 +423,16 @@
 <script>
 import '@/assets/sysicon/iconfont.js'
 import JsonViewer from 'vue-json-viewer';
+import {
+  CHART_COLORS,
+  CHART_BASE,
+  CHART_AXIS,
+  CHART_TOOLTIP,
+  CHART_LEGEND,
+  CHART_TEXT_COLOR,
+  CHART_TEXT_PRIMARY,
+  CHART_AXIS_LINE
+} from "@/assets/chart-theme";
 
 export default {
   data () {
@@ -473,10 +483,11 @@ export default {
       dailyTrendChart: null,
       hourlyTrendChart: null,
       statusRatioData: {
-        title: { text: '' },
-        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-        legend: { orient: 'vertical', left: 'right' },
-        color: ['#40c9c6', '#36a3f7', '#f4516c', '#34bfa3', '#e6a23c', '#9b59b6'],
+        ...CHART_BASE,
+        title: { text: '', textStyle: { color: CHART_TEXT_PRIMARY } },
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', ...CHART_TOOLTIP },
+        legend: { orient: 'vertical', left: 'right', ...CHART_LEGEND },
+        color: [CHART_COLORS[0], CHART_COLORS[1], CHART_COLORS[2], CHART_COLORS[3], CHART_COLORS[4], CHART_COLORS[5]],
         series: [{
           name: '',
           type: 'pie',
@@ -493,25 +504,27 @@ export default {
         }]
       },
       dailyTrendData: {
-        title: { text: '' },
-        tooltip: { trigger: 'axis' },
-        legend: { data: [{ name: '', textStyle: { color: '#000' } }, { name: '', textStyle: { color: '#000' } }] },
-        color: ['#36a3f7', '#40c9c6'],
+        ...CHART_BASE,
+        title: { text: '', textStyle: { color: CHART_TEXT_PRIMARY } },
+        tooltip: { trigger: 'axis', ...CHART_TOOLTIP },
+        legend: { data: [{ name: '', textStyle: { color: CHART_TEXT_COLOR } }, { name: '', textStyle: { color: CHART_TEXT_COLOR } }] },
+        color: [CHART_COLORS[1], CHART_COLORS[0]],
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-        xAxis: { type: 'category', boundaryGap: true, data: [], axisLabel: { interval: 0, textStyle: { color: '#000', fontSize: 10 }, margin: 8 }, axisLine: { show: true, lineStyle: { color: 'rgb(2,121,253)' } }, axisTick: { show: false } },
-        yAxis: { type: 'value' },
+        xAxis: { type: 'category', boundaryGap: true, data: [], axisLabel: { interval: 0, textStyle: { color: CHART_TEXT_COLOR, fontSize: 10 }, margin: 8 }, axisLine: { show: true, lineStyle: { color: CHART_AXIS_LINE } }, axisTick: { show: false } },
+        yAxis: { type: 'value', ...CHART_AXIS },
         series: [
           { name: '', type: 'bar', barWidth: '30%', data: [] },
           { name: '', type: 'bar', barWidth: '30%', data: [] }
         ]
       },
       hourlyTrendData: {
-        title: { text: '' },
-        tooltip: { trigger: 'axis' },
-        color: ['#36a3f7'],
+        ...CHART_BASE,
+        title: { text: '', textStyle: { color: CHART_TEXT_PRIMARY } },
+        tooltip: { trigger: 'axis', ...CHART_TOOLTIP },
+        color: [CHART_COLORS[1]],
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-        xAxis: { type: 'category', boundaryGap: true, data: [], axisLabel: { interval: 0, textStyle: { color: '#000', fontSize: 10 } }, axisLine: { show: true, lineStyle: { color: 'rgb(2,121,253)' } } },
-        yAxis: { type: 'value' },
+        xAxis: { type: 'category', boundaryGap: true, data: [], axisLabel: { interval: 0, textStyle: { color: CHART_TEXT_COLOR, fontSize: 10 } }, axisLine: { show: true, lineStyle: { color: CHART_AXIS_LINE } } },
+        yAxis: { type: 'value', ...CHART_AXIS },
         series: [{ name: '', type: 'bar', barWidth: '60%', data: [] }]
       },
       logStatusCode: null,
@@ -872,13 +885,13 @@ export default {
   height: 200px;
   cursor: ew-resize;
   display: inline-block;
-  border-left: 1px solid #dcdfe6;
+  border-left: 1px solid var(--dp-border-strong);
   margin-left: 5px;
   margin-right: 2px;
 }
 
 .resizer:hover {
-  background-color: #699eff;
+  background-color: var(--dp-bg-active);
 }
 
 .detail-row {
@@ -887,38 +900,41 @@ export default {
 }
 
 .btn-style {
-  color: #e9e9f3;
+  color: var(--dp-text-muted);
 }
 
 .btn-text {
   font-size: 12px;
-  color: #6873ce;
+  color: var(--dp-primary-light);
 }
 
 .stat-filter-row {
   margin: 0 0 16px 0;
   padding: 12px;
-  background: #fafafa;
-  border-radius: 4px;
+  background: var(--dp-bg-inset);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
 }
 
 .stat-label {
   font-size: 14px;
   margin-right: 8px;
+  color: var(--dp-text-secondary);
 }
 
 .log-filter-row {
   margin: 0 0 12px 0;
   padding: 12px;
-  background: #fafafa;
-  border-radius: 4px;
+  background: var(--dp-bg-inset);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
   display: flex;
   align-items: center;
 }
 
 .filter-label {
   font-size: 13px;
-  color: #606266;
+  color: var(--dp-text-secondary);
   margin-right: 6px;
 }
 
@@ -927,9 +943,10 @@ export default {
 }
 
 .chart-panel {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
+  background: var(--dp-bg-card);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
+  box-shadow: var(--dp-shadow-card);
   width: 100%;
   height: 350px;
 }

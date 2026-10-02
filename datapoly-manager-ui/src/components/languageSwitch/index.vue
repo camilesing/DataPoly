@@ -55,13 +55,14 @@ export default {
   display: flex;
   align-items: center;
   cursor: pointer;
-  color: #606266;
+  color: var(--dp-text-secondary);
   font-size: 14px;
   padding: 0 10px;
+  transition: color 0.2s ease;
 }
 
 .language-dropdown:hover {
-  color: #409EFF;
+  color: var(--dp-primary-light);
 }
 
 .language-name {

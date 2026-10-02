@@ -97,7 +97,7 @@
         </div>
       </div>
 
-      <el-table :header-cell-style="{background:'#eef1f6',color:'#606266',whiteSpace:'nowrap'}"
+      <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)',whiteSpace:'nowrap'}"
                 :data="tableData"
                 size="small"
                 @selection-change="handleSelectionChange"
@@ -244,7 +244,7 @@
                :showClose="false"
                width="40%"
                :before-close="handleClose">
-      <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+      <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                 :data="versions"
                 highlight-current-row
                 size="mini"
@@ -747,7 +747,7 @@ export default {
 
 .demo-table-expand label {
   width: 90px;
-  color: #99a9bf;
+  color: var(--dp-text-secondary);
 }
 
 .demo-table-expand .el-form-item {
@@ -757,9 +757,9 @@ export default {
 }
 
 .el-input.is-disabled .el-input__inner {
-  background-color: #f5f7fa;
-  border-color: #e4e7ed;
-  color: #c0c4cc;
+  background-color: var(--dp-bg-inset);
+  border-color: var(--dp-border);
+  color: var(--dp-text-placeholder);
   cursor: pointer;
 }
 

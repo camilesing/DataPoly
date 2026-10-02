@@ -217,18 +217,18 @@ export default {
 }
 
 .system-title {
-  color: #e2e8f0;
+  color: var(--dp-text-primary);
   font-size: 28px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  background: linear-gradient(135deg, var(--dp-primary) 0%, var(--dp-primary-light) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .system-subtitle {
-  color: #94a3b8;
+  color: var(--dp-text-secondary);
   font-size: 14px;
   margin: 0;
 }
@@ -240,7 +240,7 @@ export default {
 .input-label {
   display: block;
   margin-bottom: 8px;
-  color: #e2e8f0;
+  color: var(--dp-text-primary);
   font-weight: 500;
   font-size: 14px;
 }
@@ -258,7 +258,7 @@ export default {
 }
 
 .input-field:focus {
-  border-color: #3b82f6;
+  border-color: var(--dp-primary);
   background: #0f172a;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
@@ -268,7 +268,7 @@ export default {
 }
 
 .input-field::placeholder {
-  color: #64748b;
+  color: var(--dp-text-muted);
 }
 
 .input-error {
@@ -287,7 +287,7 @@ export default {
   display: flex;
   align-items: center;
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--dp-text-secondary);
 }
 
 .checkbox-input {
@@ -306,8 +306,8 @@ export default {
 }
 
 .checkbox-input:checked + .checkbox-custom {
-  background: #3b82f6;
-  border-color: #3b82f6;
+  background: var(--dp-primary);
+  border-color: var(--dp-primary);
 }
 
 .checkbox-input:checked + .checkbox-custom::after {
@@ -321,34 +321,34 @@ export default {
 }
 
 .forgot-link {
-  color: #3b82f6;
+  color: var(--dp-primary);
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
 .forgot-link:hover {
-  color: #60a5fa;
+  color: var(--dp-primary-light);
   text-decoration: underline;
 }
 
 .login-button {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: var(--dp-gradient);
   color: white;
   border: none;
   border-radius: 8px;
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: box-shadow 0.2s, transform 0.2s;
   position: relative;
   overflow: hidden;
 }
 
 .login-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  box-shadow: var(--dp-glow-primary);
 }
 
 .login-button:disabled {
@@ -377,7 +377,7 @@ export default {
   z-index: 1;
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #334155;
+  border-top: 1px solid var(--dp-border);
   text-align: center;
 }
 
@@ -385,11 +385,11 @@ export default {
   text-align: center;
   margin-top: 30px;
   padding-top: 20px;
-  border-top: 1px solid #334155;
+  border-top: 1px solid var(--dp-border);
 }
 
 .copyright {
-  color: #64748b;
+  color: var(--dp-text-muted);
   font-size: 12px;
   margin: 0;
 }

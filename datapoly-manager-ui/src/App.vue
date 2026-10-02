@@ -18,6 +18,6 @@ export default {
     top: 0;
     left: 0;
     overflow-y: auto;
-    background-color: #fff;
+    background-color: var(--dp-bg-page);
 }
 </style>

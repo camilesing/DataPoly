@@ -212,7 +212,7 @@
                       </el-col>
                     </el-row>
                     <el-table :data="inputParams"
-                              :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+                              :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                               size="mini"
                               default-expand-all
                               row-key="id"
@@ -309,7 +309,7 @@
                       {{ $t('common2.addOutputParams') }}
                     </el-button>
                     <el-table :data="outputParams"
-                              :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+                              :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                               size="mini"
                               default-expand-all
                               row-key="id"
@@ -651,7 +651,7 @@
         <el-row>
           <el-col :span="24">
             <el-table :data="debugParams"
-                      :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+                      :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                       row-key="id"
                       :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
                       default-expand-all
@@ -777,7 +777,7 @@
                size="40%"
                :with-header="true">
       <el-card>
-        <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+        <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                   :data="versionList"
                   size="small"
                   border>
@@ -2138,7 +2138,7 @@ export default {
 .name-mapper-table table tr th,
 .name-mapper-table table tr td {
   border-collapse: collapse;
-  border: 1px solid #e0dddd;
+  border: 1px solid var(--dp-border);
   width: 100%;
 }
 
@@ -2173,7 +2173,7 @@ export default {
   margin: 0;
 }
 /deep/ .el-input.is-disabled .el-input__inner {
-  color: #5f5e5e !important;
+  color: var(--dp-text-muted) !important;
 }
 /deep/.el-table .cell {
   box-sizing: border-box;
@@ -2190,8 +2190,8 @@ export default {
   .cell
   .el-checkbox__input.is-disabled.is-checked
   .el-checkbox__inner {
-  background-color: #1464dd;
-  border-color: #f4f5f8;
+  background-color: var(--dp-primary);
+  border-color: var(--dp-border-strong);
 }
 .debug-console-log-text {
   white-space: pre-line;

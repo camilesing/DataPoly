@@ -4,7 +4,7 @@
       <el-form label-width="200px">
         <el-form-item :label="$t('setting.accessControl')">
           <el-switch v-model="status"
-                     active-color="#13ce66"
+                     active-color="var(--dp-success)"
                      active-value="ON"
                      inactive-value="OFF"
                      :active-text="$t('setting.open')"

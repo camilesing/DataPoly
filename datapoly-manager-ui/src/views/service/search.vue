@@ -191,12 +191,13 @@ export default {
 
 .app-container {
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 45%),
+    var(--dp-bg-page);
 }
 
 .app-header {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  background: var(--dp-bg-card);
+  border-bottom: 1px solid var(--dp-border);
   display: flex;
   align-items: center;
   padding: 0 30px;
@@ -210,7 +211,7 @@ export default {
 }
 
 .header-title {
-  color: #333;
+  color: var(--dp-text-primary);
   font-size: 24px;
   font-weight: 600;
   margin: 0;
@@ -234,23 +235,32 @@ export default {
 .search-btn {
   border-radius: 20px;
   padding: 12px 24px;
+  background: var(--dp-gradient);
+  border: none;
+  transition: box-shadow 0.2s;
+}
+
+.search-btn:hover,
+.search-btn:focus {
+  background: var(--dp-gradient);
+  box-shadow: var(--dp-glow-primary);
 }
 
 .app-aside {
-  background: rgba(255, 255, 255, 0.9);
-  border-right: 1px solid #e6e6e6;
+  background: var(--dp-bg-card);
+  border-right: 1px solid var(--dp-border);
   padding: 20px;
 }
 
 .filter-section {
-  background: white;
-  border-radius: 12px;
+  background: var(--dp-bg-inset);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius);
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .filter-title {
-  color: #333;
+  color: var(--dp-text-primary);
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
@@ -268,7 +278,7 @@ export default {
 }
 
 .app-main {
-  background: #f5f7fa;
+  background: transparent;
   padding: 24px;
 }
 
@@ -280,16 +290,18 @@ export default {
 }
 
 .content-card {
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  border-radius: var(--dp-radius);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   cursor: pointer;
-  border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--dp-border);
+  background: var(--dp-bg-card);
+  box-shadow: var(--dp-shadow-card);
 }
 
 .content-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: var(--dp-glow-primary);
 }
 
 .content-card:hover .card-img {
@@ -301,7 +313,7 @@ export default {
 }
 
 .card-title {
-  color: #333;
+  color: var(--dp-text-primary);
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 8px 0;
@@ -309,7 +321,7 @@ export default {
 }
 
 .card-desc {
-  color: #666;
+  color: var(--dp-text-secondary);
   font-size: 14px;
   line-height: 1.5;
   margin-bottom: 12px;
@@ -327,14 +339,14 @@ export default {
 }
 
 .card-date {
-  color: #999;
+  color: var(--dp-text-muted);
 }
 
 .card-tag {
-  color: #409eff;
-  background: rgba(64, 158, 255, 0.1);
+  color: var(--dp-primary-light);
+  background: var(--dp-primary-bg);
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--dp-radius-small);
 }
 
 .pagination-section {
@@ -349,7 +361,7 @@ export default {
 }
 
 .custom-pagination >>> .el-pager li.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--dp-gradient);
   color: white;
 }
 </style>

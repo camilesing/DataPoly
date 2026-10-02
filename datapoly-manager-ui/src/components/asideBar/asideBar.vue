@@ -8,9 +8,6 @@
           unique-opened
           @open="handleOpen"
           @close="handleClose"
-          background-color="#001529"
-          text-color="rgb(191, 203, 217)"
-          active-text-color="#ffffff"
           :collapse="collapsed"
           :default-active="initActivePath"
         >

@@ -15,6 +15,10 @@ import './assets/dbicon/iconfont.css'
 import './assets/dbicon/iconfont.js'
 import './assets/sysicon/iconfont.css'
 import 'element-ui/lib/theme-chalk/index.css';
+// Dark re-skin: must load AFTER theme-chalk so overrides win (no !important race)
+import './styles/variables.css'
+import './styles/element-dark.css'
+import './styles/base.css'
 import * as echarts from 'echarts'
 import VueCodeMirror from 'vue-codemirror'
 import 'codemirror/lib/codemirror.css'
