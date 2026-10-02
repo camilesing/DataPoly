@@ -135,6 +135,7 @@ export default {
     searchPlaceholder: '请输入连接名称关键字搜索',
     id: '编号',
     createTime: '创建时间',
+    updateTime: '更新时间',
     jdbcUrl: 'JDBC连接串',
     driver: '数据库驱动',
     driverVersion: '驱动版本',

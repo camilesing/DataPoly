@@ -52,7 +52,10 @@
                          min-width="20%"></el-table-column>
         <el-table-column prop="createTime"
                          :label="$t('datasource.createTime')"
-                         min-width="18%"></el-table-column>
+                         min-width="15%"></el-table-column>
+        <el-table-column prop="updateTime"
+                         :label="$t('datasource.updateTime')"
+                         min-width="15%"></el-table-column>
         <el-table-column :label="$t('datasource.type')"
                          show-overflow-tooltip
                          min-width="15%">
@@ -70,7 +73,7 @@
                          show-overflow-tooltip
                          min-width="10%"></el-table-column>
         <el-table-column :label="$t('common.operation')"
-                         min-width="35%">
+                         min-width="30%">
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"

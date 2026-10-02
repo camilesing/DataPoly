@@ -135,6 +135,7 @@ export default {
     searchPlaceholder: 'Search by connection name',
     id: 'ID',
     createTime: 'Create Time',
+    updateTime: 'Update Time',
     jdbcUrl: 'JDBC URL',
     driver: 'Database Driver',
     driverVersion: 'Driver Version',
