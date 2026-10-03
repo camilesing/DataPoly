@@ -23,6 +23,32 @@ const constantRouter = new Router({
           component: () => import('@/views/dashboard/index')
         },
         {
+          path: '/interface',
+          name: 'menu.interface',
+          icon: "el-icon-edit-outline",
+          component: () => import('@/views/interface/index'),
+          children: [
+            {
+              path: '/interface/module',
+              name: 'menu.moduleConfig',
+              icon: "el-icon-folder",
+              component: () => import('@/views/interface/module'),
+            },
+            {
+              path: '/interface/list',
+              name: 'menu.interfaceConfig',
+              icon: "el-icon-refrigerator",
+              component: () => import('@/views/interface/list'),
+            },
+            {
+              path: '/service/search',
+              name: 'menu.onlineInterface',
+              icon: "el-icon-lightning",
+              component: () => import('@/views/service/search')
+            }
+          ]
+        },
+        {
           path: '/datasource',
           name: 'menu.datasource',
           icon: "el-icon-coin",
@@ -77,60 +103,18 @@ const constantRouter = new Router({
               name: 'menu.topology',
               icon: "el-icon-link",
               component: () => import('@/views/setting/topology')
-            }
-          ]
-        },
-        {
-          path: '/interface',
-          name: 'menu.interface',
-          icon: "el-icon-edit-outline",
-          component: () => import('@/views/interface/index'),
-          children: [
-            {
-              path: '/interface/module',
-              name: 'menu.moduleConfig',
-              icon: "el-icon-folder",
-              component: () => import('@/views/interface/module'),
             },
-            {
-              path: '/interface/list',
-              name: 'menu.interfaceConfig',
-              icon: "el-icon-refrigerator",
-              component: () => import('@/views/interface/list'),
-            }
-          ]
-        },
-        {
-          path: '/service',
-          name: 'menu.service',
-          icon: "el-icon-school",
-          component: () => import('@/views/service/index'),
-          children: [
-            {
-              path: '/service/search',
-              name: 'menu.onlineInterface',
-              icon: "el-icon-lightning",
-              component: () => import('@/views/service/search'),
-            }
-          ]
-        },
-        {
-          path: '/mcp',
-          name: 'menu.mcp',
-          icon: "el-icon-s-promotion",
-          component: () => import('@/views/mcp/index'),
-          children: [
             {
               path: '/mcp/client',
               name: 'menu.tokenConfig',
               icon: "el-icon-s-platform",
-              component: () => import('@/views/mcp/client'),
+              component: () => import('@/views/mcp/client')
             },
             {
               path: '/mcp/tool',
               name: 'menu.toolConfig',
               icon: "el-icon-setting",
-              component: () => import('@/views/mcp/tool'),
+              component: () => import('@/views/mcp/tool')
             }
           ]
         },
