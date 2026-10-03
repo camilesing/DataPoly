@@ -8,7 +8,7 @@
           {{ nickname }}({{username}})
           <i class="el-icon-caret-bottom"></i>
         </span>
-        <img src="../../assets/user.jpg"
+        <img src="../../assets/user_v2.jpg"
              alt="user" />
       </div>
       <el-dropdown-menu solt="dropdown">
