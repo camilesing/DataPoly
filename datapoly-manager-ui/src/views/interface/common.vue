@@ -14,6 +14,10 @@
       </el-col>
       <el-col :span="22">
         <div style="float:right">
+          <el-tag type="warning"
+                  size="mini"
+                  v-if="showVersionDetail && viewedVersion"
+                  style="margin-right:5px">{{ $t('common2.viewingVersion') }}V{{ viewedVersion }}</el-tag>
           <el-button type="danger"
                      v-if="showVersionDetail"
                      size="mini"
@@ -888,6 +892,7 @@ export default {
       showVersionDrawer: false,
       versionList: [],
       showVersionDetail: false,
+      viewedVersion: null,
       rules: {
         name: [
           {
@@ -2051,30 +2056,60 @@ export default {
       }
     },
     handleShowVersionDetail: function (index, row) {
+      this.showVersionDrawer = false;
+      this.loadVersionSnapshot(row.commitId, true);
+    },
+    loadVersionSnapshot: function (commitId, notify) {
       this.$http({
         method: "GET",
         headers: {
           'Content-Type': 'application/json'
         },
-        url: "/datapoly/manager/api/v1/version/show/" + row.commitId,
+        url: "/datapoly/manager/api/v1/version/show/" + commitId,
       }).then(res => {
         if (0 === res.data.code) {
-          this.showVersionDrawer = false;
+          let version = res.data.data;
+          this.applyAssignmentDetail(version.detail);
           this.showTree = false;
-          let detail = res.data.data.detail;
-          this.applyAssignmentDetail(detail);
-          this.showVersionDetail = true
-          this.$message(this.$t('common2.switchVersionSuccess') + row.version + this.$t('common2.switchVersionEnd'));
+          this.viewedVersion = version.version;
+          this.showVersionDetail = true;
+          if (notify) {
+            this.$message(this.$t('common2.switchVersionSuccess') + version.version + this.$t('common2.switchVersionEnd'));
+          }
         } else {
           if (res.data.message) {
             alert(this.$t('common2.queryFailed') + res.data.message);
           }
+          // a version that cannot be read must not leave the page claiming to show one
+          this.leaveVersionView();
+          this.loadAssignmentDetail();
         }
       });
     },
-    handleExitShowVersionDetail: function () {
+    /**
+     * A commitId in the route is the interface list's "view this version" entry: the page then shows
+     * that snapshot read-only instead of the editable draft (`?id=` alone is the draft). It is loaded
+     * on creation only — switching versions inside the page goes through the drawer above.
+     */
+    loadInitialDetail: function () {
+      const commitId = Number(this.$route.query.commitId);
+      if (commitId > 0) {
+        this.loadVersionSnapshot(commitId, false);
+        return;
+      }
       this.loadAssignmentDetail();
+    },
+    leaveVersionView: function () {
+      this.viewedVersion = null;
       this.showVersionDetail = false;
+      // leaving version view drops ?commitId too, so a refresh lands back on the draft
+      if (this.$route.query.commitId) {
+        this.$router.replace({ path: this.$route.path, query: { id: this.$route.query.id } });
+      }
+    },
+    handleExitShowVersionDetail: function () {
+      this.leaveVersionView();
+      this.loadAssignmentDetail();
       this.$message(this.$t('common2.exitVersionSuccess'));
     },
     handleRevertVersionDetail: function (index, row) {
@@ -2096,6 +2131,8 @@ export default {
         }).then(res => {
           if (0 === res.data.code) {
             this.showVersionDrawer = false;
+            // a rollback rewrites the draft, so what the form shows from here on is the draft, not the version
+            this.leaveVersionView();
             this.loadAssignmentDetail();
             this.$message(this.$t('common2.rollbackSuccess'));
           } else {
@@ -2111,7 +2148,7 @@ export default {
     this.initParamTypeList();
     this.initCacheKeyTypeList();
     await this.loadResponseTypeFormat();
-    this.loadAssignmentDetail();
+    this.loadInitialDetail();
     this.loadConnections();
     this.loadGroups();
     this.loadModules();

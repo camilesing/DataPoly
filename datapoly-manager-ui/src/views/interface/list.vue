@@ -167,7 +167,7 @@
                          min-width="180"></el-table-column>
         <el-table-column :label="$t('common.operation')"
                          fixed="right"
-                         min-width="350">
+                         min-width="580">
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
@@ -176,6 +176,13 @@
                          v-if="scope.row.status===false"
                          @click="handleOnline(scope.$index, scope.row)"
                          round>{{ $t('interface.goOnline') }}</el-button>
+              <el-button size="small"
+                         type="primary"
+                         plain
+                         icon="el-icon-s-promotion"
+                         v-if="scope.row.status===false"
+                         @click="handleQuickOnline(scope.$index, scope.row)"
+                         round>{{ $t('interface.quickOnline') }}</el-button>
               <el-button size="small"
                          type="info"
                          icon="el-icon-delete-location"
@@ -192,6 +199,12 @@
                          icon="el-icon-position"
                          @click="handlePublish(scope.$index, scope.row)"
                          round>{{ $t('interface.publish') }}</el-button>
+              <el-button size="small"
+                         type="primary"
+                         plain
+                         icon="el-icon-time"
+                         @click="handleShowHistoryVersion(scope.$index, scope.row)"
+                         round>{{ $t('interface.historyVersion') }}</el-button>
               <el-button size="small"
                          type="danger"
                          icon="el-icon-delete"
@@ -242,7 +255,7 @@
     <el-dialog :title="$t('interface.selectOnlineVersion')"
                :visible.sync="versionDialogVisible"
                :showClose="false"
-               width="40%"
+               width="50%"
                :before-close="handleClose">
       <el-table :header-cell-style="{background:'var(--dp-bg-inset)',color:'var(--dp-text-secondary)'}"
                 :data="versions"
@@ -257,6 +270,9 @@
           <template slot-scope="scope">
             <el-radio v-model="selectCommitId"
                       :label="scope.row.commitId">V{{ scope.row.version }}</el-radio>
+            <!-- versions come back ordered by version DESC, so the first row is the latest one -->
+            <el-tag size="mini"
+                    v-if="scope.$index === 0">{{ $t('interface.latest') }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createTime"
@@ -271,7 +287,55 @@
            class="dialog-footer">
         <el-button @click="versionDialogVisible = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary"
+                   :disabled="!selectCommitId || selectCommitId <= 0"
                    @click="handleDeploy">{{ $t('interface.deploy') }}</el-button>
+      </div>
+    </el-dialog>
+
+    <el-dialog :title="$t('interface.historyVersion')"
+               :visible.sync="historyDialogVisible"
+               :showClose="false"
+               width="60%"
+               :before-close="handleClose">
+      <el-table :header-cell-style="{background:'#eef1f6',color:'#606266'}"
+                :data="versions"
+                size="mini"
+                border>
+        <template slot="empty">
+          <span>{{ $t('interface.versionEmpty') }}</span>
+        </template>
+        <el-table-column :label="$t('interface.selectVersion')"
+                         min-width="120">
+          <template slot-scope="scope">
+            V{{ scope.row.version }}
+            <!-- versions come back ordered by version DESC, so the first row is the latest one -->
+            <el-tag size="mini"
+                    v-if="scope.$index === 0">{{ $t('interface.latest') }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="online"
+                         :label="$t('interface.versionOnline')"
+                         :formatter="formatVersionOnline"
+                         min-width="80"></el-table-column>
+        <el-table-column prop="createTime"
+                         :label="$t('interface.generateTime')"
+                         min-width="160"> </el-table-column>
+        <el-table-column prop="description"
+                         :label="$t('interface.versionDesc')"
+                         show-overflow-tooltip
+                         min-width="200"></el-table-column>
+        <el-table-column :label="$t('common.operation')"
+                         min-width="90">
+          <template slot-scope="scope">
+            <el-link type="primary"
+                     icon="el-icon-view"
+                     @click="handleViewHistoryVersion(scope.$index, scope.row)">{{ $t('interface.view') }}</el-link>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div slot="footer"
+           class="dialog-footer">
+        <el-button @click="historyDialogVisible = false">{{ $t('common.cancel') }}</el-button>
       </div>
     </el-dialog>
 
@@ -321,6 +385,7 @@ export default {
       publishDialogVisible: false,
       publishVersionDesc: '',
       versionDialogVisible: false,
+      historyDialogVisible: false,
       selectRowId: 0,
       selectCommitId: 0,
       versions: [],
@@ -558,24 +623,59 @@ export default {
         }
       });
     },
-    handleOnline: function (index, row) {
-      this.$http({
+    /**
+     * Shared by every version picker on this page — the online dialog, quick online and the history
+     * dialog show the same list. Resolves with it, or with null once the failure has been reported.
+     */
+    loadVersionList: function (bizId) {
+      return this.$http({
         method: "GET",
         headers: {
           'Content-Type': 'application/json'
         },
-        url: "/datapoly/manager/api/v1/version/list/" + row.id,
+        url: "/datapoly/manager/api/v1/version/list/" + bizId,
       }).then(res => {
-        if (0 === res.data.code) {
-          this.versions = res.data.data;
-          this.selectRowId = row.id;
-          this.versionDialogVisible = true;
-        } else {
+        if (0 !== res.data.code) {
           if (res.data.message) {
             alert(this.$t('interface.getVersionListFailed') + res.data.message);
           }
+          return null;
+        }
+        this.versions = res.data.data || [];
+        return this.versions;
+      });
+    },
+    handleOnline: function (index, row) {
+      this.selectRowId = row.id;
+      // cleared on every open: a commitId left over from another row's cancelled dialog would
+      // otherwise pass the "select a version" guard below and be sent along with this row's id
+      this.selectCommitId = 0;
+      this.loadVersionList(row.id).then(versions => {
+        if (versions) {
+          this.versionDialogVisible = true;
         }
       });
+    },
+    handleShowHistoryVersion: function (index, row) {
+      this.selectRowId = row.id;
+      this.loadVersionList(row.id).then(versions => {
+        if (versions) {
+          this.historyDialogVisible = true;
+        }
+      });
+    },
+    handleViewHistoryVersion: function (index, row) {
+      // the detail page renders a version snapshot read-only and its "exit version view" button goes
+      // back to the draft, so the content is shown by that one renderer instead of a second copy here
+      this.historyDialogVisible = false;
+      this.$router.push({ path: '/interface/detail', query: { id: this.selectRowId, commitId: row.commitId } });
+    },
+    formatVersionOnline: function (row) {
+      if (row.online === true) {
+        return this.$t('common.yes');
+      } else {
+        return "-";
+      }
     },
     handleDeploy: function () {
       if (!this.selectCommitId || this.selectCommitId <= 0) {
@@ -605,6 +705,79 @@ export default {
             alert(this.$t('interface.onlineFailed') + res.data.message);
           }
         }
+      });
+    },
+    handleQuickOnline: function (index, row) {
+      this.loadVersionList(row.id).then(versions => {
+        if (!versions) {
+          return;
+        }
+        // the backend numbers a new commit as max(version)+1, so the announced number is the one it will take
+        const nextVersion = versions.length > 0 ? versions[0].version + 1 : 1;
+        this.$confirm(
+          this.$t('interface.quickOnlineConfirm') + " V" + nextVersion + "?",
+          this.$t('common.warning'),
+          {
+            confirmButtonText: this.$t('common.confirm'),
+            cancelButtonText: this.$t('common.cancel'),
+            type: "warning"
+          }
+        ).then(() => {
+          this.publishAndDeployLatest(row.id);
+        });
+      });
+    },
+    publishAndDeployLatest: function (rowId) {
+      this.$http({
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        url: "/datapoly/manager/api/v1/assignment/publish",
+        data: JSON.stringify({
+          id: rowId,
+          description: this.$t('interface.quickOnline'),
+        })
+      }).then(res => {
+        if (0 !== res.data.code) {
+          if (res.data.message) {
+            alert(this.$t('interface.publishFailed') + res.data.message);
+          }
+          return;
+        }
+        this.loadVersionList(rowId).then(versions => {
+          if (!versions) {
+            return;
+          }
+          if (versions.length === 0) {
+            // the publish call succeeded but no version came back: say so, never deploy an assumed one
+            this.$alert(this.$t('interface.latestVersionMissing'), this.$t('common.error'),
+              {
+                confirmButtonText: this.$t('common.confirm'),
+                type: "error"
+              }
+            );
+            return;
+          }
+          // ordered by version DESC: the first row is the version just published, i.e. the default target
+          const latest = versions[0];
+          this.$http({
+            method: "PUT",
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            url: "/datapoly/manager/api/v1/assignment/deploy/" + rowId + "?commitId=" + latest.commitId,
+          }).then(deployRes => {
+            if (0 === deployRes.data.code) {
+              this.$message(this.$t('interface.quickOnlineSuccess') + " V" + latest.version);
+              this.loadData();
+            } else {
+              if (deployRes.data.message) {
+                alert(this.$t('interface.onlineFailed') + deployRes.data.message);
+              }
+            }
+          });
+        });
       });
     },
     handleOffline: function (index, row) {
