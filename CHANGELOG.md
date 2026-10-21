@@ -12,6 +12,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The interface list (`/interface/list`) gains a **version history** button on every row: it opens the version
+  list (`GET /version/list/{id}` — the same list the 上线 picker shows, newest first, with 最新 / 在线 markers)
+  and each row's 查看 link opens that snapshot read-only. The button is offered on drafts as well as online
+  interfaces, because 发版 publishes versions without going online; a row with no version yet gets the existing
+  empty-list hint. The snapshot is rendered by the **detail page**, addressed as
+  `/interface/detail?id=<接口>&commitId=<提交>`: on creation that page loads `/version/show/{commitId}` instead of
+  the draft, shows which version is on screen (`正在查看版本 Vn`), and the red 退出版本查看 button (already there
+  for the in-page version drawer) returns to the draft — it now also drops `commitId` from the URL, so a refresh
+  lands back on the editable draft rather than the snapshot. A `commitId` that cannot be read reports the failure
+  and falls back to the draft instead of leaving a blank read-only page. Kept to one renderer on purpose: the list
+  page shows no content of its own, and the snapshot shape is whatever `showVersion` returns. Server-side nothing
+  changed, and the version fetches on the list page go through one helper (`loadVersionList`) instead of a fresh
+  copy per caller. Room for the new button came from the layout rather than from shorter labels: the operation
+  column went 350 → 580 (six buttons in English wrap onto a second line below ~560), and both version dialogs
+  were widened (选择上线版本 40% → 50%, 历史版本 60%) because their last column was being clipped at the old
+  width.
+- The interface list (`/interface/list`) gains a **quick online** action beside 上线: it publishes the current
+  draft as a new version and then puts the **latest** version online. The publish call
+  (`PUT /datapoly/manager/api/v1/assignment/publish`) carries the button's own label as the version
+  description — `快速上线` / `Quick Online`, so the history line follows the UI language, and the generate-time
+  column in the version picker already carries the timestamp — and the version that goes online is *read back*
+  from `GET /version/list/{id}` after publishing rather than assumed, so the toast names the version that is
+  really live (the backend returns that list ordered by `version DESC`, making the first row the one just
+  published). The confirmation preceding the two calls quotes the number the new commit will take
+  (`max(version)+1`, what `VersionCommitDao.createVersion` assigns), and it is deliberately the only thing
+  standing between a click and going online. Drafts only, where 上线 itself is offered; an interface that has
+  never been published goes straight to V1. No server change: `AssignmentPublishRequest` requires only `id`
+  (`description` stays optional) and `deploy/{id}` has always accepted an explicit `commitId`.
+
+### Changed
+
+- 上线 on the interface list now demands an explicit version choice, and the state it validates finally holds
+  still: opening the version picker clears the selection carried over from a previously opened row. It used to
+  be cleared only after a *successful* deploy, so cancelling a dialog left its `commitId` behind — the picker
+  rendered nothing selected in the next dialog while that stale id passed the "please select a version" guard
+  and was sent together with the new row's id, a mismatch only the server caught
+  (`api.version.commit.not.belong`). The dialog's own 上 线 button is disabled until a version is picked (the
+  guard's alert stays as a backstop for non-pointer paths), and the newest commit — the first row the backend
+  returns — is tagged `最新`/`Latest`, so the default target is visible without counting down the list.
+
 - DataTask statement sinks (optional capability, backward compatible): the new
   interface `com.cs.common.datatask.DataTaskStatementSink` lets a delivery
   provider claim a definition and run its rendered statement itself, for
