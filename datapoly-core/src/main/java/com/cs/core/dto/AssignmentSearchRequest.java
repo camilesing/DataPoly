@@ -10,7 +10,7 @@ import lombok.*;
 @Schema(description = "列表搜索")
 public class AssignmentSearchRequest extends EntitySearchRequest {
 
-    @Schema(description = "是否上线")
+    @Schema(description = "是否上线: true=仅已上线, false=仅开发中, 不传=全部")
     private Boolean online;
 
     @Schema(description = "分组ID")

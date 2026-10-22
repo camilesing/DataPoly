@@ -3,12 +3,18 @@
     <el-card>
       <div class="assignment-list-top">
         <div class="left-search-input">
-          <el-radio-group v-model="online"
-                          @change="handleSearch"
-                          size="small">
-            <el-radio-button :label="false">{{ $t('interface.developing') }}</el-radio-button>
-            <el-radio-button :label="true">{{ $t('interface.online') }}</el-radio-button>
-          </el-radio-group>
+          <el-select v-model="statusFilter"
+                     size="mini"
+                     style="width:12%"
+                     :placeholder="$t('interface.filterByStatus')"
+                     @change="handleStatusFilterChange">
+            <el-option :label="$t('interface.all')"
+                       value="ALL"></el-option>
+            <el-option :label="$t('interface.developing')"
+                       value="DEVELOPING"></el-option>
+            <el-option :label="$t('interface.online')"
+                       value="ONLINE"></el-option>
+          </el-select>
           <el-select v-model="groupId"
                      size="mini"
                      :clearable="true"
@@ -57,7 +63,6 @@
                      inactive-color="#ff4949"
                      :active-value=true
                      :inactive-value=false
-                     v-if="online"
                      :active-text="$t('interface.docOn')"
                      :inactive-text="$t('interface.docOff')"
                      @change="hanldeSwitchApiDoc()">
@@ -73,25 +78,21 @@
           <el-upload :action="uploadAssignmentPath"
                      accept="application/json"
                      :http-request="handleFileUpload"
-                     v-if="!online"
                      :multiple="false"
                      :show-file-list="false"
                      :auto-upload="true">
             <el-button type="warning"
                        size="mini"
                        plain
-                       v-if="!online"
                        icon="el-icon-upload2">{{ $t('interface.import') }}</el-button>
           </el-upload>
           <el-button type="warning"
                      size="mini"
                      :disabled="apiDocStatus==false"
-                     v-if="online"
                      icon="el-icon-document-add"
                      @click="openOnlineApiDoc">{{ $t('interface.onlineDoc') }}</el-button>
           <el-button type="primary"
                      size="mini"
-                     v-if="!online"
                      icon="el-icon-document-add"
                      @click="handleCreate">{{ $t('interface.newInterface') }}</el-button>
         </div>
@@ -145,21 +146,26 @@
           </template>
         </el-table-column>
         <el-table-column prop="status"
-                         :label="$t('interface.online')"
-                         :formatter="boolFormatPublish"
+                         :label="$t('interface.status')"
                          show-overflow-tooltip
-                         v-if="online"
-                         min-width="80"></el-table-column>
+                         min-width="120">
+          <template slot-scope="scope">
+            <el-tag size="medium"
+                    v-if="scope.row.status===true"
+                    type="success">{{ $t('interface.online') }} V{{ scope.row.version }}</el-tag>
+            <el-tag size="medium"
+                    v-else
+                    type="info">{{ $t('interface.developing') }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="open"
                          :label="$t('interface.public')"
                          :formatter="boolFormatOpen"
-                         v-if="online"
                          show-overflow-tooltip
                          min-width="80"></el-table-column>
         <el-table-column prop="alarm"
                          :label="$t('interface.alarm')"
                          :formatter="boolFormatAlarm"
-                         v-if="online"
                          show-overflow-tooltip
                          min-width="80"></el-table-column>
         <el-table-column prop="createTime"
@@ -376,7 +382,7 @@ export default {
       keyword: null,
       groupId: null,
       moduleId: null,
-      online: false,
+      statusFilter: 'ALL',
       open: null,
       apiDocStatus: true,
       groupLists: [],
@@ -411,7 +417,7 @@ export default {
           {
             groupId: this.groupId,
             moduleId: this.moduleId,
-            online: this.online,
+            online: this.statusFilter === 'ALL' ? null : this.statusFilter === 'ONLINE',
             open: this.open,
             searchText: this.keyword,
             page: this.currentPage,
@@ -506,13 +512,6 @@ export default {
         }
       });
     },
-    boolFormatPublish (row) {
-      if (row.status === true) {
-        return "V" + row.version;
-      } else {
-        return this.$t('common.no');
-      }
-    },
     boolFormatOpen (row) {
       if (row.open === true) {
         return this.$t('common.yes');
@@ -528,6 +527,10 @@ export default {
       }
     },
     handleSearch: function () {
+      this.loadData();
+    },
+    handleStatusFilterChange: function () {
+      this.currentPage = 1;
       this.loadData();
     },
     handleCreate: function () {
