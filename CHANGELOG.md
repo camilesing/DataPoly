@@ -86,6 +86,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   result cap (10k rows by default). Driver artifacts live under
   `drivers/odps/odps-3/`; the UI gains an ODPS type icon and About entry.
 
+- The interface list (`/interface/list`) shows drafts and online interfaces in **one** table, picked apart by a
+  status dropdown (All / Developing / Online, default All) instead of the Developing/Online radio group that
+  swapped the data source under the table — the two are views of one row, and the page now reads like it.
+  Behind it, `online` on `POST .../assignment/list` is a tri-state filter (`true` = online only, `false` =
+  drafts only, absent = both) applied to `DATAPOLY_API_ASSIGNMENT` alone: `DATAPOLY_API_ONLINE.api_id` is a
+  cascade foreign key and deleting an api that is online is rejected, so "online" is exactly "this assignment
+  row has an online record", and `listAll` already enriched every row with `status`/`version`/`commitId` read
+  out of `DATAPOLY_API_ONLINE`. One source also means the row set of `online=true` is unchanged, and the
+  online-interface repository page (`/assignment/search`) keeps the snapshot table. The two other callers that
+  pass `online=true` — the module dropdown of the MCP tool page and the online-interface tree of
+  `views/service/interface.vue` — keep the same ids and `commitId`s, and only their name/module/public/alarm
+  fields now come from the current configuration rather than the deployed snapshot (the snapshot is still what
+  the detail and version pages show). With the toggle gone, the Status/Public/Alarm columns and the
+  Import/New/Online Doc/Doc-switch buttons are no longer bound to it, so every action sits on that one page;
+  the status cell renders `Online V{n}` or `Developing` as a tag, and changing the filter resets to page 1.
+  Pinned by a core test that all three flag values reach `ApiAssignmentDao.searchAll` and that none of them
+  reads the online table.
+
 ### Fixed
 
 - Data task streaming memory and completeness: the single statement now executes

@@ -770,18 +770,12 @@ public class ApiAssignmentService {
         return pageResult;
     }
 
+    /**
+     * A draft and an online interface are two views of one DATAPOLY_API_ASSIGNMENT row: "online" is the existence
+     * of that api's record in DATAPOLY_API_ONLINE (its api_id is a cascade FK and deleting an online api is
+     * rejected), so all three states of the flag (null, true, false) are served by the assignment table alone.
+     */
     private List<ApiAssignmentEntity> searchAll(AssignmentSearchRequest request) {
-        if (null != request.getOnline() && Boolean.TRUE.equals(request.getOnline())) {
-            List<Long> groupIds = Objects.isNull(request.getGroupId())
-                    ? Collections.emptyList()
-                    : Collections.singletonList(request.getGroupId());
-            List<Long> moduleIds = Objects.isNull(request.getModuleId())
-                    ? Collections.emptyList()
-                    : Collections.singletonList(request.getModuleId());
-            String searchText = StringUtils.isBlank(request.getSearchText())
-                    ? null : request.getSearchText();
-            return apiOnlineDao.searchAll(groupIds, moduleIds, request.getOpen(), searchText);
-        }
         return apiAssignmentDao.searchAll(request.getGroupId(), request.getModuleId(),
                 request.getOpen(), request.getSearchText(), request.getOnline());
     }
