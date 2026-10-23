@@ -378,6 +378,7 @@ public class DataTaskJobEngine {
 
         XmlSqlTemplate template = new XmlSqlTemplate(def.getSqlText());
         SqlMeta sqlMeta = template.process(boundParams, Boolean.TRUE.equals(def.getDollarAllowed()));
+        log.info("ExecuteSQL [data task preview {}]:{}\n{}", def.getName(), sqlMeta.getSql(), sqlMeta.getParameter());
 
         PreviewChannel channel = new PreviewChannel(def);
         StreamSpec spec = StreamSpec.builder()
