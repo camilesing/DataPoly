@@ -86,11 +86,11 @@ public class DbVarModule implements VarModuleInterface {
 
     @Comment("comment.db.selectAll")
     public List<Map<String, Object>> selectAll(@Comment("comment.param.sqlOrXml") String sqlOrXml) throws SQLException {
-        if (printSqlLog) {
-            log.info("Enter selectAll() function, SQL:{},params:{}", sqlOrXml, params);
-        }
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
         SqlMeta sqlMeta = processTemplate(template);
+        if (printSqlLog) {
+            log.info("ExecuteSQL [db.selectAll]:{}\n{}", sqlMeta.getSql(), sqlMeta.getParameter());
+        }
         long start = System.currentTimeMillis();
         try {
             return build(jdbcTemplate.queryForList(sqlMeta.getSql(), sqlMeta.getParameter().toArray()));
@@ -101,12 +101,12 @@ public class DbVarModule implements VarModuleInterface {
 
     @Comment("comment.db.selectCount")
     public Integer selectCount(@Comment("comment.param.sqlOrXml") String sqlOrXml) {
-        if (printSqlLog) {
-            log.info("Enter selectCount() function, SQL:{},params:{}", sqlOrXml, params);
-        }
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
         SqlMeta sqlMeta = processTemplate(template);
         String countSql = String.format("select count(*) from (%s) a", sqlMeta.getSql());
+        if (printSqlLog) {
+            log.info("ExecuteSQL [db.selectCount]:{}\n{}", countSql, sqlMeta.getParameter());
+        }
         long start = System.currentTimeMillis();
         try {
             return jdbcTemplate.queryForObject(countSql, Integer.class, sqlMeta.getParameter().toArray());
@@ -117,11 +117,11 @@ public class DbVarModule implements VarModuleInterface {
 
     @Comment("comment.db.selectOne")
     public Map<String, Object> selectOne(@Comment("comment.param.sqlOrXml") String sqlOrXml) {
-        if (printSqlLog) {
-            log.info("Enter selectOne() function, SQL:{},params:{}", sqlOrXml, params);
-        }
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
         SqlMeta sqlMeta = processTemplate(template);
+        if (printSqlLog) {
+            log.info("ExecuteSQL [db.selectOne]:{}\n{}", sqlMeta.getSql(), sqlMeta.getParameter());
+        }
         long start = System.currentTimeMillis();
         try {
             return build(jdbcTemplate
@@ -145,9 +145,6 @@ public class DbVarModule implements VarModuleInterface {
     @Comment("comment.db.page")
     public List<Map<String, Object>> page(@Comment("comment.param.sqlOrXml") String sqlOrXml)
             throws SQLException {
-        if (printSqlLog) {
-            log.info("Enter page() function, SQL:{},params:{}", sqlOrXml, params);
-        }
         int page = PageSizeUtils.getPageFromParams(params);
         int size = PageSizeUtils.getSizeFromParams(params);
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
@@ -155,6 +152,9 @@ public class DbVarModule implements VarModuleInterface {
         String pageSql = getPageSql(sqlMeta.getSql(), page, size);
         List<Object> parameters = sqlMeta.getParameter();
         this.productType.getPageConsumer().accept(page, size, parameters);
+        if (printSqlLog) {
+            log.info("ExecuteSQL [db.page]:{}\n{}", pageSql, parameters);
+        }
         long start = System.currentTimeMillis();
         try {
             return build(jdbcTemplate.queryForList(pageSql, parameters.toArray()));
@@ -165,12 +165,12 @@ public class DbVarModule implements VarModuleInterface {
 
     @Comment("comment.db.insert")
     public Map<String, Object> insert(@Comment("comment.param.sqlOrXml") String sqlOrXml) {
-        if (printSqlLog) {
-            log.info("Enter insert() function, SQL:{},params:{}", sqlOrXml, params);
-        }
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
         SqlMeta sqlMeta = processTemplate(template);
         List<Object> parameters = sqlMeta.getParameter();
+        if (printSqlLog) {
+            log.info("ExecuteSQL [db.insert]:{}\n{}", sqlMeta.getSql(), parameters);
+        }
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
         long start = System.currentTimeMillis();
         try {
@@ -189,12 +189,12 @@ public class DbVarModule implements VarModuleInterface {
 
     @Comment("comment.db.update")
     public int update(@Comment("comment.param.sqlOrXml") String sqlOrXml) {
-        if (printSqlLog) {
-            log.info("Enter update() function, SQL:{},params:{}", sqlOrXml, params);
-        }
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
         SqlMeta sqlMeta = processTemplate(template);
         List<Object> parameters = sqlMeta.getParameter();
+        if (printSqlLog) {
+            log.info("ExecuteSQL [db.update]:{}\n{}", sqlMeta.getSql(), parameters);
+        }
         long start = System.currentTimeMillis();
         try {
             return jdbcTemplate.update(sqlMeta.getSql(), parameters.toArray());
@@ -206,7 +206,7 @@ public class DbVarModule implements VarModuleInterface {
     @Comment("comment.db.batchUpdate")
     public int batchUpdate(@Comment("comment.param.sqlList") List<String> sqlList) {
         if (printSqlLog) {
-            log.info("Enter batchUpdate() function, SQL:{},params:{}", sqlList);
+            log.info("ExecuteSQL [db.batchUpdate]:{}", sqlList);
         }
         long start = System.currentTimeMillis();
         try {
@@ -219,12 +219,12 @@ public class DbVarModule implements VarModuleInterface {
 
     @Comment("comment.db.delete")
     public int delete(@Comment("comment.param.sqlOrXml") String sqlOrXml) {
-        if (printSqlLog) {
-            log.info("Enter delete() function, SQL:{},params:{}", sqlOrXml, params);
-        }
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
         SqlMeta sqlMeta = processTemplate(template);
         List<Object> parameters = sqlMeta.getParameter();
+        if (printSqlLog) {
+            log.info("ExecuteSQL [db.delete]:{}\n{}", sqlMeta.getSql(), parameters);
+        }
         long start = System.currentTimeMillis();
         try {
             return jdbcTemplate.update(sqlMeta.getSql(), parameters.toArray());

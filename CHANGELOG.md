@@ -104,6 +104,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Pinned by a core test that all three flag values reach `ApiAssignmentDao.searchAll` and that none of them
   reads the online table.
 
+- Manager-side API execution now logs every statement it runs together with the bound parameter values at INFO.
+  The SQL and GraphQL engines already did this (`ExecuteSQL:{sql}\n{params}` in `SqlJdbcUtils`, on because both
+  manager entry points — the data MCP server and `assignment/debug` — pass `printSqlLog=true`); the gaps were the
+  SCRIPT engine, whose `db.*` functions logged the raw template plus the whole script parameter map instead of
+  the executed statement, and the data task preview, which logged nothing. Both now emit the same shape so one
+  grep finds every statement: `ExecuteSQL [db.selectAll]` / `[db.page]` / `[db.insert]` … carry the rendered SQL
+  and the values actually bound (pagination arguments included, since `page` logs after the page consumer ran),
+  `batchUpdate` carries its statement list, and the preview line carries the task name
+  (`ExecuteSQL [data task preview <task>]`). Parameters are printed as-is, matching the existing engine line and
+  the debug endpoint's `logs` payload, so a password that reaches a statement is readable in
+  `manager_server.log`. Gating is unchanged: the `db.*` lines stay behind `printSqlLog` (the executor keeps
+  `datapoly.executor.print-sql-log=false`) and the preview line sits on the manager-only path, the task worker
+  being enabled in the executor alone.
+
 ### Fixed
 
 - Data task streaming memory and completeness: the single statement now executes
