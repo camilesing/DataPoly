@@ -152,6 +152,8 @@ DATAPOLY_DS_ENCRYPT=false
 # 外部配置化网关/管理地址，默认为空
 # DATAPOLY_MANAGER_URL=http://www.example.com:8090
 # DATAPOLY_GATEWAY_URL=http://www.example.com:8091
+# 这两个地址（v1.6.0 起）也可在管理页「系统设置-对外地址」在线修改（写入系统参数 gatewayUrl/managerUrl）：
+# 页面设置优先于上面两个环境变量，两者又都优先于 Nacos 注册地址；页面保存后即时生效、无需重启。
 ```
 
 > datapoly的缓存支持使用分布式的hazelcast或者redis，在conf/{manager,gateway,executor}/目录下的application.yml配

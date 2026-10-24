@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.manager.service;
 
-import cn.hutool.extra.spring.SpringUtil;
 import com.cs.common.consts.Constants;
 import com.cs.common.dto.PageResult;
 import com.cs.common.exception.*;
 import com.cs.common.util.TokenUtils;
 import com.cs.core.dto.*;
 import com.cs.core.util.ApiPathUtils;
-import com.cs.manager.config.DataPolyUrlConfiguration;
 import com.cs.manager.model.McpToolCallHandler;
 import com.cs.persistence.dao.*;
 import com.cs.persistence.entity.*;
@@ -17,10 +15,7 @@ import com.cs.persistence.util.PageUtils;
 import io.modelcontextprotocol.server.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.cloud.client.ServiceInstance;
-import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.context.event.EventListener;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -49,6 +44,8 @@ public class McpManageService {
     private ApiOnlineDao apiOnlineDao;
     @Resource
     private McpSyncServer mcpSyncServer;
+    @Resource
+    private ServiceUrlResolver serviceUrlResolver;
 
     @EventListener(ApplicationReadyEvent.class)
     public void loadMcpTools() {
@@ -68,20 +65,7 @@ public class McpManageService {
     }
 
     private String getManagerServerAddress() {
-        DiscoveryClient discoveryClient = SpringUtil.getBean(DiscoveryClient.class);
-        List<ServiceInstance> instances = discoveryClient.getInstances(Constants.MANAGER_APPLICATION_NAME);
-        ServiceInstance instance = instances.stream().findAny().orElse(null);
-        DataPolyUrlConfiguration datapolyUrlConfiguration = SpringUtil.getBean(DataPolyUrlConfiguration.class);
-        // Prefer the externally configured address only when set
-        if (StringUtils.isNotBlank(datapolyUrlConfiguration.getManager())) {
-            log.info("Configured Manager Address found :{},Skip auto self discover", datapolyUrlConfiguration.getManager());
-            return datapolyUrlConfiguration.getManager();
-        }
-        if (null == instance) {
-            throw new CommonException(ResponseErrorCode.ERROR_INTERNAL_ERROR,
-                    "manager server address unavailable: no discovered instance and no configured address");
-        }
-        return String.format("http://%s:%d", instance.getHost(), instance.getPort());
+        return serviceUrlResolver.resolveManager();
     }
 
     public McpServerAddrResponse getMcpServerEndpoint() {

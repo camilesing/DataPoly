@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.manager.service;
 
-import com.cs.common.consts.Constants;
 import com.cs.common.enums.NodeStatusEnum;
 import com.cs.common.exception.*;
 import com.cs.core.dto.TopologyNodeResponse;
 import com.cs.core.executor.AlarmHttpRequestFactory;
-import com.cs.manager.config.DataPolyUrlConfiguration;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.http.ResponseEntity;
@@ -31,34 +28,14 @@ public class NodeService {
     @Resource
     private DiscoveryClient discoveryClient;
     @Resource
-    private DataPolyUrlConfiguration datapolyUrlConfiguration;
+    private ServiceUrlResolver serviceUrlResolver;
 
     public String getGatewayAddr() {
-        List<ServiceInstance> instances = discoveryClient.getInstances(Constants.GATEWAY_APPLICATION_NAME);
-        ServiceInstance instance = instances.stream().findAny().orElse(null);
-        // Prefer the externally configured address only when the service actually exists
-        if (StringUtils.isNotBlank(datapolyUrlConfiguration.getGateway()) && instance != null) {
-            log.info("Configured Gateway Address found :{},Skip auto self discover", datapolyUrlConfiguration.getGateway());
-            return datapolyUrlConfiguration.getGateway();
-        }
-        if (null != instance) {
-            return String.format("http://%s:%d", instance.getHost(), instance.getPort());
-        }
-        throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "gateway.not.found");
+        return serviceUrlResolver.resolveGateway();
     }
 
     public String getApiPrefix() {
-        List<ServiceInstance> instances = discoveryClient.getInstances(Constants.GATEWAY_APPLICATION_NAME);
-        ServiceInstance instance = instances.stream().findAny().orElse(null);
-        // Prefer the externally configured address only when the service actually exists
-        if (StringUtils.isNotBlank(datapolyUrlConfiguration.getGateway()) && instance != null) {
-            log.info("Configured Gateway Address found :{},Skip auto self discover", datapolyUrlConfiguration.getGateway());
-            return datapolyUrlConfiguration.getGateway() + "/" + Constants.API_PATH_PREFIX + "/";
-        }
-        if (null != instance) {
-            return String.format("http://%s:%d/%s/", instance.getHost(), instance.getPort(), Constants.API_PATH_PREFIX);
-        }
-        throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "gateway.not.found");
+        return serviceUrlResolver.getGatewayApiPrefix();
     }
 
     public List<TopologyNodeResponse> getNodesTopology() {

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.6.0-system-param-url-dml
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: pg/migration/V1_6_0__system-param-url-dml.sql

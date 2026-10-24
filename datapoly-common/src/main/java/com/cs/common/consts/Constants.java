@@ -46,6 +46,10 @@ public abstract class Constants {
 
     public static final String SYS_PARAM_KEY_MCP_TOOL_LIST_PAGE_SIZE = "mcpToolListPageSize";
 
+    public static final String SYS_PARAM_KEY_GATEWAY_URL = "gatewayUrl";
+
+    public static final String SYS_PARAM_KEY_MANAGER_URL = "managerUrl";
+
     public static final String DEFAULT_MCP_TOKEN_PRAM_NAME = "token";
     public static final String DEFAULT_STREAM_ENDPOINT = "/mcp";
     public static final String DEFAULT_SSE_ENDPOINT = "/mcp/sse";

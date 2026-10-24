@@ -105,6 +105,12 @@ const constantRouter = new Router({
               component: () => import('@/views/setting/topology')
             },
             {
+              path: '/setting/url',
+              name: 'menu.serviceUrl',
+              icon: "el-icon-position",
+              component: () => import('@/views/setting/url')
+            },
+            {
               path: '/mcp/client',
               name: 'menu.tokenConfig',
               icon: "el-icon-s-platform",

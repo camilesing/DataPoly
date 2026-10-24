@@ -12,6 +12,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The externally reachable gateway / manager addresses are now editable from the management UI instead of only
+  through environment variables. Liquibase migration `log-v1.6.0` (MySQL & PostgreSQL) seeds the system params
+  `gatewayUrl` / `managerUrl` into `DATAPOLY_SYSTEM_PARAM`; the new **External URL** page
+  (系统设置-对外地址, `src/views/setting/url.vue`) reads and writes them through
+  `GET`/`POST /datapoly/manager/api/v1/node/url-config`, showing which source is currently effective for each of
+  the two independent settings (`Page setting` / `Environment variable` / `Auto discovery`, or none while the
+  service is unregistered). The precedence chain lives in exactly one place, the manager's
+  `ServiceUrlResolver`: system param > `DATAPOLY_GATEWAY_URL`/`DATAPOLY_MANAGER_URL` (still effective only while
+  the service instance is registered, as before) > the Nacos discovery address (the `http://<ip>:8091` the page
+  used to show). The value is re-read from the database on every request, so a saved change takes effect
+  immediately without a restart; an empty string clears the setting and restores the fallback, and on write only
+  an absolute `http(s)://` address without whitespace is accepted (both values are validated before anything is
+  stored, so a rejected request changes nothing). A garbage value written into the param through the generic
+  `/param/value/update` endpoint is treated as unset with a WARN on read, so it can never reach the UI. The
+  gateway address already shown by `/node/gateway` and `/node/prefix` (API doc entry and online invocation
+  prefix) and the MCP server address shown by `McpManageService` are now derived from this one resolver, which
+  also replaces the MCP path's own address lookup (the NPE when neither a discovered instance nor a configured
+  address existed is gone, and `manager.not.found` joins `gateway.not.found` in the i18n bundles).
 - The interface list (`/interface/list`) gains a **version history** button on every row: it opens the version
   list (`GET /version/list/{id}` — the same list the 上线 picker shows, newest first, with 最新 / 在线 markers)
   and each row's 查看 link opens that snapshot read-only. The button is offered on drafts as well as online
