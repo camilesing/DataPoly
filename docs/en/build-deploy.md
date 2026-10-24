@@ -158,6 +158,9 @@ DATAPOLY_DS_ENCRYPT=false
 # Externally configured gateway/manager addresses, empty by default
 # DATAPOLY_MANAGER_URL=http://www.example.com:8090
 # DATAPOLY_GATEWAY_URL=http://www.example.com:8091
+# Both addresses (v1.6.0) are also editable at runtime in the UI — System Settings - External URL — which writes
+# the gatewayUrl/managerUrl system params; the page setting wins over these two variables, and both win over the
+# Nacos-discovered address. A saved change takes effect immediately, no restart needed.
 ```
 
 > DataPoly's cache supports distributed Hazelcast or Redis. In the `application.yml` configuration file under

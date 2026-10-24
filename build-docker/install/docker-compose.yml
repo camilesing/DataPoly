@@ -52,6 +52,8 @@ services:
       DATAPOLY_FEISHU_REDIRECT_URI: ${DATAPOLY_FEISHU_REDIRECT_URI:-}
     #      DATAPOLY_MANAGER_URL: http://www.example.com:8090
     #      DATAPOLY_GATEWAY_URL: http://www.example.com:8091
+    # 对外地址也可以不动 env：管理页「系统设置-对外地址」（系统参数 gatewayUrl/managerUrl，v1.6.0 起）优先于
+    # 上面两个 env，页面保存后即时生效、无需重启；两层都留空时回落 Nacos 注册地址（容器内网 IP）。
     depends_on:
       mysqldb:
         condition: service_healthy
