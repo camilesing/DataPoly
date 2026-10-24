@@ -22,10 +22,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `ServiceUrlResolver`: system param > `DATAPOLY_GATEWAY_URL`/`DATAPOLY_MANAGER_URL` (still effective only while
   the service instance is registered, as before) > the Nacos discovery address (the `http://<ip>:8091` the page
   used to show). The value is re-read from the database on every request, so a saved change takes effect
-  immediately without a restart; an empty string clears the setting and restores the fallback, and on write only
-  an absolute `http(s)://` address without whitespace is accepted (both values are validated before anything is
-  stored, so a rejected request changes nothing). A garbage value written into the param through the generic
-  `/param/value/update` endpoint is treated as unset with a WARN on read, so it can never reach the UI. The
+  immediately without a restart; the update is a partial one — an omitted parameter leaves that setting untouched
+  (a request carrying only one of the two used to fail as a missing-parameter error), while an empty string clears
+  it back to the fallback, and only an absolute `http(s)://` address without whitespace is accepted (every
+  supplied value is validated before anything is stored, so a rejected request changes nothing). A garbage value
+  written into the param through the generic `/param/value/update` endpoint is treated as unset with a WARN on
+  read, so it can never reach the UI. The
   gateway address already shown by `/node/gateway` and `/node/prefix` (API doc entry and online invocation
   prefix) and the MCP server address shown by `McpManageService` are now derived from this one resolver, which
   also replaces the MCP path's own address lookup (the NPE when neither a discovered instance nor a configured
