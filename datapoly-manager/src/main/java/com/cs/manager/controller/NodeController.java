@@ -51,14 +51,22 @@ public class NodeController {
                 .build());
     }
 
+    /**
+     * Partial update: an omitted parameter leaves that setting untouched, an empty string clears it
+     * (back to the env / discovered fallback). Every supplied value is validated before anything is
+     * written, so a rejected request changes nothing.
+     */
     @PostMapping(value = "/url-config", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResultEntity updateUrlConfig(@RequestParam("gatewayUrl") String gatewayUrl,
-                                        @RequestParam("managerUrl") String managerUrl) {
-        // Validate both values before touching the database so a rejected request changes nothing
-        String gateway = ServiceUrlResolver.normalizeValidatedUrl(gatewayUrl);
-        String manager = ServiceUrlResolver.normalizeValidatedUrl(managerUrl);
-        systemParamService.updateByParamKey(Constants.SYS_PARAM_KEY_GATEWAY_URL, gateway);
-        systemParamService.updateByParamKey(Constants.SYS_PARAM_KEY_MANAGER_URL, manager);
+    public ResultEntity updateUrlConfig(@RequestParam(value = "gatewayUrl", required = false) String gatewayUrl,
+                                        @RequestParam(value = "managerUrl", required = false) String managerUrl) {
+        String gateway = null == gatewayUrl ? null : ServiceUrlResolver.normalizeValidatedUrl(gatewayUrl);
+        String manager = null == managerUrl ? null : ServiceUrlResolver.normalizeValidatedUrl(managerUrl);
+        if (null != gateway) {
+            systemParamService.updateByParamKey(Constants.SYS_PARAM_KEY_GATEWAY_URL, gateway);
+        }
+        if (null != manager) {
+            systemParamService.updateByParamKey(Constants.SYS_PARAM_KEY_MANAGER_URL, manager);
+        }
         return ResultEntity.success();
     }
 }
