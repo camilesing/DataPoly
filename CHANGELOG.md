@@ -12,6 +12,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Manager login sessions are now **persisted** (`DATAPOLY_LOGIN_TOKEN`, migration `log-v1.7.0` in both the MySQL
+  and the PostgreSQL chains), because the previous design kept them in the process-local `CacheUtils` Guava cache
+  (`expireAfterAccess` 7200s, max 1000 entries): every manager restart — and every 2 hours of inactivity — logged
+  everyone out. A session is now a row, and the row is the authority. `LoginSessionService` (datapoly-core) is the
+  single judgment: `issue` for both the password login and any account provider that authenticates outside
+  DataPoly (the Feishu login extension), `resolve` on every request (in-memory entry first, the row on miss — that
+  miss is exactly what a restart looks like), `revoke` / `revokeAll` by deleting rows. Lifetime is
+  `datapoly.security.login-token-ttl-seconds` (`DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS`, default 604800 = 7
+  days) and it is **absolute**: activity never extends it. `CacheUtils` is now only the first-level read cache: an
+  entry carries the row's deadline, so one that outlives it — the case that appears as soon as the TTL is shorter
+  than the cache's idle window — is rejected and evicted on sight. Rows are deleted by logout; by a password
+  rotation (a self-service change keeps the caller's own session and drops the account's others, a real
+  `datapoly.admin.password` change drops all of them); and by `LoginTokenCleanService` (startup + nightly) for
+  sessions nobody comes back for, while a row found expired during a lookup is deleted as it is found. The
+  authoritative account row (lock flag, role) is still re-read per request — the cache holds the account name and
+  the deadline, never authorization data. Frontend: the login state moved from `sessionStorage` to `localStorage`
+  (a week-long session would otherwise die with the tab), with the keys and the logout clearing in
+  `datapoly-manager-ui/src/utils/authStorage.js` — the Bearer token injected by `src/assets/http.js`, the login
+  page writing through `setAuth` and a logout clearing exactly those keys (`locale` and the sidebar's `activePath`
+  are left alone). Deployment: the new env key is in the compose manager service (value `604800`, same source as
+  the jar default) and documented in `docs/*/build-deploy.md` and `conf/config.ini`, `AGENTS.md` and this entry.
+  Tests: `LoginSessionServiceTest` (persistence, the restart path, absolute expiry, revocation and its `keepToken`
+  variant, the stale-entry guard, the pre-upgrade cache format) plus `AuthenticationGateTest`, which pins the
+  restart regression on the manager's token gate, and a `SystemUserServiceTest` case for the password rotation;
+  the UI's vitest suite follows the storage move (`test/authStorage.spec.js`, `test/http.spec.js`).
 - The externally reachable gateway / manager addresses are now editable from the management UI instead of only
   through environment variables. Liquibase migration `log-v1.6.0` (MySQL & PostgreSQL) seeds the system params
   `gatewayUrl` / `managerUrl` into `DATAPOLY_SYSTEM_PARAM`; the new **External URL** page

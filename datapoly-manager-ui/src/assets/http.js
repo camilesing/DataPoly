@@ -4,6 +4,8 @@
 // axios 1.x 起拦截器里的 config.headers 是 AxiosHeaders 实例，统一经 setHeader
 // 写入以同时兼容实例与普通对象两种形态。
 
+import { getAuth } from '../utils/authStorage'
+
 export function setHeader (config, name, value) {
   if (config.headers && typeof config.headers.set === 'function') {
     config.headers.set(name, value)
@@ -34,8 +36,9 @@ export function redirectToLoginIfAuthError (body, router, notifyError) {
 export function setupHttpInterceptors (axios, router, notifyError) {
   // http request interceptor
   axios.interceptors.request.use(config => {
-    // Attach Authorization header with token if present
-    const token = sessionStorage.getItem('token')
+    // Attach Authorization header with token if present (the login state lives in
+    // localStorage, see utils/authStorage.js — a manager session lasts up to a week)
+    const token = getAuth('token')
     if (token) {
       setHeader(config, 'Authorization', 'Bearer ' + token)
     }

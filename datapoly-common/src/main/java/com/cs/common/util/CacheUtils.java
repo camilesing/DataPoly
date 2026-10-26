@@ -9,7 +9,12 @@ import java.util.concurrent.TimeUnit;
 
 public final class CacheUtils {
 
-    // Cache duration: 2 hours
+    /**
+     * Idle window of an in-memory entry: how long a value may be reused without being touched.
+     * For login sessions this is only the first-level read-through cache — the durable session
+     * lives in DATAPOLY_LOGIN_TOKEN and its lifetime is datapoly.security.login-token-ttl-seconds,
+     * so an entry going away costs one database read, not the session.
+     */
     public static final long CACHE_DURATION_SECONDS = 7200L;
 
     private static Cache<String, Object> loadingCache = CacheBuilder.newBuilder()
@@ -21,7 +26,8 @@ public final class CacheUtils {
             .recordStats()
             /* Concurrency level 8 */
             .concurrencyLevel(8)
-            /* Expiration time: 15 minutes */
+            /* Idle window of an entry: dropped after this long without access, so a miss
+               (process restart, eviction, expired entry) is resolved from persistence */
             .expireAfterAccess(CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
             .build();
 

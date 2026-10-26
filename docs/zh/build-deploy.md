@@ -154,6 +154,11 @@ DATAPOLY_DS_ENCRYPT=false
 # DATAPOLY_GATEWAY_URL=http://www.example.com:8091
 # 这两个地址（v1.6.0 起）也可在管理页「系统设置-对外地址」在线修改（写入系统参数 gatewayUrl/managerUrl）：
 # 页面设置优先于上面两个环境变量，两者又都优先于 Nacos 注册地址；页面保存后即时生效、无需重启。
+
+# 登录会话有效期（秒），缺省 604800 = 7 天。登录态已落库（DATAPOLY_LOGIN_TOKEN 表，V1_7_0 迁移），
+# manager 重启不再把所有人踢下线；绝对过期——从签发时刻算满 TTL 即需重新登录，不随使用延长。
+# 退出登录、改口令与启动/每晚的过期清理都是删行即失效。
+# DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS=604800
 ```
 
 > datapoly的缓存支持使用分布式的hazelcast或者redis，在conf/{manager,gateway,executor}/目录下的application.yml配

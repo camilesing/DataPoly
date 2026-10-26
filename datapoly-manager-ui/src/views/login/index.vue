@@ -62,6 +62,7 @@
 
 <script>
 import extension from '@extension'
+import { setAuth } from '@/utils/authStorage'
 
 export default {
   name: 'LoginPage',
@@ -134,14 +135,14 @@ export default {
         },
       }).then(res => {
         if (0 === res.data.code) {
-          window.sessionStorage.setItem('token', res.data.data.accessToken);
-          window.sessionStorage.setItem('username', this.loginForm.username);
-          window.sessionStorage.setItem('realname', res.data.data.realName);
-          window.sessionStorage.setItem('role', res.data.data.role || '');
+          setAuth('token', res.data.data.accessToken);
+          setAuth('username', this.loginForm.username);
+          setAuth('realname', res.data.data.realName);
+          setAuth('role', res.data.data.role || '');
           this.$http.get("/datapoly/manager/api/v1/health/version").then(
             res => {
               if (0 === res.data.code) {
-                window.sessionStorage.setItem('version', res.data.data);
+                setAuth('version', res.data.data);
                 this.$message(this.$t('login.loginSuccess'));
                 this.$router.push({ path: '/dashboard' });
               } else {

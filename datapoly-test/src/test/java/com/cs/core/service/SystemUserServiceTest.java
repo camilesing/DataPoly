@@ -109,12 +109,47 @@ public class SystemUserServiceTest {
         Assert.assertEquals(PasswordUtils.encryptPassword("new-password", user.getSalt()), updated.get());
     }
 
+    @Test
+    public void changeOwnPasswordKeepsTheCallersSessionAndDropsTheOthers() throws Exception {
+        SystemUserEntity user = buildUser(USERNAME, RAW_PASSWORD);
+        LoginSessionService loginSessionService = new LoginSessionService(new InMemoryLoginTokenDao(),
+                LoginSessionService.DEFAULT_TTL_SECONDS);
+        SystemUserService service = newService(new SystemUserDao() {
+            @Override
+            public SystemUserEntity findByUsername(String username) {
+                return user;
+            }
+
+            @Override
+            public void updateUserPassword(String username, String newPassword) {
+            }
+        }, loginSessionService);
+        String mine = loginSessionService.issue(user);
+        String other = loginSessionService.issue(user);
+
+        service.changeOwnPassword(fakeRequest(mine), RAW_PASSWORD, "new-password");
+
+        Assert.assertNotNull(loginSessionService.resolve(mine));
+        Assert.assertNull(loginSessionService.resolve(other));
+    }
+
     private static SystemUserService newService(SystemUserDao dao) throws Exception {
+        return newService(dao, new LoginSessionService(new InMemoryLoginTokenDao(),
+                LoginSessionService.DEFAULT_TTL_SECONDS));
+    }
+
+    private static SystemUserService newService(SystemUserDao dao,
+                                                LoginSessionService loginSessionService) throws Exception {
         SystemUserService service = new SystemUserService();
-        Field field = SystemUserService.class.getDeclaredField("systemUserDao");
-        field.setAccessible(true);
-        field.set(service, dao);
+        setField(service, "systemUserDao", dao);
+        setField(service, "loginSessionService", loginSessionService);
         return service;
+    }
+
+    private static void setField(Object target, String name, Object value) throws Exception {
+        Field field = SystemUserService.class.getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 
     private static SystemUserDao fakeDao(SystemUserEntity user) {
@@ -138,9 +173,23 @@ public class SystemUserServiceTest {
     }
 
     private static HttpServletRequest fakeRequest() {
+        return fakeRequest(null);
+    }
+
+    /** A request carrying {@code token} as its Bearer token (the session making the call). */
+    private static HttpServletRequest fakeRequest(String token) {
         return (HttpServletRequest) java.lang.reflect.Proxy.newProxyInstance(
                 SystemUserServiceTest.class.getClassLoader(),
                 new Class<?>[]{HttpServletRequest.class},
-                (proxy, method, args) -> "getAttribute".equals(method.getName()) ? USERNAME : null);
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getAttribute":
+                            return USERNAME;
+                        case "getHeader":
+                            return null == token ? null : "Bearer " + token;
+                        default:
+                            return null;
+                    }
+                });
     }
 }

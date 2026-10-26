@@ -42,6 +42,10 @@ datapoly:
   # 默认仅允许 Authorization: Bearer header；存量调用方无法立即改造时临时打开
   security:
     token-query-param-enabled: ${DATAPOLY_SECURITY_TOKEN_QUERY_PARAM_ENABLED:false}
+    # 登录会话有效期（秒），缺省 604800 = 7 天。会话落库（DATAPOLY_LOGIN_TOKEN，V1_7_0），
+    # manager 重启不再把所有人踢下线；**绝对过期**：从签发时刻算，不随使用延长。改小即时生效于
+    # 新签发的会话；退出登录/改口令/重置口令都是删行即失效（不必重启、也不必等过期）
+    login-token-ttl-seconds: ${DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS:604800}
   datasource:
     encrypt: ${DATAPOLY_DS_ENCRYPT:false}
     # 数据源口令 AES 密钥（S5）：默认兼容存量密文，生产建议经环境变量轮换

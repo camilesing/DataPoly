@@ -53,7 +53,7 @@ describe('请求拦截器（token 与语言头）', () => {
   })
 
   it('有 token 时注入 Bearer Authorization 与 Accept-Language', async () => {
-    sessionStorage.setItem('token', 'abc123')
+    localStorage.setItem('token', 'abc123')
     localStorage.setItem('locale', 'en-US')
     const { requestOk } = registerInterceptors(fakeRouter('/dashboard'))
     const headers = {}

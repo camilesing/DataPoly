@@ -44,6 +44,10 @@ services:
       DATAPOLY_DS_ENCRYPT: false
       # 部署后请务必设置：覆盖种子 admin 口令（S5）
       DATAPOLY_ADMIN_PASSWORD: ${DATAPOLY_ADMIN_PASSWORD:-}
+      # 登录会话有效期（秒，缺省 604800 = 7 天）：会话落库（DATAPOLY_LOGIN_TOKEN，V1_7_0），
+      # manager 重启不再把所有人踢下线；绝对过期（从签发时刻算，不随使用延长）。
+      # 与 manager jar 内 application.yaml 的缺省同源，这里显式列出仅为可经 .env 覆盖
+      DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS: ${DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS:-604800}
       # 飞书登录（datapoly-extension-feishu，relaxed binding 映射为 datapoly.feishu.*）：
       # 真实值由 install/.env 注入，勿写回本文件；三项凭证缺一或开关关闭时登录页不显示飞书按钮
       DATAPOLY_FEISHU_ENABLED: ${DATAPOLY_FEISHU_ENABLED:-false}
