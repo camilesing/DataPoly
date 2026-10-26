@@ -5,6 +5,7 @@ package com.cs.manager.config;
 import com.cs.common.consts.Constants;
 import com.cs.common.exception.*;
 import com.cs.common.util.*;
+import com.cs.core.service.LoginSessionService;
 import com.cs.persistence.dao.SystemUserDao;
 import com.cs.persistence.entity.SystemUserEntity;
 import org.apache.commons.lang3.StringUtils;
@@ -45,12 +46,21 @@ public class AuthenticationConfiguration implements WebMvcConfigurer {
                 .addPathPatterns("/**");
     }
 
+    /**
+     * Bearer-token gate for the manager: resolves the token into a login session (in-memory entry
+     * first, the persisted row — which is what makes a login survive a restart — on miss), reloads
+     * the authoritative user row (lock + role) on every request and publishes the caller identity
+     * as a request attribute.
+     */
     @Bean
     public HandlerInterceptor authenticationInterceptor() {
         return new HandlerInterceptor() {
 
             @Resource
             private SystemUserDao systemUserDAO;
+
+            @Resource
+            private LoginSessionService loginSessionService;
 
             @Override
             public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -63,13 +73,12 @@ public class AuthenticationConfiguration implements WebMvcConfigurer {
                     throw new CommonException(ResponseErrorCode.ERROR_TOKEN_EXPIRED, "auth.no.token");
                 }
 
-                Object cache = CacheUtils.get(accessToken);
-                if (null == cache) {
+                LoginSessionService.LoginSession session = loginSessionService.resolve(accessToken);
+                if (null == session) {
                     throw new CommonException(ResponseErrorCode.ERROR_TOKEN_EXPIRED, "auth.token.invalid");
                 }
 
-                SystemUserEntity systemUserEntity = (SystemUserEntity) cache;
-                SystemUserEntity user = systemUserDAO.findByUsername(systemUserEntity.getUsername());
+                SystemUserEntity user = systemUserDAO.findByUsername(session.getUsername());
                 if (null == user) {
                     throw new CommonException(ResponseErrorCode.ERROR_ACCESS_FORBIDDEN, "auth.token.user.not.exists");
                 }

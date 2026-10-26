@@ -3,6 +3,7 @@
 package com.cs.manager.config;
 
 import com.cs.common.util.PasswordUtils;
+import com.cs.core.service.LoginSessionService;
 import com.cs.persistence.dao.SystemUserDao;
 import com.cs.persistence.entity.SystemUserEntity;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,9 @@ public class AdminPasswordInitializer {
     @Resource
     private SystemUserDao systemUserDao;
 
+    @Resource
+    private LoginSessionService loginSessionService;
+
     @EventListener(ApplicationReadyEvent.class)
     public void initAdminPassword() {
         try {
@@ -52,6 +56,10 @@ public class AdminPasswordInitializer {
                 String newHash = PasswordUtils.encryptPassword(adminPassword, admin.getSalt());
                 if (!isEqualsConstantTime(newHash, admin.getPassword())) {
                     systemUserDao.updateUserPassword(DEFAULT_ADMIN_USERNAME, newHash);
+                    // The password really changed, so this is a rotation like any other: sessions
+                    // opened under the old one go. When the property matches the stored hash (every
+                    // restart after the first) nothing is revoked and logins survive, as intended.
+                    loginSessionService.revokeAll(DEFAULT_ADMIN_USERNAME);
                     log.info("Seed admin password has been overridden by property 'datapoly.admin.password'.");
                 }
             } else if (isEqualsConstantTime(DEFAULT_ADMIN_BCRYPT_HASH, admin.getPassword())) {

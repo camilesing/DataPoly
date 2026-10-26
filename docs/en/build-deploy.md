@@ -161,6 +161,12 @@ DATAPOLY_DS_ENCRYPT=false
 # Both addresses (v1.6.0) are also editable at runtime in the UI — System Settings - External URL — which writes
 # the gatewayUrl/managerUrl system params; the page setting wins over these two variables, and both win over the
 # Nacos-discovered address. A saved change takes effect immediately, no restart needed.
+
+# Login session lifetime in seconds, 604800 = 7 days by default. Login state is persisted (table
+# DATAPOLY_LOGIN_TOKEN, migration log-v1.7.0), so restarting the manager no longer logs everyone out; the
+# lifetime is absolute — it runs from the moment the session was issued and activity never extends it. Logout,
+# a password change and the startup/nightly sweep delete rows, which ends sessions at once.
+# DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS=604800
 ```
 
 > DataPoly's cache supports distributed Hazelcast or Redis. In the `application.yml` configuration file under

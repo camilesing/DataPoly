@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.7.0-login-token-ddl
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: pg/migration/V1_7_0__login-token-ddl.sql

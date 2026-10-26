@@ -92,6 +92,7 @@
 import qs from "qs";
 import ElDescription from '@/components/description/Description'
 import ElDescriptionItem from '@/components/description/DescriptionItem'
+import { getAuth } from '@/utils/authStorage'
 
 export default {
   name: "Person",
@@ -146,7 +147,7 @@ export default {
       this.$http
         .get(
           "/datapoly/manager/api/v1/user/detail/name?username=" +
-          window.sessionStorage.getItem("username")
+          getAuth("username")
         )
         .then(
           res => {

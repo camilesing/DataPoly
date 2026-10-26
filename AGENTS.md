@@ -34,6 +34,9 @@ Groovy 沙箱默认启用但不是 JVM 隔离：勿把脚本编写权开放给�
 
 `/token/generate` 与 `/user/login`：按 clientId/IP 限流（默认 10、20 次/分）+ 连续失败锁定，内存实现重启清零。secret/token 比较一律 `MessageDigest.isEqual`；错误响应只回通用错误码，堆栈只进日志与 access_record。
 
+- 登录会话（管理端登录态）**落库**在 `DATAPOLY_LOGIN_TOKEN`（**V1_7_0** 迁移建，MySQL/PG 双份；`access_token` 唯一索引、`username` 与 `expire_at` 各一个索引，时间列为 epoch 秒、与 `DATAPOLY_APP_CLIENT.expire_at` 同口径）。判据只有 core 的 `LoginSessionService` 一份：`issue`（口令登录与外部账号提供方——如飞书扩展登录——都走它）/`resolve`（缓存未命中查库并回灌，是 manager 拦截器唯一的会话判据）/`revoke`/`revokeAll`。有效期 = 签发时刻 + `datapoly.security.login-token-ttl-seconds`（env `DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS`，缺省 **604800 = 7 天**），**绝对过期**、不随使用延长——**manager 重启不再把所有人踢下线**（`CacheUtils` 只是它的第一层读缓存，条目带 `expireAt`，越过过期的条目一律拒绝，故 TTL 配得比 `CacheUtils` 的 2h 空闲窗口短也正确）；`CacheUtils` 从「会话本体」降级为缓存后，别再往它里面按 token 存业务对象（`resolve` 仍认旧的「token → SystemUserEntity」格式，仅为兼容旧扩展构建，新代码勿依赖）。**删行即失效**：`/user/logout`、自己改口令（`revokeAll(username, 当前token)`，保留当前会话）、`DATAPOLY_ADMIN_PASSWORD` 真的改了 admin 口令时（`revokeAll(username)`，全踢）；过期行由 `LoginTokenCleanService`（manager 启动 + 每晚 0 点）与逐请求的惰性删除两路清理。账号行仍是**每请求回查**的权威（锁定/删除/角色即时生效，缓存里只存 username + expireAt，不存角色）。多 manager 部署下，别的进程删掉的行最长要等本进程缓存条目空闲 2h 才被察觉（与客户端 token 的撤销传播同一量级；单副本形态不存在该窗口）。
+- 前端登录态存 **localStorage**（不是 sessionStorage：一周的会话必须跨关标签页/关浏览器；键与清空范围集中在 `datapoly-manager-ui/src/utils/authStorage.js`，`src/assets/http.js` 的 Bearer 注入与登录页写入都走它，退出登录只清这几个键、不动 `locale` 与 `activePath`）。
+
 ## 五、其他约束
 
 - 新增 JDBC 代码资源必须 try-with-resources；firewall 规则行被删时网关按"全拒绝"处理（fail-closed，属预期）。

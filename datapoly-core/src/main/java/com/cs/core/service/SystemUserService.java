@@ -9,7 +9,6 @@ import com.cs.common.util.*;
 import com.cs.core.dto.SystemUserDetailResponse;
 import com.cs.persistence.dao.SystemUserDao;
 import com.cs.persistence.entity.SystemUserEntity;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
@@ -30,6 +29,9 @@ public class SystemUserService {
     @Resource
     private SystemUserDao systemUserDao;
 
+    @Resource
+    private LoginSessionService loginSessionService;
+
     public AccessToken login(String username, String password) {
         SystemUserEntity user = systemUserDao.findByUsername(username);
         if (Objects.isNull(user)) {
@@ -43,18 +45,14 @@ public class SystemUserService {
             throw new CommonException(ResponseErrorCode.ERROR_USER_PASSWORD_WRONG, "auth.login.failed");
         }
 
-        String token = TokenUtils.generateValue();
-        CacheUtils.put(token, user);
+        String token = loginSessionService.issue(user);
         AccessToken accessTokenWrapper = new AccessToken(user.getRealName(), user.getUsername(), token,
-                System.currentTimeMillis() / 1000, CacheUtils.CACHE_DURATION_SECONDS, user.getRole());
+                System.currentTimeMillis() / 1000, loginSessionService.getTtlSeconds(), user.getRole());
         return accessTokenWrapper;
     }
 
     public void logout(HttpServletRequest request) {
-        String token = TokenUtils.getRequestToken(request);
-        if (StringUtils.isNotBlank(token)) {
-            CacheUtils.remove(token);
-        }
+        loginSessionService.revoke(TokenUtils.getRequestToken(request));
     }
 
     public SystemUserDetailResponse getUserDetailById(Long id) {
@@ -94,6 +92,9 @@ public class SystemUserService {
         String encryptNewPassword = PasswordUtils
                 .encryptPassword(newPassword, systemUserEntity.getSalt());
         systemUserDao.updateUserPassword(username, encryptNewPassword);
+        // The password just changed, so every session opened with the old one dies with it —
+        // except the session making this request, which the user would otherwise lose to their own action
+        loginSessionService.revokeAll(username, TokenUtils.getRequestToken(request));
     }
 
     private static boolean isEqualsConstantTime(String a, String b) {

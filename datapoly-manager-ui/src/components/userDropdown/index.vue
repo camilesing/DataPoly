@@ -28,6 +28,8 @@
 </template>
 
 <script>
+import { getAuth, clearAuth } from '../../utils/authStorage'
+
 export default {
   data () {
     return {
@@ -37,13 +39,15 @@ export default {
     };
   },
   created () {
-    this.username = window.sessionStorage.getItem("username");
-    this.nickname = window.sessionStorage.getItem("realname");
-    this.version = window.sessionStorage.getItem("version");
+    this.username = getAuth("username");
+    this.nickname = getAuth("realname");
+    this.version = getAuth("version");
   },
   methods: {
     hadleLogout () {
-      window.sessionStorage.clear();
+      // Clear the local login state first, then tell the server to drop the session
+      // (the server side is what makes the logout stick for the whole TTL)
+      clearAuth();
       this.$http({
         method: 'POST',
         url: '/user/logout'
