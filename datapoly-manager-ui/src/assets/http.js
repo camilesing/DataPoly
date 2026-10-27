@@ -5,6 +5,7 @@
 // 写入以同时兼容实例与普通对象两种形态。
 
 import { getAuth } from '../utils/authStorage'
+import { noteAuthMessage } from '../utils/popupGate'
 
 export function setHeader (config, name, value) {
   if (config.headers && typeof config.headers.set === 'function') {
@@ -20,6 +21,9 @@ export function redirectToLoginIfAuthError (body, router, notifyError) {
     return
   }
   if (body.code === 401 || body.code === 403) {
+    // This failure is what sends the user to /login: tell the popup gate so the
+    // one-per-request error dialogs of the same burst collapse into the first one
+    noteAuthMessage(body.message)
     // Only redirect when not already on the login page
     if (router.currentRoute.path !== '/login') {
       router.push({path: '/login'}).catch(() => {

@@ -10,6 +10,7 @@ import messages from './lang'
 import extension from '@extension'
 import { mergeExtensionI18n } from './lang/merge'
 import { setupHttpInterceptors } from './assets/http.js'
+import { installPopupGate } from './utils/popupGate'
 import './assets/iconfont/iconfont.css'
 import './assets/dbicon/iconfont.css'
 import './assets/dbicon/iconfont.js'
@@ -27,6 +28,10 @@ import JsonViewer from 'vue-json-viewer'
 Vue.use(VueCodeMirror)
 Vue.use(ElementUI)
 Vue.use(JsonViewer)
+
+// Collapse the popups of a failing burst (e.g. a stale session making every request
+// on the page answer 401) into one — see utils/popupGate.js
+installPopupGate(Vue)
 
 // Initialize i18n: use browser language or default to Chinese
 const browserLang = navigator.language || 'zh-CN'
