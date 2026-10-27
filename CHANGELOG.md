@@ -224,3 +224,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   failed to boot with an unresolvable bean; it is now a `@Component` with an
   optional sink list, and Spring-bean sinks take precedence over
   ServiceLoader-discovered ones on duplicate `type()` (as documented).
+- The management UI no longer pops one error dialog per failing request when a burst fails the same way — the
+  everyday case being a stale login session, where every request on the page answers 401 at once and each
+  page-level `alert(prefix + res.data.message)` fired on its own (the page-level call sites — native `alert`,
+  `$alert` and `$message` — are spread across the host UI, and extension pages are compiled into the same
+  bundle and share both the axios instance and `main.js`). A new gate,
+  `datapoly-manager-ui/src/utils/popupGate.js`, installed once from `main.js` right after `Vue.use(ElementUI)`,
+  wraps `window.alert`, `Vue.prototype.$alert` and `Vue.prototype.$message`: a popup repeating within a
+  3-second window is silently dropped, and the window is counted from the moment the previous popup was
+  **closed** — a native alert blocks the JS thread, so the queued duplicates only run their callbacks after the
+  user dismisses the first one, and a window counted from "shown" would let the whole queue through on the
+  first click. The response interceptor (`src/assets/http.js`) also feeds the backend message of a login-state
+  error (the codes that already trigger the redirect to `/login`) into the gate, so popups carrying different
+  page prefixes (`加载失败：Token已过期…` here, `加载列表失败:…` there) count as one event and only the first
+  one shows; the redirect, the 401/403 predicate and the response normalization are unchanged, nothing is
+  cleared from localStorage on expiry, and `$confirm`/`$prompt` are deliberately not wrapped (they ask, never
+  repeat).
