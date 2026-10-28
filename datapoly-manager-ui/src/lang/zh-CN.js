@@ -801,7 +801,7 @@ export default {
     clickMetadataView: '元数据查看',
     afterSqlParse: '请输入sql后点击"入参解析"按钮后解析出这里的入参',
     afterDebugSuccess: '请输入sql后成功执行"调试"按钮后解析出这里的出参',
-    parseInputParamsTip: '每个SQL窗口中至多写一条SQL语句，支持Mybatis的动态SQL语法',
+    parseInputParamsTip: '每个SQL窗口中至多写一条SQL语句，支持Mybatis的动态SQL语法（<、<=、>、>= 与 & 直接书写即可；动态标签需成对闭合）',
     parseScriptTip: '可以编写符合groovy语法格式的脚本内容',
     pleaseSelect: '请选择',
     type: '类型',

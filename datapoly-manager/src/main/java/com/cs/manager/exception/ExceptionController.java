@@ -6,6 +6,8 @@ import com.cs.common.dto.ResultEntity;
 import com.cs.common.exception.*;
 import com.cs.common.util.I18nUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.ibatis.builder.BuilderException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -61,6 +63,23 @@ public class ExceptionController {
         return respond(ResponseErrorCode.ERROR_PATH_NOT_EXISTS,
                 ResultEntity.failed(ResponseErrorCode.ERROR_PATH_NOT_EXISTS,
                         e.getHttpMethod() + " " + e.getRequestURL() + " not exists"));
+    }
+
+    /**
+     * A template that does not parse is the caller's input, not a server fault: the editors' parse and
+     * debug buttons, and the save path of both features, all reach it through the same parser
+     * ({@code XmlSqlTemplate}). Answering the generic internal error left nothing to act on — the
+     * message names the offending element when it is a dynamic tag.
+     */
+    @ExceptionHandler(value = {BuilderException.class})
+    public ResponseEntity<ResultEntity> sqlTemplateParseException(BuilderException e) {
+        String reason = StringUtils.defaultString(e.getMessage());
+        log.warn("Invalid SQL template: {}", reason);
+        // the reason doubles as the fallback text, so the message stays actionable even without the bundle
+        String message = I18nUtils.getMessage("sql.template.invalid", reason, reason);
+
+        return respond(ResponseErrorCode.ERROR_INVALID_ARGUMENT,
+                ResultEntity.failed(ResponseErrorCode.ERROR_INVALID_ARGUMENT, message));
     }
 
     @ExceptionHandler(value = Exception.class)

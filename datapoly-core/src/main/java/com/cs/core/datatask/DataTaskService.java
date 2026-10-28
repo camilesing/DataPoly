@@ -217,7 +217,7 @@ public class DataTaskService {
             new com.cs.template.XmlSqlTemplate(request.getSqlText());
         } catch (Exception e) {
             throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT,
-                    "datatask.sql.invalid", StringUtils.defaultString(e.getMessage()));
+                    "sql.template.invalid", StringUtils.defaultString(e.getMessage()));
         }
         if (StringUtils.isBlank(request.getSinkType())) {
             throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "datatask.sink.required");

@@ -14,6 +14,15 @@ import java.util.*;
 
 public class XmlScriptBuilder extends BaseBuilder {
 
+    /**
+     * The dynamic tags this builder implements — the complete set of names that count as markup in
+     * template text ({@link SqlXmlTexts} keeps everything else, a bare {@code <} and {@code &}
+     * included, as literal SQL). Case sensitive, like XML. A name added here without a handler
+     * fails at construction.
+     */
+    public static final Set<String> DYNAMIC_TAGS = Collections.unmodifiableSet(new LinkedHashSet<>(
+            Arrays.asList("trim", "where", "set", "foreach", "if", "choose", "when", "otherwise", "bind")));
+
     private final XNode context;
     private boolean isDynamic;
     private final Class<?> parameterType;
@@ -32,15 +41,34 @@ public class XmlScriptBuilder extends BaseBuilder {
 
 
     private void initNodeHandlerMap() {
-        nodeHandlerMap.put("trim", new TrimHandler());
-        nodeHandlerMap.put("where", new WhereHandler());
-        nodeHandlerMap.put("set", new SetHandler());
-        nodeHandlerMap.put("foreach", new ForEachHandler());
-        nodeHandlerMap.put("if", new IfHandler());
-        nodeHandlerMap.put("choose", new ChooseHandler());
-        nodeHandlerMap.put("when", new IfHandler());
-        nodeHandlerMap.put("otherwise", new OtherwiseHandler());
-        nodeHandlerMap.put("bind", new BindHandler());
+        for (String tag : DYNAMIC_TAGS) {
+            nodeHandlerMap.put(tag, newHandler(tag));
+        }
+    }
+
+    private NodeHandler newHandler(String tag) {
+        switch (tag) {
+            case "trim":
+                return new TrimHandler();
+            case "where":
+                return new WhereHandler();
+            case "set":
+                return new SetHandler();
+            case "foreach":
+                return new ForEachHandler();
+            case "if":
+                return new IfHandler();
+            case "choose":
+                return new ChooseHandler();
+            case "when":
+                return new IfHandler();
+            case "otherwise":
+                return new OtherwiseHandler();
+            case "bind":
+                return new BindHandler();
+            default:
+                throw new IllegalStateException("No node handler for dynamic tag: " + tag);
+        }
     }
 
     public SqlSource parseScriptNode(Map<String, Boolean> inputParams) {

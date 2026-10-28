@@ -801,7 +801,7 @@ export default {
     clickMetadataView: 'Metadata View',
     afterSqlParse: 'Enter SQL and click "Parse Params" button to parse input params here',
     afterDebugSuccess: 'Enter SQL and execute "Debug" successfully to parse output params here',
-    parseInputParamsTip: 'Write at most one SQL statement per window, supports MyBatis dynamic SQL syntax',
+    parseInputParamsTip: 'Write at most one SQL statement per window, supports MyBatis dynamic SQL syntax (<, <=, >, >= and & are written as they are; dynamic tags must be closed)',
     parseScriptTip: 'Can write script content in Groovy syntax format',
     pleaseSelect: 'Please select',
     type: 'Type',
