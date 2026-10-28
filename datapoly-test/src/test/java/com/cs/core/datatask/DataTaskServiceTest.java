@@ -268,6 +268,38 @@ public class DataTaskServiceTest {
     }
 
     @Test
+    public void createStoresPlainComparisonOperatorsVerbatim() {
+        // an author writes SQL, not XML: '<' and '&' need no escape, and nothing is rewritten on the way in
+        String sql = "SELECT order_id, amount FROM t_order WHERE dt >= #{dt} AND amount <= #{amount} "
+                + "AND status <> #{status} AND name LIKE 'A&B%'";
+        DataTaskSaveRequest request = validRequest();
+        request.setName("plain-operators");
+        request.setSqlText(sql);
+
+        Long id = service.create(request);
+
+        Assert.assertEquals(sql, defDao.store.get(id).getSqlText());
+    }
+
+    @Test
+    public void updateKeepsPlainOperatorsAndDynamicTagsTogether() {
+        Long id = service.create(validRequest());
+        String sql = "SELECT order_id FROM t_order <where> "
+                + "<if test='amount != null and amount <= 100'> AND amount <= #{amount} </if> "
+                + "<if test='dt != null'> AND dt >= #{dt} </if> "
+                + "</where>";
+        DataTaskSaveRequest request = validRequest();
+        request.setId(id);
+        request.setSqlText(sql);
+
+        service.update(request);
+
+        Assert.assertEquals(sql, defDao.store.get(id).getSqlText());
+        // the editor reads back exactly what was written, so an escaped form never reappears
+        Assert.assertEquals(sql, service.detail(id).getSqlText());
+    }
+
+    @Test
     public void submitCapturesSnapshotBoundParamsAndUsername() {
         seedDef(11L, "task-a", true);
 

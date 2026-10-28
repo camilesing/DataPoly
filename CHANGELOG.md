@@ -88,6 +88,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Author-written SQL no longer has to be XML-escaped. A bare `<` (`amount <= 100`, `a<b`) or a bare `&`
+  (`name like 'A&B%'`) made the template parser fail with `BuilderException: Error creating document instance. Cause:
+  org.xml.sax.SAXParseException; … The content of elements must consist of well-formed character data or markup`, so
+  comparisons had to be written `&lt;=` or wrapped in `<![CDATA[ ]]>` — and `>=` looked guilty too, because a
+  statement carrying both operators dies at the first `<`. `datapoly-template` gained `SqlXmlTexts`, applied at the
+  single place user SQL is wrapped into `<script>…</script>` (`XmlSqlTemplate.parseXml`, which covers both features'
+  parse/save-validation/debug/preview/run paths and the Groovy `db` module): only the dynamic tags count as markup
+  (`XmlScriptBuilder.DYNAMIC_TAGS` is now their single source), and everything else XML would reject is escaped
+  transparently — the parser decodes it back, so the statement handed to the driver, the text stored, and the text
+  both editors read back are exactly what the author wrote. Attribute values are covered too, so
+  `<if test='amount <= 100 and dt >= #{dt}'>` is written the way it reads. Existing escaped templates and CDATA keep
+  working unchanged (they resolve to the same SQL), a misspelled or wrongly cased tag is reported by its name
+  (`</iff>`, `<IF>`), and an unknown opening name (`a<b`, `<iff …>`) stays literal text. The one case that still
+  needs escaping is a dynamic tag name inside a string literal. A malformed template now also reaches the caller as
+  an invalid-argument error carrying that reason: manager's `ExceptionController` gained a `BuilderException` handler,
+  so the editors' parse/debug buttons and `/data-task/parse` no longer answer the generic internal error with nothing
+  to act on — and the message key was renamed `datatask.sql.invalid` → `sql.template.invalid`, since both features
+  share it. Tests: `SqlXmlTextsTest` (the rules, comment/CDATA
+  and entity handling, the reported multiline shape), `TemplateTest` (raw operators end to end with `#{}` binding
+  order intact, plus the old escaped form), `DataTaskServiceTest` / `ApiAssignmentServiceTest` (a plain statement is
+  stored verbatim and reads back unchanged), `ExceptionControllerTest` (an unparseable template answers 400 with the
+  offending element named, an unexpected failure still answers 500). Documents: `docs/{zh,en}/data-task.md`
+  (authoring rules and a FAQ row for the old error), the UI editor tip, and the `sql.template.invalid` message.
+
 - 上线 on the interface list now demands an explicit version choice, and the state it validates finally holds
   still: opening the version picker clears the selection carried over from a previously opened row. It used to
   be cleared only after a *successful* deploy, so cancelling a dialog left its `commitId` behind — the picker

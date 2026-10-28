@@ -62,6 +62,8 @@ xlsx 上传对象存储、写入消息队列、生成 CSV 文件等。框架本�
   worker 在下一个进度心跳点（间隔 ≤ `flush-interval-ms`，默认 5 秒）识别后中止投递会话并记 CANCELED。
 - 非查询语句（INSERT/UPDATE/DELETE）同样支持，影响行数记入 `artifact_info.updateCount`。
 
+**SQL 怎么写**：定义里的 SQL 仍按 MyBatis 动态 SQL 解析（动态标签、`#{}`/`${}` 占位符都照旧），但**不要求 XML/HTML 转义**——比较符与 `&` 照 SQL 的样子直接写：`amount <= 100`、`dt >= #{dt}`、`status <> 1`、`name like 'A&B%'`。算标记的只有动态标签，名字是固定的九个（`trim`、`where`、`set`、`foreach`、`if`、`choose`、`when`、`otherwise`、`bind`）、区分大小写、必须成对闭合；名字写错或没闭合会在保存/解析时指名报错（`</iff>`、`<IF>` 都在消息里）。转义只发生在交给解析器的那一步：**真正下发的语句就是你写的样子**，保存也不改写你的文本——编辑器里看到什么，库里就存什么。存量按转义写法保存的定义照常可用（`&lt;=`、`&gt;=`、`<![CDATA[ < ]]>` 与裸写法解析结果完全一致），要不要改成裸写由你决定。唯一需要转义的是字符串字面量里出现了标签名本身（`where tag = '<if>'` 写成 `where tag = '&lt;if>'`），SQL 注释里的 `<`、`&` 直接写即可。同一套规则也适用于接口配置的 SQL 与 Groovy 脚本的 `db` 模块。
+
 **产物描述**：sink 完成时返回 `SinkOutcome{artifactUri, info}`，原样写回执行记录——`artifactUri` 是前端
 消费产物所需的任何标识（下载地址、对象存储 key 等）；`artifactInfo` 另含引擎侧统计（`sinkType`、
 `deliveredRows`、`truncated`、`updateCount` 等）与 sink 自定义字段的合并 JSON。
@@ -368,3 +370,7 @@ executor 侧前缀 `datapoly.data-task.*`（`application.yaml` 均可用 `DATAPO
 | FAILED，错误含 `EntityNotExist.Role` | MaxCompute 写 OSS 的角色授权缺失：给项目做「一键授权」（生成 `AliyunODPSDefaultRole`），或创建受信于 MaxCompute 的 RAM 角色并在 `odps.role-arn`（`ODPS_ROLE_ARN`）/ 任务 `sinkConfig.roleArn` 指定其 ARN；注意 UNLOAD 的 `LOCATION` 里出现的是 MaxCompute 侧的 OSS endpoint，与平台进程用哪对 AK 无关 |
 | FAILED，`Java heap space` / executor 反复 `GC overhead limit exceeded` | 先核对 executor 堆与宿主内存是否超配（发行脚本 `datapolyctl.sh` 默认每服务 4G 堆，同机多服务需留余量）；引擎已保证 PostgreSQL 系驱动按 `fetch-size` 分批拉取，行数上限（`maxRows`）与 sink 自身内存行为仍需控制 |
 | 多 executor 部署后任务重复投递？ | 不会。认领是元库事务内 `FOR UPDATE SKIP LOCKED` 原子操作，一条任务只会被一个节点置为 RUNNING |
+| ODPS 服务端导出成功但 `totalRows=0` | 行数由 `COUNT(1)` 探针给出，先看 `artifactInfo`：有 `countError` 说明探针被拒、超时或没返回可用的值（导出本身仍是 SUCCESS，记录里保有行数之外的其余产物信息）；没有 `countSql` 则说明探针被关掉了——服务端 `odps.count-rows=false` 或任务 `sinkConfig.countRows=false`；宿主 jar 早于 `SinkOutcome.rowCount` 契约时该值也不会落到记录上 |
+| 下载到的导出 CSV **列错位 / 字段漂移**（值里带逗号的记录多出列、带换行的记录被劈成几行） | 扩展 jar 早于本次修复：MaxCompute 的文本处理器**默认不给字段加引号**，值里的分隔符或换行会把后面的列顶开（换行连行边界都破坏）。修复后的语句在 SERDEPROPERTIES 里固定带 `'odps.text.option.use.quote'='true'`（规范 RFC 4180 引号，与流式产物同一套规则），`format=TEXTFILE` 也改由内置 `TextStorageHandler` 写出——开源 SERDE 的 `STORED AS TEXTFILE` 写法会原样接受这些文本选项却不生效。自查：`artifactInfo.unloadSql` 里有没有这一条；重建扩展 jar（`build-extension.sh`）并重跑即可 |
+| 点「下载」没反应：`/export/files/{id}/link` 正常返回、链接是 `http://…`，curl 同一个 URL 也能下 | 链接是导出完成时生成的预签名 URL，**它的 scheme 取自扩展 `oss.yaml` 的 `endpoint`**：只写主机名时 OSS SDK 按 `http` 生成，而浏览器在 https 页面上按混合内容拦掉这种下载（现象就是点了没反应、标签页一闪即关、控制台一条 mixed content 拦截，服务端一切正常——curl 走 http/https 都能拿到 206 + `Content-Disposition: attachment`）。修法：`endpoint` 写成带 scheme 的地址（`https://oss-cn-shenzhen.aliyuncs.com`），或注入非空 `OSS_ENDPOINT=https://…`；扩展新版本对预签名按 https 兜底并打 WARN，上传端点不受影响，明确写 `http://` 的仍按所写值。**存量记录里的链接按原样返回、不会被改写**，且预签名 7 天过期，重跑一次导出即得新链接 |
+| 保存/解析 SQL 报 `Error creating document instance … well-formed character data` | 宿主 jar 早于本次修复：裸 `<`（`amount <= 100`、`a<b`）或裸 `&`（`like 'A&B%'`）被判成 XML 语法错误，逼着人写 `&lt;=`/CDATA。升级后照 SQL 直接写即可；**存量转义写法与 CDATA 不用改**（解析结果与裸写完全一致，且系统不会改写你的文本）。升级后同一类报错只剩动态标签问题：标签名写错或没闭合会在消息里指名（`</iff>`、`<IF>` 都会被点出来），`<`、`>` 本身不再报错 |

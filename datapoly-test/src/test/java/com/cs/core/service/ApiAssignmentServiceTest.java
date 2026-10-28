@@ -11,6 +11,7 @@ import com.cs.core.dto.ApiAssignmentBaseResponse;
 import com.cs.core.dto.ApiAssignmentSaveRequest;
 import com.cs.core.dto.AssignmentSearchRequest;
 import com.cs.core.dto.DataTypeFormatMapValue;
+import com.cs.core.dto.SqlParamParseResponse;
 import com.cs.core.extension.ApiAssignmentPostProcessor;
 import com.cs.core.extension.ApiAssignmentPostProcessors;
 import com.cs.core.extension.ApiAssignmentUpdateEvent;
@@ -102,6 +103,38 @@ public class ApiAssignmentServiceTest {
         Assert.assertTrue(harness.updated.isEmpty());
         Assert.assertTrue(harness.fired.isEmpty());
         Assert.assertTrue(harness.events.isEmpty());
+    }
+
+    @Test
+    public void updateAssignmentStoresPlainSqlVerbatim() {
+        ApiAssignmentEntity exists = ApiAssignmentEntity.builder()
+                .id(1L).method(HttpMethodEnum.GET).path("/demo").build();
+        UpdateHarness harness = wireUpdateService(exists);
+        // an author's statement, dynamic tags and comparison operators both written as they read
+        String sql = "select id from t_order <where>"
+                + "<if test='dt != null'> and dt >= #{dt} </if>"
+                + "<if test='amount != null and amount <= 100'> and amount <= #{amount} </if>"
+                + "</where> and name like 'A&B%'";
+        ApiAssignmentSaveRequest request = validUpdateRequest();
+        request.setContextList(Collections.singletonList(sql));
+
+        harness.service.updateAssignment(request);
+
+        Assert.assertEquals(1, harness.updated.size());
+        Assert.assertEquals(sql, harness.updated.get(0).getContextList().get(0).getSqlText());
+    }
+
+    @Test
+    public void parseSqlParamsAcceptsPlainComparisonOperators() {
+        List<SqlParamParseResponse> parsed = new ApiAssignmentService()
+                .parseSqlParams("select id from t_order "
+                        + "where dt >= #{dt} and amount <= #{amount} and status <> #{status} and name like 'A&B%'");
+
+        List<String> names = new ArrayList<>();
+        for (SqlParamParseResponse response : parsed) {
+            names.add(response.getName());
+        }
+        Assert.assertEquals(Arrays.asList("dt", "amount", "status"), names);
     }
 
     @Test

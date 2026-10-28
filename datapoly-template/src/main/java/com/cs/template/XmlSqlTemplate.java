@@ -9,6 +9,12 @@ import org.apache.ibatis.session.Configuration;
 import java.util.*;
 import java.util.regex.*;
 
+/**
+ * MyBatis dynamic SQL over author-written text: the template is parsed as
+ * {@code <script> … </script>}, which is what gives it dynamic tags and {@code #{}} / {@code ${}}
+ * placeholders. Comparisons and {@code &} are written as they are in SQL — see {@link SqlXmlTexts}
+ * — and templates escaped the old way ({@code &lt;=}, {@code <![CDATA[ ]]>}) keep working unchanged.
+ */
 public class XmlSqlTemplate {
 
     private static final Pattern pattern = Pattern.compile("\\([^()]*\\)|\\[[^\\[\\]]*\\]|\\{[^{}]*}");
@@ -50,7 +56,9 @@ public class XmlSqlTemplate {
     }
 
     private XNode parseXml(String sql) {
-        String xml = "<script>" + sql + "</script>";
+        // The template is not XML: bare '<' / '&' (comparisons, string literals) are escaped for the
+        // parser here while dynamic tags keep their meaning — see SqlXmlTexts for the rules
+        String xml = "<script>" + SqlXmlTexts.toXmlSafe(sql) + "</script>";
         XPathParser parser = new XPathParser(xml);
         List<XNode> xNodes = parser.evalNodes("script");
         if (xNodes == null || xNodes.size() <= 0) {

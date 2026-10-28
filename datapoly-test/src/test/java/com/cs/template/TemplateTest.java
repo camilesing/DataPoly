@@ -260,6 +260,108 @@ public class TemplateTest {
         Assert.assertFalse(sqlMeta.getSql().toUpperCase().contains("WHERE"));
     }
 
+    @Test
+    public void testRawOperatorsInPlainSql() {
+        // Plain SQL as an author writes it: comparison operators need no XML escape
+        String content = "select order_id, amount from t_order "
+                + "where dt >= #{dt} and amount <= #{amount} and status <> #{status} and name like 'A&B%'";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+
+        Map<String, Boolean> names = parser.getParameterNames();
+        Assert.assertTrue(names.containsKey("dt"));
+        Assert.assertTrue(names.containsKey("amount"));
+        Assert.assertTrue(names.containsKey("status"));
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("dt", "2026-01-01");
+        map.put("amount", 100);
+        map.put("status", "1");
+        SqlMeta process = parser.process(map);
+        Assert.assertTrue(process.getSql().contains("dt >= ?"));
+        Assert.assertTrue(process.getSql().contains("amount <= ?"));
+        Assert.assertTrue(process.getSql().contains("status <> ?"));
+        Assert.assertTrue(process.getSql().contains("like 'A&B%'"));
+        Assert.assertEquals(Arrays.asList((Object) "2026-01-01", 100, "1"), process.getParameter());
+    }
+
+    @Test
+    public void testRawLessThan() {
+        String content = "select * from t_order where amount < #{amount}";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("amount", 100);
+        SqlMeta process = parser.process(map);
+        Assert.assertTrue(process.getSql().contains("amount < ?"));
+        Assert.assertEquals(Arrays.asList((Object) 100), process.getParameter());
+    }
+
+    @Test
+    public void testRawOperatorInsideIfTestAttribute() {
+        String content = "select * from t_user <where>"
+                + "<if test='age <= 18 or age >= 60'> and vip = #{vip} </if>"
+                + "</where>";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+        Assert.assertTrue(parser.getParameterNames().containsKey("vip"));
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("age", 70);
+        map.put("vip", "Y");
+        SqlMeta process = parser.process(map);
+        Assert.assertTrue(process.getSql().contains("vip = ?"));
+        Assert.assertEquals(Arrays.asList((Object) "Y"), process.getParameter());
+    }
+
+    @Test
+    public void testRawOperatorDeepInMultilineSql() {
+        // Reported failure shape: SAXParseException "The content of elements must consist of
+        // well-formed character data or markup" once '<=' sat deep into a long statement
+        String content = "select a, b, c\n"
+                + "from t_order\n"
+                + "where 1 = 1\n"
+                + "<if test='dt != null'>\n"
+                + "  and dt >= #{dt}\n"
+                + "</if>\n"
+                + "<if test=\"amount != null and amount >= 0\">\n"
+                + "  and status in\n"
+                + "    <foreach collection='status' item='item' open='(' close=')' separator=','>\n"
+                + "      #{item}\n"
+                + "    </foreach>\n"
+                + "  and amount <= #{amount}\n"
+                + "</if>\n"
+                + "order by a\n";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("dt", "2026-01-01");
+        map.put("amount", 100);
+        map.put("status", Arrays.asList("1", "2"));
+        SqlMeta process = parser.process(map);
+        // both branches were taken: the '<if test="… amount >= 0">' guard on its own raw operator,
+        // and the '<=' in the body
+        Assert.assertTrue(process.getSql().contains("dt >= ?"));
+        Assert.assertTrue(process.getSql().contains("amount <= ?"));
+        Assert.assertEquals(4, countOccurrences(process.getSql(), '?'));
+        Assert.assertEquals(Arrays.asList((Object) "2026-01-01", "1", "2", 100), process.getParameter());
+    }
+
+    @Test
+    public void testEscapedOperatorsFromExistingConfigs() {
+        // Configs saved before this change: entities still resolve to the same SQL
+        String content = "select * from t_order "
+                + "where amount &lt;= #{amount} and dt &gt;= #{dt} and name like 'A&amp;B%'";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("amount", 100);
+        map.put("dt", "2026-01-01");
+        SqlMeta process = parser.process(map);
+        Assert.assertTrue(process.getSql().contains("amount <= ?"));
+        Assert.assertTrue(process.getSql().contains("dt >= ?"));
+        Assert.assertTrue(process.getSql().contains("like 'A&B%'"));
+        Assert.assertEquals(Arrays.asList((Object) 100, "2026-01-01"), process.getParameter());
+    }
+
     private static int countOccurrences(String text, char c) {
         int count = 0;
         for (int i = 0; i < text.length(); i++) {
