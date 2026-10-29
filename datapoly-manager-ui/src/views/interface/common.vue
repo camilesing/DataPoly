@@ -53,6 +53,14 @@
                      @click="handleSave">
             {{ $t('common2.save') }}
           </el-button>
+          <el-button type="success"
+                     size="mini"
+                     v-if="!isOnlyShowDetail && isUpdatePage() && !showVersionDetail"
+                     icon="el-icon-s-promotion"
+                     :loading="submitting"
+                     @click="handleQuickOnline">
+            {{ $t('common2.quickOnline') }}
+          </el-button>
           <el-button type="primary"
                      size="mini"
                      v-if="isOnlyShowDetail"
@@ -893,6 +901,7 @@ export default {
       versionList: [],
       showVersionDetail: false,
       viewedVersion: null,
+      submitting: false,
       rules: {
         name: [
           {
@@ -1637,6 +1646,17 @@ export default {
       return false
     },
     handleSave: function () {
+      this.validateAndSubmit(false);
+    },
+    // 快速上线：保存当前草稿 → 以草稿发一个新版本 → 把刚发的版本上线，三步一次点完
+    //（与列表页「保存 → 发版 → 快速上线」等价）。发版描述按「快速上线 + 时间」自动生成。
+    handleQuickOnline: function () {
+      if (this.submitting) {
+        return;
+      }
+      this.validateAndSubmit(true);
+    },
+    validateAndSubmit: function (quickOnline) {
       this.$refs.form.validate(valid => {
         if (valid) {
           var sqls = []
@@ -1667,7 +1687,9 @@ export default {
               }
             );
           } else {
-            if (this.isUpdatePage()) {
+            if (quickOnline) {
+              this.handleUpdateSave(sqls, true);
+            } else if (this.isUpdatePage()) {
               this.handleUpdateSave(sqls);
             } else {
               this.handleCreateSave(sqls);
@@ -1728,7 +1750,10 @@ export default {
         }
       );
     },
-    handleUpdateSave: function (sqls) {
+    handleUpdateSave: function (sqls, quickOnline) {
+      if (quickOnline) {
+        this.submitting = true;
+      }
       this.$http({
         method: "POST",
         headers: {
@@ -1766,9 +1791,14 @@ export default {
       .then(
         res => {
           if (0 === res.data.code) {
+            if (quickOnline) {
+              this.publishAndDeploy();
+              return;
+            }
             this.$router.push({ path: '/interface/list' });
             this.$message(this.$t('common2.updateSuccess'));
           } else {
+            this.submitting = false;
             if (res.data.message) {
               this.$alert(res.data.message, this.$t('common2.parseError'),
                 {
@@ -1778,8 +1808,133 @@ export default {
               );
             }
           }
+        },
+        () => {
+          // 保存已失败：后面的发版/上线都不该再发出，按钮恢复可点
+          this.submitting = false;
         }
       );
+    },
+    publishAndDeploy: function () {
+      this.$http({
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        url: "/datapoly/manager/api/v1/assignment/publish",
+        data: JSON.stringify({
+          id: this.createParam.id,
+          description: this.defaultPublishDescription()
+        })
+      }).then(
+        res => {
+          if (0 === res.data.code) {
+            this.deployLatestVersion();
+            return;
+          }
+          this.submitting = false;
+          // 草稿已经保存成功，失败只发生在发版这一步，措辞上要让人分得清
+          this.$alert(this.$t('common2.quickOnlinePublishFailed') + (res.data.message || ''), this.$t('common2.parseError'),
+            {
+              confirmButtonText: this.$t('common.confirm'),
+              type: "error"
+            }
+          );
+        },
+        () => {
+          this.submitting = false;
+          // 请求没有到达/没有响应时也要说清楚：草稿已保存，版本有没有发出去不确定
+          this.$alert(this.$t('common2.quickOnlineNetworkFailed'), this.$t('common2.parseError'),
+            {
+              confirmButtonText: this.$t('common.confirm'),
+              type: "error"
+            }
+          );
+        }
+      );
+    },
+    deployLatestVersion: function () {
+      this.$http({
+        method: "GET",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        url: "/datapoly/manager/api/v1/version/list/" + this.createParam.id,
+      }).then(
+        res => {
+          if (0 !== res.data.code) {
+            this.submitting = false;
+            this.$alert(this.$t('common2.quickOnlineDeployFailed') + (res.data.message || ''), this.$t('common2.parseError'),
+              {
+                confirmButtonText: this.$t('common.confirm'),
+                type: "error"
+              }
+            );
+            return;
+          }
+          const versions = res.data.data || [];
+          if (versions.length === 0) {
+            // 发版调用成功了却没有版本回来：不猜版本，明确让用户去确认
+            this.submitting = false;
+            this.$alert(this.$t('common2.latestVersionMissing'), this.$t('common2.parseError'),
+              {
+                confirmButtonText: this.$t('common.confirm'),
+                type: "error"
+              }
+            );
+            return;
+          }
+          // 版本列表按 version DESC，首行就是刚发的那个版本
+          const latest = versions[0];
+          this.$http({
+            method: "PUT",
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            url: "/datapoly/manager/api/v1/assignment/deploy/" + this.createParam.id + "?commitId=" + latest.commitId,
+          }).then(
+            deployRes => {
+              this.submitting = false;
+              if (0 === deployRes.data.code) {
+                this.$router.push({ path: '/interface/list' });
+                this.$message(this.$t('common2.quickOnlineSuccess') + " V" + latest.version);
+              } else {
+                this.$alert(this.$t('common2.quickOnlineDeployFailed') + (deployRes.data.message || ''), this.$t('common2.parseError'),
+                  {
+                    confirmButtonText: this.$t('common.confirm'),
+                    type: "error"
+                  }
+                );
+              }
+            },
+            () => {
+              this.submitting = false;
+              this.$alert(this.$t('common2.quickOnlineNetworkFailed'), this.$t('common2.parseError'),
+                {
+                  confirmButtonText: this.$t('common.confirm'),
+                  type: "error"
+                }
+              );
+            }
+          );
+        },
+        () => {
+          this.submitting = false;
+          this.$alert(this.$t('common2.quickOnlineNetworkFailed'), this.$t('common2.parseError'),
+            {
+              confirmButtonText: this.$t('common.confirm'),
+              type: "error"
+            }
+          );
+        }
+      );
+    },
+    defaultPublishDescription: function () {
+      const pad = n => (n < 10 ? '0' + n : '' + n);
+      const now = new Date();
+      return this.$t('common2.quickOnline') + ' '
+        + now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+        + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
     },
     handleDebug: function () {
       this.debugResponse = {}
