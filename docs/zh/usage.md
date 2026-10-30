@@ -188,13 +188,28 @@ public class AuditPostProcessor implements com.cs.core.extension.ApiAssignmentPo
 
 ## MCP 服务（数据工具 + 管理实体增删改查）
 
-manager 内置**两个相互独立的 MCP Server**，均通过 `?token=` 查询参数鉴权（令牌在管理页"MCP令牌"中创建，经
+manager 内置**两个相互独立的 MCP Server**，均通过 `?token=` 查询参数或 `Authorization: Bearer <令牌>`
+请求头鉴权（校验失败返回 401；令牌在管理页"MCP令牌"中创建，经
 `/datapoly/manager/api/v1/mcp/client/endpoint` 可查询地址前缀）：
 
 | 服务 | 端点（Streamable HTTP / SSE） | 令牌要求 | 用途 |
 | --- | --- | --- | --- |
 | 数据 MCP 服务 `datapoly-mcp-server` | `/mcp` · `/mcp/sse` | 任意 MCP 令牌 | 调用已注册的数据 API tools（查询业务数据）|
 | 管理 MCP 服务 `datapoly-mcp-admin-server` | `/mcp/admin` · `/mcp/admin/sse` | **manage 权限**令牌 | 对 DataPoly 实体做增删改查与上下线运维 |
+
+`/mcp` 与 `/mcp/admin` 是同一 URL 上的 **dual-era Streamable HTTP** 端点（无会话、不签发
+`Mcp-Session-Id`，响应恒为 `application/json`）：
+
+- **现代客户端（协议 `2026-07-28`）**：无 initialize 握手，`server/discover` 可选地发现版本与能力；
+  每个请求在 `_meta["io.modelcontextprotocol/protocolVersion"]` 与 `MCP-Protocol-Version`、
+  `Mcp-Method`（`tools/call` 另有 `Mcp-Name`）请求头中携带版本与方法，头与 body 不一致返回
+  400 + `HeaderMismatch`；不支持的版本返回 400 + `UnsupportedProtocolVersionError`（`data.supported`
+  列出可用版本），未知方法返回 404 + JSON-RPC `-32601`。
+- **传统客户端（协议 `2025-03-26` ~ `2025-11-25`）**：`initialize` 握手按请求版本回显（未知版本按
+  `2025-11-25` 应答）；notification 一律返回 202 无 body；方法级错误以 HTTP 200 + JSON-RPC error
+  返回（未知工具 `-32602`、未知方法 `-32601`）。
+- `/mcp/sse`、`/mcp/admin/sse` 为旧 HTTP+SSE 传输（协议 `2024-11-05`，官方已弃用），仅为存量客户端
+  保留；新接入一律用上面的单端点。
 
 ### 管理 MCP 服务（Agent 运维 DataPoly）
 
