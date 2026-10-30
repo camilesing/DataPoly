@@ -210,13 +210,32 @@ Semantics and boundaries:
 ## MCP services (data tools + entity CRUD for agents)
 
 The manager hosts **two independent MCP servers**, both authenticated through the
-`?token=` query parameter (tokens are created on the management UI "MCP tokens" page;
-address prefixes are served by `/datapoly/manager/api/v1/mcp/client/endpoint`):
+`?token=` query parameter or an `Authorization: Bearer <token>` request header (a failed
+check returns 401; tokens are created on the management UI "MCP tokens" page; address
+prefixes are served by `/datapoly/manager/api/v1/mcp/client/endpoint`):
 
 | Server | Endpoint (Streamable HTTP / SSE) | Token required | Purpose |
 | --- | --- | --- | --- |
 | Data MCP server `datapoly-mcp-server` | `/mcp` · `/mcp/sse` | any MCP token | Call registered data-API tools (business queries) |
 | Admin MCP server `datapoly-mcp-admin-server` | `/mcp/admin` · `/mcp/admin/sse` | token with **manage** scope | Full CRUD over DataPoly entities and lifecycle ops |
+
+`/mcp` and `/mcp/admin` are **dual-era Streamable HTTP** endpoints on a single URL
+(sessionless — no `Mcp-Session-Id` is issued, and every response is `application/json`):
+
+- **Modern clients (protocol `2026-07-28`)**: no initialize handshake; `server/discover`
+  optionally reveals versions and capabilities. Every request carries its version in
+  `_meta["io.modelcontextprotocol/protocolVersion"]` plus the `MCP-Protocol-Version` and
+  `Mcp-Method` headers (`Mcp-Name` additionally on `tools/call`); a header/body mismatch
+  returns 400 + `HeaderMismatch`, an unsupported version returns 400 +
+  `UnsupportedProtocolVersionError` (`data.supported` lists the usable versions), and an
+  unknown method returns 404 + JSON-RPC `-32601`.
+- **Legacy clients (protocols `2025-03-26` – `2025-11-25`)**: the `initialize` handshake
+  echoes the requested version (unknown versions are answered with `2025-11-25`);
+  notifications always return 202 with no body; method-level errors come back as
+  HTTP 200 + a JSON-RPC error (unknown tool `-32602`, unknown method `-32601`).
+- `/mcp/sse` and `/mcp/admin/sse` are the old HTTP+SSE transport (protocol `2024-11-05`,
+  deprecated by the spec) kept only for existing clients; new integrations should always
+  use the single endpoint above.
 
 ### Admin MCP server (letting agents operate DataPoly)
 

@@ -18,7 +18,7 @@ SQL/DSL/GraphQL → RESTful API 的数据访问中间件（Boot 3.5.x LTS + Clou
 ## 一、网络分段（必须遵守）
 
 - 仅 gateway 对外发布端口；manager 与 executor 除 Eureka 外无 HTTP 直连，新增直连须同步更新白名单与本文件。
-- manager 内置两个 MCP Server（均走 `?token=` 查询参数鉴权，`/mcp/**` 豁免会话拦截器）：数据 MCP `/mcp`·`/mcp/sse`（任意 MCP 令牌，调用数据 API tools）；管理 MCP `/mcp/admin`·`/mcp/admin/sse`（仅 `mcp_client.manage_flag=1` 令牌，`dp_{entity}_{action}` 工具覆盖数据源/模块/分组/API/客户端等实体增删改查，见 `McpAdminTools`）。manage 令牌等同管理员（可读 appSecret 与 MCP 令牌明文），创建/授予须走已认证会话。
+- manager 内置两个 MCP Server（均走 `?token=` 查询参数或 `Authorization: Bearer` 头鉴权、失败 401，`/mcp/**` 豁免会话拦截器）：数据 MCP `/mcp`·`/mcp/sse`（任意 MCP 令牌，调用数据 API tools）；管理 MCP `/mcp/admin`·`/mcp/admin/sse`（仅 `mcp_client.manage_flag=1` 令牌，`dp_{entity}_{action}` 工具覆盖数据源/模块/分组/API/客户端等实体增删改查，见 `McpAdminTools`）。`/mcp`·`/mcp/admin` 是 dual-era Streamable HTTP 单端点（唯一实现 `WebMvcStreamHttpServerProvider`，无会话、响应恒为 application/json：legacy initialize 客户端 2025-03-26~2025-11-25 + modern 2026-07-28 无状态 `server/discover` 与每请求 `_meta` 版本、`Mcp-Method`/`Mcp-Name` 头校验，支持版本集只有该类 `SUPPORTED_PROTOCOL_VERSIONS` 一份）；`/mcp/sse` 为官方已弃用的旧 HTTP+SSE 传输，仅存量客户端保留。manage 令牌等同管理员（可读 appSecret 与 MCP 令牌明文），创建/授予须走已认证会话。
 - executor `GatewaySourceFilter`（`/*`）：`trusted-cidrs` 仅 IPv4 CIDR（K8s 探针须加入）；`auth-token` 设置后必须带头 `X-DATAPOLY-Gateway-Token`（恒定时间比较，gateway 配 `DATAPOLY_GATEWAY_TOKEN` 注入）。gateway 未设 token 时注入哨兵 `UNSET`，勿改回空默认（SCG 启动会失败）。
 - 来源判定只用 `getRemoteAddr()`，勿信任何转发头。
 
