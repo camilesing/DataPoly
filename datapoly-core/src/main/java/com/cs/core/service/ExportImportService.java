@@ -9,8 +9,10 @@ import com.cs.core.dto.*;
 import com.cs.persistence.dao.*;
 import com.cs.persistence.entity.*;
 import com.cs.persistence.util.JsonUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,10 +25,20 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class ExportImportService {
 
     private final String charsetName = StandardCharsets.UTF_8.name();
+
+    /**
+     * Datasource password encryption switch (env {@code DATAPOLY_DS_ENCRYPT}). Only when it is
+     * on does the export file carry the stored (encrypted) password; with encryption disabled
+     * the column holds plaintext and must not leave the box — the field is dropped and the
+     * importer re-enters credentials.
+     */
+    @Value("${datapoly.datasource.encrypt:false}")
+    private boolean dsEncryptEnabled;
 
     @Resource
     private ApiAssignmentDao apiAssignmentDao;
@@ -76,11 +88,16 @@ public class ExportImportService {
         dataSourceModel.setDriver(dataSourceEntity.getDriver());
         dataSourceModel.setUrl(dataSourceEntity.getUrl());
         dataSourceModel.setUsername(dataSourceEntity.getUsername());
-        // Export the password exactly as stored: with DATAPOLY_DS_ENCRYPT=true that is AES
-        // ciphertext (import recreates it 1:1); with encryption disabled the column already
-        // holds the plaintext this deployment considers acceptable. Never decrypt here — the
-        // export file is downloadable and must not carry recoverable credentials.
-        dataSourceModel.setPassword(dataSourceEntity.getPassword());
+        // Export the stored value only when it is AES ciphertext (DATAPOLY_DS_ENCRYPT=true);
+        // import recreates it 1:1 under the same key. With encryption disabled the stored
+        // password is plaintext and must not leave the box — drop it and warn.
+        if (dsEncryptEnabled) {
+            dataSourceModel.setPassword(dataSourceEntity.getPassword());
+        } else {
+            dataSourceModel.setPassword(null);
+            log.warn("Datasource [{}] exported without password: DATAPOLY_DS_ENCRYPT is disabled, "
+                    + "re-enter credentials after import", dataSourceEntity.getName());
+        }
 
         List<String> contextList = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(assignmentEntity.getContextList())) {
