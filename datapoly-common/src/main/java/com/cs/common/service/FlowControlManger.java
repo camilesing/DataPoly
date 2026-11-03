@@ -7,5 +7,11 @@ import java.io.IOException;
 
 public interface FlowControlManger {
 
-    boolean checkFlowControl(String resourceName, HttpServletResponse response) throws IOException;
+    /**
+     * @param resourceName flow resource the request counts against
+     * @param response      used to write the 429 body when blocked
+     * @return a lease to close after the guarded request completes, or {@code null} when the
+     *         request is blocked (the response has already been written)
+     */
+    FlowControlLease checkFlowControl(String resourceName, HttpServletResponse response) throws IOException;
 }

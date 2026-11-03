@@ -7,6 +7,7 @@ import cn.hutool.core.thread.ExecutorBuilder;
 import com.cs.common.consts.Constants;
 import com.cs.common.enums.HttpMethodEnum;
 import com.cs.common.exception.*;
+import com.cs.common.service.FlowControlLease;
 import com.cs.common.service.FlowControlManger;
 import com.cs.common.util.*;
 import com.cs.core.exec.*;
@@ -82,8 +83,12 @@ public class AuthenticationFilter implements Filter {
 
             if (apiConfigEntity.getFlowStatus()) {
                 String resourceName = Constants.getResourceName(method.name(), path);
-                if (flowControlManger.checkFlowControl(resourceName, response)) {
-                    doAuthenticationFilter(chain, request, response, apiConfigEntity);
+                // null lease = blocked, the 429 response is already written
+                FlowControlLease lease = flowControlManger.checkFlowControl(resourceName, response);
+                if (null != lease) {
+                    try (lease) {
+                        doAuthenticationFilter(chain, request, response, apiConfigEntity);
+                    }
                 }
             } else {
                 doAuthenticationFilter(chain, request, response, apiConfigEntity);

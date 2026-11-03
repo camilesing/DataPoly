@@ -8,6 +8,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.*;
 import com.cs.common.consts.Constants;
 import com.cs.common.enums.HttpMethodEnum;
 import com.cs.common.exception.ResponseErrorCode;
+import com.cs.common.service.FlowControlLease;
 import com.cs.common.service.FlowControlManger;
 import com.cs.common.util.I18nUtils;
 import com.cs.core.util.ResponseWriteUtils;
@@ -68,19 +69,19 @@ public class SentinelFlowControlManager implements FlowControlManger {
     }
 
     @Override
-    public boolean checkFlowControl(String resourceName, HttpServletResponse response) throws IOException {
-        Entry entry = null;
+    public FlowControlLease checkFlowControl(String resourceName, HttpServletResponse response) throws IOException {
+        Entry entry;
         try {
-            entry = SphU.entry(resourceName, 0, EntryType.IN);
-            return true;
+            // batch count 1: with 0 the QPS statistic never incremented, so no QPS rule
+            // could ever trigger
+            entry = SphU.entry(resourceName, 1, EntryType.IN);
         } catch (BlockException be) {
             this.handleBlockException(resourceName, response);
-            return false;
-        } finally {
-            if (entry != null) {
-                entry.exit(1);
-            }
+            return null;
         }
+        // exit only when the guarded request completes (lease close): exiting here in the
+        // finally made thread-grade rules a no-op and lost the response-time record
+        return () -> entry.exit(1);
     }
 
     public void handleBlockException(String resourceName, HttpServletResponse response)
