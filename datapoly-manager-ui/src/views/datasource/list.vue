@@ -770,6 +770,8 @@ export default {
     handleSizeChange: function (pageSize) {
       this.loading = true;
       this.pageSize = pageSize;
+      // a smaller page size can leave the current page beyond the last row: back to page 1
+      this.currentPage = 1;
       this.loadData();
     },
 
