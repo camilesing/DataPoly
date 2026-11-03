@@ -14,12 +14,21 @@ import java.util.function.Supplier;
  */
 public final class PageUtils {
 
+    /**
+     * Upper bound applied when a caller omits or passes a non-positive page size. The old
+     * {@code Integer.MAX_VALUE} default turned "no size given" into an unbounded full-table
+     * load behind every list endpoint (the access log in particular).
+     */
+    public static final int MAX_PAGE_SIZE = 1000;
+
     public static <E> PageResult<E> getPage(Supplier<List<E>> method, Integer pageNum, Integer pageSize) {
         if (null == pageNum || pageNum <= 0) {
             pageNum = 1;
         }
         if (null == pageSize || pageSize <= 0) {
-            pageSize = Integer.MAX_VALUE;
+            pageSize = MAX_PAGE_SIZE;
+        } else if (pageSize > MAX_PAGE_SIZE) {
+            pageSize = MAX_PAGE_SIZE;
         }
 
         com.github.pagehelper.Page<E> originPage = PageHelper.startPage(pageNum, pageSize);
