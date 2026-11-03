@@ -138,6 +138,9 @@ public class ScriptExecutorService extends AbstractExecutorEngine {
                 }
             }
         }
+        // per-execution instance: HttpModule keeps mutable builder state, a shared bean would
+        // let concurrent scripts corrupt each other's request
+        moduleList.add(new HttpModule());
         moduleList.add(new ReqVarModule(params));
         moduleList.add(new DsVarModule(params, strategy, printSqlLog, dollarSubstitutionAllowed));
         moduleList.add(new DbVarModule(dataSource, productType, params, strategy, printSqlLog, dollarSubstitutionAllowed));
