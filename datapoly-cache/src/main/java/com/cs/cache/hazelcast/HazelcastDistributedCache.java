@@ -40,6 +40,8 @@ public class HazelcastDistributedCache implements DistributedCache {
 
     @Override
     public void evict(String key) {
-        instance.getMap(name).evict(key);
+        // remove() is cluster-wide invalidation; evict() would only clear this member's
+        // entry and leave every other node serving the stale value
+        instance.getMap(name).remove(key);
     }
 }

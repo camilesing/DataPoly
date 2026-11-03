@@ -56,10 +56,19 @@ public class RedisDistributedCacheTest {
     }
 
     @Test
-    public void testPositiveExpirySetsExpiration() {
+    public void testPositiveExpiryUsesAtomicSetex() {
         RedisDistributedCache cache = new RedisDistributedCache("demo", new JedisClient(pool));
         cache.put("k", "v", 30, TimeUnit.SECONDS);
-        assertEquals(Collections.singletonList("demo#k:30"), pool.jedis.expireCalls);
+        // SET key value EX 30 in one round trip, no separate EXPIRE
+        assertEquals(Collections.singletonList("demo#k:30"), pool.jedis.setexCalls);
+        assertTrue(pool.jedis.expireCalls.isEmpty());
+    }
+
+    @Test
+    public void testSubSecondExpiryRoundsUpToOneSecond() {
+        RedisDistributedCache cache = new RedisDistributedCache("demo", new JedisClient(pool));
+        cache.put("k", "v", 500, TimeUnit.MILLISECONDS);
+        assertEquals(Collections.singletonList("demo#k:1"), pool.jedis.setexCalls);
     }
 
     @Test

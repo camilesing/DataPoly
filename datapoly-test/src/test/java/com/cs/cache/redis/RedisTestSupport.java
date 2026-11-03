@@ -36,6 +36,7 @@ public final class RedisTestSupport {
         public final Map<String, Map<String, String>> hashes = new HashMap<>();
         public final Map<String, String> strings = new HashMap<>();
         public final List<String> expireCalls = new ArrayList<>();
+        public final List<String> setexCalls = new ArrayList<>();
 
         public FakeJedis() {
             super("localhost", DUMMY_SERVER.getLocalPort());
@@ -115,6 +116,13 @@ public final class RedisTestSupport {
 
         @Override
         public String set(String key, String value) {
+            strings.put(key, value);
+            return "OK";
+        }
+
+        @Override
+        public String setex(String key, long seconds, String value) {
+            setexCalls.add(key + ":" + seconds);
             strings.put(key, value);
             return "OK";
         }
