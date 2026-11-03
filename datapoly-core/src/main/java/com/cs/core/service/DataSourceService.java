@@ -72,8 +72,21 @@ public class DataSourceService {
         return PageUtils.getPage(method, request.getPage(), request.getSize());
     }
 
+
+    /**
+     * Fetch by id or fail with ERROR_RESOURCE_NOT_EXISTS — a missing datasource id must
+     * surface as a proper 404-style error, never an NPE-turned-500 downstream.
+     */
+    private DataSourceEntity requireById(Long id) {
+        DataSourceEntity entity = dataSourceDao.getById(id);
+        if (null == entity) {
+            throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "common.id.not.found", id);
+        }
+        return entity;
+    }
+
     public DatasourceDetailResponse getDetailById(Long id) {
-        DataSourceEntity dataSourceEntity = dataSourceDao.getById(id);
+        DataSourceEntity dataSourceEntity = requireById(id);
         DatasourceDetailResponse response = new DatasourceDetailResponse();
         BeanUtil.copyProperties(dataSourceEntity, response);
         response.setPassword(ParamMaskUtils.MASK);
@@ -137,7 +150,7 @@ public class DataSourceService {
     }
 
     public void testDataSource(Long id) {
-        DataSourceEntity dataSourceEntity = dataSourceDao.getById(id);
+        DataSourceEntity dataSourceEntity = requireById(id);
         if (null == dataSourceEntity) {
             throw new CommonException(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, "common.id.not.found", id);
         }
@@ -247,7 +260,7 @@ public class DataSourceService {
     }
 
     public List<String> getDatasourceSchemas(Long id) {
-        DataSourceEntity dataSourceEntity = dataSourceDao.getById(id);
+        DataSourceEntity dataSourceEntity = requireById(id);
         String sqlList = dataSourceEntity.getType().getContext().getSqlSchemaList();
         if (null == sqlList) {
             List<String> ret = dataSourceEntity.getType().getContext().getRetSchemaList();
@@ -296,7 +309,7 @@ public class DataSourceService {
     }
 
     public List<String> getSchemaTables(Long id, String schema) {
-        DataSourceEntity dataSourceEntity = dataSourceDao.getById(id);
+        DataSourceEntity dataSourceEntity = requireById(id);
         File driverPathFile = SpringUtil.getBean(DriverLoadService.class)
                 .getVersionDriverFile(dataSourceEntity.getType(),
                         dataSourceEntity.getVersion());
@@ -322,7 +335,7 @@ public class DataSourceService {
     }
 
     public List<String> getSchemaViews(Long id, String schema) {
-        DataSourceEntity dataSourceEntity = dataSourceDao.getById(id);
+        DataSourceEntity dataSourceEntity = requireById(id);
         File driverPathFile = SpringUtil.getBean(DriverLoadService.class)
                 .getVersionDriverFile(dataSourceEntity.getType(),
                         dataSourceEntity.getVersion());
@@ -351,7 +364,7 @@ public class DataSourceService {
     }
 
     public List<MetadataColumnResponse> getTableColumns(Long id, String schema, String table) {
-        DataSourceEntity dataSourceEntity = dataSourceDao.getById(id);
+        DataSourceEntity dataSourceEntity = requireById(id);
         File driverPathFile = SpringUtil.getBean(DriverLoadService.class)
                 .getVersionDriverFile(dataSourceEntity.getType(),
                         dataSourceEntity.getVersion());
