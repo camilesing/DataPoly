@@ -14,6 +14,7 @@ import com.cs.persistence.entity.ApiContextEntity;
 import com.zaxxer.hikari.HikariDataSource;
 import groovy.lang.*;
 import org.codehaus.groovy.control.CompilationFailedException;
+import org.springframework.core.env.Environment;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -141,6 +142,10 @@ public class ScriptExecutorService extends AbstractExecutorEngine {
         // per-execution instance: HttpModule keeps mutable builder state, a shared bean would
         // let concurrent scripts corrupt each other's request
         moduleList.add(new HttpModule());
+        // env is allowlist-scoped: scripts only see properties published under
+        // datapoly.script.env.*, never the raw Environment (Redis password, AES key, ...)
+        moduleList.add(new EnvVarModule(SpringUtil.getBean(Environment.class),
+                EnvVarModule.SCRIPT_ENV_PREFIX));
         moduleList.add(new ReqVarModule(params));
         moduleList.add(new DsVarModule(params, strategy, printSqlLog, dollarSubstitutionAllowed));
         moduleList.add(new DbVarModule(dataSource, productType, params, strategy, printSqlLog, dollarSubstitutionAllowed));
