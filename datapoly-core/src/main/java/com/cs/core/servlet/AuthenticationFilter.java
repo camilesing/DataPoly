@@ -81,7 +81,7 @@ public class AuthenticationFilter implements Filter {
         try {
             ApiAssignmentCache.set(apiConfigEntity);
 
-            if (apiConfigEntity.getFlowStatus()) {
+            if (Boolean.TRUE.equals(apiConfigEntity.getFlowStatus())) {
                 String resourceName = Constants.getResourceName(method.name(), path);
                 // null lease = blocked, the 429 response is already written
                 FlowControlLease lease = flowControlManger.checkFlowControl(resourceName, response);
@@ -115,7 +115,7 @@ public class AuthenticationFilter implements Filter {
         HttpMethodEnum method = apiConfigEntity.getMethod();
 
         try {
-            if (!apiConfigEntity.getOpen()) {
+            if (!Boolean.TRUE.equals(apiConfigEntity.getOpen())) {
                 String tokenStr = TokenUtils.getRequestToken(request);
                 if (StringUtils.isBlank(tokenStr)) {
                     throw new UnAuthorizedException("Need bearer token.");
@@ -177,7 +177,7 @@ public class AuthenticationFilter implements Filter {
         if (status == HttpServletResponse.SC_OK) {
             return;
         }
-        if (!config.getAlarm()) {
+        if (!Boolean.TRUE.equals(config.getAlarm())) {
             return;
         }
 
@@ -187,6 +187,7 @@ public class AuthenticationFilter implements Filter {
 
     @Override
     public void destroy() {
-
+        // stop accepting audit writes; in-flight tasks finish, queued ones are dropped
+        alarmExecutor.shutdown();
     }
 }

@@ -149,8 +149,8 @@ public class ApiAssignmentService {
                 if (paramValue.getType().isObject()) {
                     if (null != paramValue.getChildren()) {
                         for (BaseParamValue subParamValue : paramValue.getChildren()) {
-                            if (subParamValue.getRequired()) {
-                                if (subParamValue.getIsArray()) {
+                            if (Boolean.TRUE.equals(subParamValue.getRequired())) {
+                                if (Boolean.TRUE.equals(subParamValue.getIsArray())) {
                                     if (CollectionUtils.isEmpty(subParamValue.getArrayValues())) {
                                         paramValue.setName(String.format("%s->%s", paramValue.getName(), subParamValue.getName()));
                                         invalidArgs.add(paramValue);
@@ -165,8 +165,8 @@ public class ApiAssignmentService {
                         }
                     }
                 } else {
-                    if (paramValue.getRequired()) {
-                        if (paramValue.getIsArray()) {
+                    if (Boolean.TRUE.equals(paramValue.getRequired())) {
+                        if (Boolean.TRUE.equals(paramValue.getIsArray())) {
                             if (CollectionUtils.isEmpty(paramValue.getArrayValues())) {
                                 invalidArgs.add(paramValue);
                             }
@@ -180,11 +180,11 @@ public class ApiAssignmentService {
             }
             if (invalidArgs.size() > 0) {
                 String msg = "必填参数为空," + invalidArgs.stream().map(
-                        p -> (p.getIsArray() ? "数组" : "") + "参数'" + p.getName()
+                        p -> (Boolean.TRUE.equals(p.getIsArray()) ? "数组" : "") + "参数'" + p.getName()
                 ).collect(Collectors.joining(";"));
                 throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "api.required.param.empty",
                         invalidArgs.stream().map(
-                                p -> (p.getIsArray() ? "array " : "") + "param'" + p.getName()
+                                p -> (Boolean.TRUE.equals(p.getIsArray()) ? "array " : "") + "param'" + p.getName()
                         ).collect(Collectors.joining(";")));
             }
 
@@ -192,13 +192,13 @@ public class ApiAssignmentService {
                 String paramName = param.getName();
                 ParamTypeEnum type = param.getType();
                 try {
-                    if (param.getIsArray()) {
+                    if (Boolean.TRUE.equals(param.getIsArray())) {
                         if (param.getType().isObject()) {
                             List<Map<String, Object>> collection = new ArrayList<>();
                             if (null != param.getChildren()) {
                                 Map<String, Object> objectMap = new HashMap<>(param.getChildren().size());
                                 for (BaseParamValue spv : param.getChildren()) {
-                                    if (spv.getIsArray()) {
+                                    if (Boolean.TRUE.equals(spv.getIsArray())) {
                                         List<Object> ls = CollectionUtils.isEmpty(spv.getArrayValues())
                                                 ? null
                                                 : spv.getArrayValues().stream()
@@ -206,7 +206,7 @@ public class ApiAssignmentService {
                                                 .collect(Collectors.toList());
                                         objectMap.put(spv.getName(), ls);
                                     } else {
-                                        String value = spv.getRequired()
+                                        String value = Boolean.TRUE.equals(spv.getRequired())
                                                 ? spv.getValue()
                                                 : (StringUtils.isNotBlank(spv.getValue()) ? spv.getValue() : spv.getDefaultValue());
                                         Object v = spv.getType().getConverter().apply(value);
@@ -233,7 +233,7 @@ public class ApiAssignmentService {
                             if (null != param.getChildren()) {
                                 Map<String, Object> objectMap = new HashMap<>(4);
                                 for (BaseParamValue spv : param.getChildren()) {
-                                    if (spv.getIsArray()) {
+                                    if (Boolean.TRUE.equals(spv.getIsArray())) {
                                         List<Object> ls = CollectionUtils.isEmpty(spv.getArrayValues())
                                                 ? null
                                                 : spv.getArrayValues().stream()
@@ -241,7 +241,7 @@ public class ApiAssignmentService {
                                                 .collect(Collectors.toList());
                                         objectMap.put(spv.getName(), ls);
                                     } else {
-                                        String value = spv.getRequired()
+                                        String value = Boolean.TRUE.equals(spv.getRequired())
                                                 ? spv.getValue()
                                                 : (StringUtils.isNotBlank(spv.getValue()) ? spv.getValue() : spv.getDefaultValue());
                                         Object v = spv.getType().getConverter().apply(value);
@@ -251,7 +251,7 @@ public class ApiAssignmentService {
                                 params.put(paramName, objectMap);
                             }
                         } else {
-                            String value = param.getRequired()
+                            String value = Boolean.TRUE.equals(param.getRequired())
                                     ? param.getValue()
                                     : (StringUtils.isNotBlank(param.getValue()) ? param.getValue() : param.getDefaultValue());
                             params.put(paramName, type.getConverter().apply(value));
@@ -263,13 +263,13 @@ public class ApiAssignmentService {
             }
 
             List<ParamValue> emptyList = request.getParamValues()
-                    .stream().filter(i -> !i.getIsArray()).filter(i -> StringUtils.isBlank(i.getValue()))
+                    .stream().filter(i -> !Boolean.TRUE.equals(i.getIsArray())).filter(i -> StringUtils.isBlank(i.getValue()))
                     .collect(Collectors.toList());
             for (ParamValue paramValue : emptyList) {
                 ParamTypeEnum type = paramValue.getType();
                 if (!params.containsKey(paramValue.getName())) {
-                    if (!paramValue.getRequired()) {
-                        if (paramValue.getIsArray()) {
+                    if (!Boolean.TRUE.equals(paramValue.getRequired())) {
+                        if (Boolean.TRUE.equals(paramValue.getIsArray())) {
                             params.put(paramValue.getName(), Collections.emptyList());
                         } else {
                             params.put(paramValue.getName(), type.getConverter().apply(paramValue.getDefaultValue()));
@@ -390,7 +390,7 @@ public class ApiAssignmentService {
         }
 
         if (request.getCacheKeyType().isUseCache()) {
-            if (request.getCacheExpireSeconds() <= 0) {
+            if (Optional.ofNullable(request.getCacheExpireSeconds()).orElse(0L) <= 0) {
                 throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "api.invalid.cache.expire.seconds");
             }
             if (CacheKeyTypeEnum.SPEL == request.getCacheKeyType()) {
@@ -484,7 +484,7 @@ public class ApiAssignmentService {
         }
 
         if (request.getCacheKeyType().isUseCache()) {
-            if (request.getCacheExpireSeconds() <= 0) {
+            if (Optional.ofNullable(request.getCacheExpireSeconds()).orElse(0L) <= 0) {
                 throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "api.invalid.cache.expire.seconds");
             }
             if (CacheKeyTypeEnum.SPEL == request.getCacheKeyType()) {
