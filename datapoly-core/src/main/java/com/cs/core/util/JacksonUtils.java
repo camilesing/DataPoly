@@ -113,7 +113,8 @@ public final class JacksonUtils {
                 } else if (item instanceof Collection) {
                     Collection subCollection = (Collection) item;
                     if (CollectionUtils.isEmpty(subCollection)) {
-                        return results;
+                        // an empty sibling must not abort parsing of the remaining items
+                        continue;
                     }
                     for (Object subItem : subCollection) {
                         if (subItem instanceof Map) {
@@ -121,7 +122,8 @@ public final class JacksonUtils {
                         } else if (subItem instanceof Collection) {
                             Collection thSubCollection = (Collection) subItem;
                             if (CollectionUtils.isEmpty(thSubCollection)) {
-                                return results;
+                                // same: skip, keep the siblings
+                                continue;
                             }
                             for (Object thSubItem : thSubCollection) {
                                 if (thSubItem instanceof Map) {
