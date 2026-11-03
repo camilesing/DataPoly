@@ -67,9 +67,16 @@ public class PageUtilsTest {
     @Test
     public void testPageHelperVariantDefaultsInvalidPaging() {
         PageResult<String> page = PageUtils.getPage(() -> Arrays.asList("a"), null, 0);
-        // page defaults to 1; size defaults to Integer.MAX_VALUE
+        // page defaults to 1; an omitted/non-positive size falls back to the bounded default
         assertEquals(1, page.getPagination().getPage());
-        assertEquals(Integer.MAX_VALUE, page.getPagination().getSize());
+        assertEquals(PageUtils.MAX_PAGE_SIZE, page.getPagination().getSize());
         assertEquals(Arrays.asList("a"), page.getData());
+    }
+
+    @Test
+    public void testPageHelperVariantCapsOversizedPageSize() {
+        PageResult<String> page = PageUtils.getPage(() -> Arrays.asList("a"), 1, Integer.MAX_VALUE);
+        // an attacker-supplied size cannot bypass the cap and force a full-table load
+        assertEquals(PageUtils.MAX_PAGE_SIZE, page.getPagination().getSize());
     }
 }
