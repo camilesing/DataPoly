@@ -162,7 +162,15 @@ public class ScriptExecutorService extends AbstractExecutorEngine {
             GroovyShell groovyShell = ScriptSandboxConfiguration.createGroovyShell(binding);
             Future<Object> future = null;
             try {
-                future = SCRIPT_EXECUTOR.submit(() -> (Object) groovyShell.evaluate(entity.getSqlText()));
+                future = SCRIPT_EXECUTOR.submit(() -> {
+                    try {
+                        return (Object) groovyShell.evaluate(entity.getSqlText());
+                    } finally {
+                        // same thread that began the transaction: releases pooled connections of
+                        // scripts that never called tx.commit()/tx.rollback()
+                        TxVarModule.rollbackLeftoversOnCurrentThread();
+                    }
+                });
                 results.add(future.get(timeoutSeconds, TimeUnit.SECONDS));
             } catch (RejectedExecutionException e) {
                 throw new CommonException(ResponseErrorCode.ERROR_TOO_MANY_REQUESTS,
