@@ -63,7 +63,7 @@ public class McpToolCallHandler {
         if (CollectionUtils.isNotEmpty(params)) {
             for (ItemParam param : params) {
                 ObjectNode node = objectMapper.createObjectNode();
-                if (param.getIsArray()) {
+                if (Boolean.TRUE.equals(param.getIsArray())) {
                     rootRequired.add(param.getName());
                     ObjectNode items = objectMapper.createObjectNode();
                     items.put(FN_TYPE, param.getType().getJsType());

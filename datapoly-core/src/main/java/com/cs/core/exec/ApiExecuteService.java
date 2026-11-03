@@ -137,7 +137,7 @@ public class ApiExecuteService {
                 + invalidArgs.stream()
                 .map(
                         p ->
-                                (p.getIsArray() ? I18nUtils.getMessage("api.param.array") : "")
+                                (Boolean.TRUE.equals(p.getIsArray()) ? I18nUtils.getMessage("api.param.array") : "")
                                         + I18nUtils.getMessage("api.param.name", p.getName())
                                         + p.getLocation().getIn())
                 .collect(Collectors.joining(";"));
@@ -155,8 +155,9 @@ public class ApiExecuteService {
             String name = param.getName();
             ParamTypeEnum type = param.getType();
             ParamLocationEnum location = param.getLocation();
-            Boolean isArray = param.getIsArray();
-            Boolean required = param.getRequired();
+            // null-safe: treat a missing flag as false instead of an unboxing NPE
+            boolean isArray = Boolean.TRUE.equals(param.getIsArray());
+            boolean required = Boolean.TRUE.equals(param.getRequired());
             String defaultValue = param.getDefaultValue();
             if (location == ParamLocationEnum.REQUEST_HEADER) {
                 List<Object> hv = Collections.list(request.getHeaders(name))
