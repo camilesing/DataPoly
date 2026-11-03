@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true" scanPeriod="5 seconds">
 
-    <!--定义日志文件的存储地址 勿在 LogBack 的配置中使用相对路径-->
+    <!--日志文件的存储地址：相对 ./logs 随服务工作目录而定（发行版启动脚本统一切到日志目录），如需固定请改为绝对路径-->
     <property name="LOG_HOME" value="./logs"/>
 
     <!-- 控制台输出 -->
@@ -9,6 +9,7 @@
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <!--格式化输出：%d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符-->
             <pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%-5level] [%thread] [%logger{50}] - %msg%n</pattern>
+            <charset>UTF-8</charset>
         </encoder>
     </appender>
 
@@ -22,15 +23,18 @@
             <!--日志文件输出的文件名-->
             <FileNamePattern>${LOG_HOME}/manager_server_%d{yyyy-MM-dd}.log.%i.gz</FileNamePattern>
             <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                <!-- or whenever the file size reaches 100MB -->
+                <!-- 单文件超过 512MB 时触发按大小归档 -->
                 <maxFileSize>512MB</maxFileSize>
             </timeBasedFileNamingAndTriggeringPolicy>
             <!--日志文件保留天数-->
             <MaxHistory>30</MaxHistory>
+            <!--所有归档日志的总大小上限，防止 512MB×N×30 天无界占用磁盘-->
+            <totalSizeCap>10GB</totalSizeCap>
         </rollingPolicy>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <!--格式化输出：%d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符-->
             <pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%-5level] [%thread] [%logger{50}] - %msg%n</pattern>
+            <charset>UTF-8</charset>
         </encoder>
     </appender>
 
