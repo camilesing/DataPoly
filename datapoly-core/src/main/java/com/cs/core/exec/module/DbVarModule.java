@@ -210,7 +210,16 @@ public class DbVarModule implements VarModuleInterface {
         }
         long start = System.currentTimeMillis();
         try {
-            return Arrays.stream(jdbcTemplate.batchUpdate(sqlList.toArray(new String[0]))).sum();
+            int total = 0;
+            // every statement runs the same XmlSqlTemplate pipeline as the single-shot
+            // methods: plain SQL passes through unchanged, #{} becomes a bound parameter,
+            // and ${} literal substitution is subject to the same dollar guard
+            for (String sqlOrXml : sqlList) {
+                XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
+                SqlMeta sqlMeta = processTemplate(template);
+                total += jdbcTemplate.update(sqlMeta.getSql(), sqlMeta.getParameter().toArray());
+            }
+            return total;
         } finally {
             DebugExecuteLogger.add(sqlList.stream().collect(Collectors.joining(";")),
                     Collections.emptyList(), System.currentTimeMillis() - start);
