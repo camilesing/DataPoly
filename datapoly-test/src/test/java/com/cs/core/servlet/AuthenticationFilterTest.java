@@ -4,6 +4,7 @@ package com.cs.core.servlet;
 import com.cs.common.enums.HttpMethodEnum;
 import com.cs.common.exception.CommonException;
 import com.cs.common.exception.ResponseErrorCode;
+import com.cs.common.service.FlowControlLease;
 import com.cs.common.service.FlowControlManger;
 import com.cs.core.datatask.DataTaskTestSupport;
 import com.cs.core.exec.ExecutorMetadataCache;
@@ -131,7 +132,7 @@ public class AuthenticationFilterTest {
                 (p, m, a) -> {
                     if ("checkFlowControl".equals(m.getName())) {
                         flowChecks.incrementAndGet();
-                        return flowAllowed;
+                        return flowAllowed ? (FlowControlLease) () -> { } : null;
                     }
                     if ("hashCode".equals(m.getName())) {
                         return System.identityHashCode(p);
