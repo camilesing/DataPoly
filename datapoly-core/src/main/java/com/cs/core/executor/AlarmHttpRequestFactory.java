@@ -10,6 +10,8 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
+import jakarta.annotation.PreDestroy;
+
 /**
  * HTTP client for the alarm webhook. Uses the JVM default TLS trust store and hostname
  * verification — alarm payloads carry business data and must not be interceptable via a
@@ -43,6 +45,23 @@ public class AlarmHttpRequestFactory extends HttpComponentsClientHttpRequestFact
                 .setDefaultRequestConfig(requestConfig)
                 .build();
         setHttpClient(httpClient);
+    }
+
+    /**
+     * Releases the pooled connections of the wrapped client. The factory is instantiated
+     * inline in several places; for Spring-managed instances (and any holder that honors
+     * {@code @PreDestroy}) this closes the pool on shutdown instead of leaking it —
+     * static holders live until JVM exit either way.
+     */
+    @PreDestroy
+    public void close() {
+        if (getHttpClient() instanceof CloseableHttpClient closeable) {
+            try {
+                closeable.close();
+            } catch (Exception e) {
+                log.warn("Failed to close alarm http client: {}", e.getMessage());
+            }
+        }
     }
 
 }
