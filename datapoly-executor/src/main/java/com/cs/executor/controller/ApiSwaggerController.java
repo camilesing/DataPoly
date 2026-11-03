@@ -42,11 +42,14 @@ public class ApiSwaggerController {
 
     @GetMapping(value = {"/knife4j/swagger-resources"}, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<Map<String, Object>>> getSwaggerResource(HttpServletRequest request) {
+        // context-path aware: a hardcoded "/swagger.json" 404s whenever the executor is
+        // deployed under a non-root context path
+        String swaggerUrl = request.getContextPath() + "/swagger.json";
         Map<String, Object> resources = new HashMap<>();
         resources.put("name", "DataPoly在线接口文档");
-        resources.put("url", "/swagger.json");
+        resources.put("url", swaggerUrl);
         resources.put("swaggerVersion", "3.0");
-        resources.put("location", "/swagger.json");
+        resources.put("location", swaggerUrl);
         return new ResponseEntity<>(Lists.newArrayList(resources), HttpStatus.OK);
     }
 
