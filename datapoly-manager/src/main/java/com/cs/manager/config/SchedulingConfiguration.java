@@ -8,8 +8,6 @@ import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 
-import java.util.concurrent.ThreadPoolExecutor;
-
 @Configuration
 public class SchedulingConfiguration implements SchedulingConfigurer {
 
@@ -18,8 +16,11 @@ public class SchedulingConfiguration implements SchedulingConfigurer {
         ThreadPoolTaskScheduler executor = new ThreadPoolTaskScheduler();
         executor.setPoolSize(10);
         executor.setThreadNamePrefix("scheduler-task-thread-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        executor.initialize();
+        // no manual initialize(): Spring lifecycle initializes the bean once; calling it here
+        // built a second internal executor and leaked the first
+        // graceful shutdown: let running jobs finish on context close instead of dropping them
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         return executor;
     }
 
