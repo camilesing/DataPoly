@@ -40,9 +40,13 @@ public class RedisDistributedCache implements DistributedCache {
         String redisKey = String.format(FORMAT, name, key);
         String redisVal = JSONUtil.toJsonStr(value);
         client.doConsume(jedis -> {
-            jedis.set(redisKey, redisVal);
             if (expire > 0) {
-                jedis.expire(redisKey, unit.toSeconds(expire));
+                // one atomic SET with EX: a crash between SET and EXPIRE used to leave the
+                // key forever; sub-second TTLs round up to 1s instead of truncating to 0
+                long seconds = Math.max(1L, unit.toSeconds(expire));
+                jedis.setex(redisKey, seconds, redisVal);
+            } else {
+                jedis.set(redisKey, redisVal);
             }
         });
     }

@@ -46,6 +46,10 @@ public class HazelcastDistributedCacheTest {
                             ops.add("evict");
                             return store.remove(a[0]) != null;
                         }
+                        if ("remove".equals(m.getName()) && a.length == 1) {
+                            ops.add("remove");
+                            return store.remove(a[0]);
+                        }
                         return null;
                     });
         }
@@ -108,13 +112,15 @@ public class HazelcastDistributedCacheTest {
     }
 
     @Test
-    public void testEvictRemovesKey() {
+    public void testEvictRemovesKeyClusterWide() {
         RecordingMap recording = new RecordingMap();
         recording.store.put("k", "v");
         HazelcastDistributedCache cache = new HazelcastDistributedCache(
                 instance(recording.proxy(), new String[1]), "cache");
         cache.evict("k");
         assertNull(cache.get("k", String.class));
-        assertTrue(recording.ops.contains("evict"));
+        // remove() invalidates cluster-wide; local-only evict() would leave stale values on other members
+        assertTrue(recording.ops.contains("remove"));
+        assertFalse(recording.ops.contains("evict"));
     }
 }
