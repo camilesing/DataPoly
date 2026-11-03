@@ -9,14 +9,17 @@ import com.cs.core.executor.AlarmHttpRequestFactory;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.*;
-import org.springframework.stereotype.Service;
 import org.springframework.util.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Service
+/**
+ * Not a Spring bean on purpose: the builder state below is per script execution.
+ * A shared singleton would let concurrently running scripts corrupt each other's
+ * url/params/headers; {@code ScriptExecutorService} news one instance per run.
+ */
 @NoArgsConstructor
 @Module(HttpModule.VAR_NAME)
 public class HttpModule implements VarModuleInterface {
@@ -31,7 +34,6 @@ public class HttpModule implements VarModuleInterface {
     private Map<String, ?> variables = new HashMap<>();
     private String url;
     private HttpMethod method = HttpMethod.GET;
-    private HttpEntity<Object> entity = null;
     private Object requestBody;
 
     public HttpModule(String url) {
@@ -157,6 +159,9 @@ public class HttpModule implements VarModuleInterface {
 
     @Comment("comment.http.execute")
     public ResponseEntity<?> execute() {
+        // Local target url: keep the configured url pristine so repeated execute() calls
+        // do not stack the query string onto itself
+        String targetUrl = this.url;
         if (!this.params.isEmpty()) {
             String queryString = this.params.entrySet().stream()
                     .map(it -> it.getValue().stream()
@@ -164,16 +169,17 @@ public class HttpModule implements VarModuleInterface {
                             .collect(Collectors.joining("&"))
                     ).collect(Collectors.joining("&"));
             if (StringUtils.isNotBlank(queryString)) {
-                this.url += (this.url.contains("?") ? "&" : "?") + queryString;
+                targetUrl += (targetUrl.contains("?") ? "&" : "?") + queryString;
             }
         }
+        HttpEntity<Object> requestEntity;
         if (!this.data.isEmpty()) {
-            this.entity = new HttpEntity<>(this.data, this.httpHeaders);
-        } else if (this.entity == null && this.requestBody != null) {
-            this.entity = new HttpEntity<>(this.requestBody, this.httpHeaders);
+            requestEntity = new HttpEntity<>(this.data, this.httpHeaders);
+        } else if (this.requestBody != null) {
+            requestEntity = new HttpEntity<>(this.requestBody, this.httpHeaders);
         } else {
-            this.entity = new HttpEntity<>(null, this.httpHeaders);
+            requestEntity = new HttpEntity<>(null, this.httpHeaders);
         }
-        return template.exchange(url, this.method, entity, responseType, variables);
+        return template.exchange(targetUrl, this.method, requestEntity, responseType, variables);
     }
 }
