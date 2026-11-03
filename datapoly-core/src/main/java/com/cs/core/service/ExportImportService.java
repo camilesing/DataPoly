@@ -76,6 +76,10 @@ public class ExportImportService {
         dataSourceModel.setDriver(dataSourceEntity.getDriver());
         dataSourceModel.setUrl(dataSourceEntity.getUrl());
         dataSourceModel.setUsername(dataSourceEntity.getUsername());
+        // Export the password exactly as stored: with DATAPOLY_DS_ENCRYPT=true that is AES
+        // ciphertext (import recreates it 1:1); with encryption disabled the column already
+        // holds the plaintext this deployment considers acceptable. Never decrypt here — the
+        // export file is downloadable and must not carry recoverable credentials.
         dataSourceModel.setPassword(dataSourceEntity.getPassword());
 
         List<String> contextList = new ArrayList<>();
