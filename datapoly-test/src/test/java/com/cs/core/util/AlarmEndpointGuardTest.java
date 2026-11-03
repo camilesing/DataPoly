@@ -64,6 +64,37 @@ public class AlarmEndpointGuardTest {
         // IPv4-mapped forms are judged by the embedded IPv4 address
         assertFalse(endpointAllowed("http://[::ffff:10.0.0.1]/hook"));
         assertFalse(endpointAllowed("http://[::ffff:127.0.0.1]/hook"));
+        // IPv4-compatible and longhand-mapped embeddings of private targets
+        assertFalse(endpointAllowed("http://[::127.0.0.1]/hook"));
+        assertFalse(endpointAllowed("http://[::169.254.169.254]/hook"));
+        assertFalse(endpointAllowed("http://[::a9fe:a9fe]/hook"));
+        assertFalse(endpointAllowed("http://[0:0:0:0:0:ffff:a00:1]/hook"));
+        assertFalse(endpointAllowed("http://[0:0:0:0:0:0:a9fe:a9fe]/hook"));
+    }
+
+    @Test
+    public void alternateIpv4NotationsAreRejected() {
+        assertFalse(endpointAllowed("http://127.1/hook"));
+        assertFalse(endpointAllowed("http://0x7f.0.0.1/hook"));
+        assertFalse(endpointAllowed("http://2130706433/hook"));
+        // partial-quad numerics are not valid URI hosts at all — conservative deny
+        assertFalse(endpointAllowed("http://93.1/hook"));
+        // the JDK parses leading zeros as decimal, so this is 177.0.0.1 for BOTH the guard
+        // and the outbound client — consistent semantics, not a bypass
+        assertTrue(endpointAllowed("http://0177.0.0.1/hook"));
+    }
+
+    @Test
+    public void sharedAndReservedRangesAreRejected() {
+        // 100.64.0.0/10 CGN space
+        assertFalse(endpointAllowed("http://100.64.1.1/hook"));
+        assertFalse(endpointAllowed("http://100.127.255.254/hook"));
+        assertTrue(endpointAllowed("http://100.128.1.1/hook"));
+        // multicast / reserved / broadcast
+        assertFalse(endpointAllowed("http://224.0.0.1/hook"));
+        assertFalse(endpointAllowed("http://239.255.255.254/hook"));
+        assertFalse(endpointAllowed("http://240.0.0.1/hook"));
+        assertFalse(endpointAllowed("http://255.255.255.255/hook"));
     }
 
     @Test
