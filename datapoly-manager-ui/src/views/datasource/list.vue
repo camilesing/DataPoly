@@ -73,7 +73,7 @@
                          show-overflow-tooltip
                          min-width="10%"></el-table-column>
         <el-table-column :label="$t('common.operation')"
-                         min-width="30%">
+                         :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
@@ -352,8 +352,10 @@
 
 <script>
 import databaseIcon from "@/components/databaseIcon/databaseIcon";
+import operationColumn from '@/utils/operationColumn'
 
 export default {
+  mixins: [operationColumn],
   name: "datasource",
   components: {
     databaseIcon

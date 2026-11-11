@@ -264,3 +264,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   one shows; the redirect, the 401/403 predicate and the response normalization are unchanged, nothing is
   cleared from localStorage on expiry, and `$confirm`/`$prompt` are deliberately not wrapped (they ask, never
   repeat).
+
+- 操作 columns are now sized by their buttons instead of by the room the table has, through a
+  shared mixin (`datapoly-manager-ui/src/utils/operationColumn.js`) used by seven tables: interface list,
+  授权分组, 模块配置, 客户应用, MCP 客户端, MCP 工具 and 数据源列表. Element puts every column
+  whose `width` is not a number into its flexible set and hands it a share of the leftover space, so a
+  column declared with `min-width` only has no width of its own: the interface list's grew as the window
+  did (580px at 1440/1920, 650px at 2560, for buttons needing ~510), and the menu pages were worse
+  off because a percentage `min-width` is parsed by `parseInt` as that many **pixels** (35% → 35px),
+  leaving the whole column to the distribution — buttons sat in a wide gap on a big screen and wrapped
+  onto a second line when it shrank. Each operation column now binds `:width="operationColumnWidth"`,
+  measured from the widest row's `el-button-group` after every render (data load, pagination, language
+  switch — English labels are wider and re-render in place) plus the cell's 22px paddings, written back
+  only when it changed by more than 1px so the measure/render loop settles. Buttons keep their text,
+  icons, rounding and grouping. Measured widths (zh / en): interface list 503 / 590 for a page with
+  drafts (six buttons) and 335 / 391 for an all-online one; 授权分组 239 / 267, 模块配置 167 / 175,
+  客户应用 239 / 288, MCP 客户端 239 / 249, MCP 工具 239 / 249, 数据源列表 sizing to its three
+  buttons — identical at 900 and 2560, one line per row throughout. The interface list also stops
+  wrapping its six English buttons, which the old 580px column could not fit.

@@ -50,7 +50,7 @@
                          min-width="15%">
         </el-table-column>
         <el-table-column :label="$t('mcp.operation')"
-                         min-width="35%">
+                         :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
@@ -248,8 +248,10 @@
 </template>
 
 <script>
+import operationColumn from '@/utils/operationColumn'
 
 export default {
+  mixins: [operationColumn],
   name: "client",
   components: {
   },

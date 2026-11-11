@@ -40,7 +40,7 @@
                          show-overflow-tooltip
                          min-width="20%"></el-table-column>
         <el-table-column :label="$t('setting.operation')"
-                         min-width="35%">
+                         :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
@@ -159,8 +159,10 @@
 <script>
 import qs from "qs";
 import Vue from "vue";
+import operationColumn from '@/utils/operationColumn'
 
 export default {
+  mixins: [operationColumn],
   name: "group",
   components: {
   },

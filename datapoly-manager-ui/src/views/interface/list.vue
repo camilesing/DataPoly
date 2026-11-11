@@ -171,9 +171,12 @@
         <el-table-column prop="createTime"
                          :label="$t('interface.createTime')"
                          min-width="180"></el-table-column>
+        <!-- Width comes from utils/operationColumn (measured from the buttons, never from
+             the room the table happens to have); see that mixin for why min-width is wrong
+             here. The buttons themselves are untouched. -->
         <el-table-column :label="$t('common.operation')"
                          fixed="right"
-                         min-width="580">
+                         :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
               <el-button size="small"
@@ -371,7 +374,10 @@
 </template>
 
 <script>
+import operationColumn from '@/utils/operationColumn'
+
 export default {
+  mixins: [operationColumn],
 
   data () {
     return {
