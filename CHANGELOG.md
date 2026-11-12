@@ -282,3 +282,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   客户应用 239 / 288, MCP 客户端 239 / 249, MCP 工具 239 / 249, 数据源列表 sizing to its three
   buttons — identical at 900 and 2560, one line per row throughout. The interface list also stops
   wrapping its six English buttons, which the old 580px column could not fit.
+
+- The interface detail/update page's 路径 field no longer clips the tail of long paths. It takes the whole
+  row instead of half of it, and when it cannot be edited (the detail page and every update page — the path
+  is fixed once the interface exists) it renders as a wrapping read-only field
+  (`isPathEditable` in `datapoly-manager-ui/src/views/interface/common.vue`) instead of a single-line
+  `el-input`, whose prefix slot took a fixed slice and left the rest of the URL behind a horizontal clip.
+  The read-only look mirrors a disabled input (drawn with the theme tokens, so it also holds in the dark
+  theme), the prefix is greyed, and the URL always wraps onto as many lines as it needs. The interface
+  fields below it were re-flowed accordingly: 方法/类型, 名称/模块, 授权, 描述.

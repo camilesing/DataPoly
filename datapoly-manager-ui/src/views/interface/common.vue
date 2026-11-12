@@ -378,22 +378,33 @@
               <el-tab-pane :label="$t('common2.interfaceConfig')"
                            name="detail">
                 <el-row>
-                  <el-col :span="12">
+                  <!-- The path is the longest value on this tab and the first thing a narrow
+                       screen loses: a single-line input (with the prefix taking a fixed slice)
+                       clips its tail. It gets the whole row, and once it can no longer be
+                       edited it is rendered as a wrapping read-only field instead of an input,
+                       so the full URL is always readable. -->
+                  <el-col :span="24">
                     <el-form-item :label="$t('common2.path')"
                                   label-width="65px"
-                                  style="width:80%"
                                   :required=true
                                   prop="path">
-                      <el-input v-model="createParam.path"
-                                :disabled="isOnlyShowDetail || $route.query.id>0">
+                      <div v-if="!isPathEditable"
+                           class="interface-path-readonly">
+                        <span class="interface-path-readonly__prefix">{{ gatewayApiPrefix }}</span>
+                        <span class="interface-path-readonly__value">{{ createParam.path || '' }}</span>
+                      </div>
+                      <el-input v-else
+                                v-model="createParam.path">
                         <template slot="prepend">{{gatewayApiPrefix}}</template>
                       </el-input>
                     </el-form-item>
                   </el-col>
+                </el-row>
+                <el-row>
                   <el-col :span="12">
                     <el-form-item :label="$t('common2.method')"
                                   label-width="65px"
-                                  style="width:50%"
+                                  style="width:80%"
                                   :required=true
                                   prop="method">
                       <el-select v-model="createParam.method"
@@ -410,19 +421,6 @@
                                    value="DELETE"
                                    :disabled="createParam.engine==='GRAPHQL'"></el-option>
                       </el-select>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-                <el-row>
-                  <el-col :span="12">
-                    <el-form-item :label="$t('mcp.name')"
-                                  label-width="65px"
-                                  :required=true
-                                  prop="name">
-                      <el-input v-model="createParam.name"
-                                auto-complete="off"
-                                style="width:75%"
-                                :disabled="isOnlyShowDetail"></el-input>
                     </el-form-item>
                   </el-col>
                   <el-col :span="12">
@@ -443,6 +441,17 @@
                 </el-row>
                 <el-row>
                   <el-col :span="12">
+                    <el-form-item :label="$t('mcp.name')"
+                                  label-width="65px"
+                                  style="width:80%"
+                                  :required=true
+                                  prop="name">
+                      <el-input v-model="createParam.name"
+                                auto-complete="off"
+                                :disabled="isOnlyShowDetail"></el-input>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
                     <el-form-item :label="$t('common2.module')"
                                   label-width="65px"
                                   :required=true
@@ -458,6 +467,8 @@
                       </el-select>
                     </el-form-item>
                   </el-col>
+                </el-row>
+                <el-row>
                   <el-col :span="12">
                     <el-form-item :label="$t('common2.auth')"
                                   label-width="65px"
@@ -959,6 +970,16 @@ export default {
     isOnlyShowDetail: {
       type: Boolean,
       default: false
+    }
+  },
+  computed: {
+    /**
+     * The path can only be typed while creating an interface; on the detail page and once
+     * the interface exists (update) it is fixed, so it is shown as a wrapping read-only
+     * field rather than a single-line input that clips long paths on small screens.
+     */
+    isPathEditable () {
+      return !this.isOnlyShowDetail && !this.isUpdatePage();
     }
   },
   components: { multiSqlEditer, scriptEditer, graphqlEditer, JsonViewer },
@@ -2387,5 +2408,26 @@ export default {
 }
 .debug-console-log-text {
   white-space: pre-line;
+}
+
+/* Read-only look of a disabled input, except the value wraps over as many lines as it
+   needs instead of running off the right edge (the path's tail used to be clipped). */
+.interface-path-readonly {
+  min-height: 28px;
+  padding: 3px 10px;
+  background-color: var(--dp-bg-inset);
+  border: 1px solid var(--dp-border-strong);
+  border-radius: 4px;
+  color: var(--dp-text-secondary);
+  font-family: Menlo, Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 20px;
+  word-break: break-all;
+  white-space: normal;
+  user-select: text;
+}
+
+.interface-path-readonly__prefix {
+  color: var(--dp-text-muted);
 }
 </style>
