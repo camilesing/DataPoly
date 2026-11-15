@@ -23,6 +23,7 @@ public final class DateTimeSerDesFactory {
 
         DATE_TIME_SER_MAP.put(DataTypeFormatEnum.TIMESTAMP, TimestampValueSerializer::new);
         DATE_TIME_SER_MAP.put(DataTypeFormatEnum.LOCAL_DATE_TIME, LocalDateTimeValueSerializer::new);
+        DATE_TIME_SER_MAP.put(DataTypeFormatEnum.INSTANT, InstantValueSerializer::new);
 
         DATE_TIME_SER_MAP.put(DataTypeFormatEnum.BIG_DECIMAL, NumberValueSerializer::new);
     }

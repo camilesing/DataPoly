@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core;
 
+import com.cs.common.dto.ResultEntity;
 import com.cs.common.enums.DataTypeFormatEnum;
 import com.cs.core.util.JacksonUtils;
 import com.fasterxml.jackson.databind.*;
 import org.junit.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class JacksonUtilsTest {
@@ -33,6 +36,58 @@ public class JacksonUtilsTest {
         result.put("created", LocalDateTime.of(2026, 8, 25, 10, 15, 30));
         String json = JacksonUtils.toJsonStr(result, formatMap);
         Assert.assertEquals("{\"created\":\"2026/08/25 10:15:30\"}", json);
+    }
+
+    /**
+     * Some JDBC drivers return an Instant for timestamp columns. It used to blow up the whole
+     * response with "Java 8 date/time type `java.time.Instant` not supported by default".
+     */
+    @Test
+    public void testToJsonStrSupportsInstantWithDefaultPattern() {
+        Instant eventTime = Instant.parse("2026-11-10T07:02:05Z");
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("eventTime", eventTime);
+
+        String json = JacksonUtils.toJsonStr(result, Collections.emptyMap());
+
+        Assert.assertEquals("{\"eventTime\":\"" + formatInstant(eventTime, "yyyy-MM-dd HH:mm:ss") + "\"}",
+                json);
+    }
+
+    @Test
+    public void testToJsonStrSupportsInstantWithConfiguredPattern() {
+        Map<DataTypeFormatEnum, String> formatMap = new HashMap<>();
+        formatMap.put(DataTypeFormatEnum.INSTANT, "yyyy/MM/dd HH:mm:ss");
+        Instant eventTime = Instant.parse("2026-11-10T07:02:05Z");
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("eventTime", eventTime);
+
+        String json = JacksonUtils.toJsonStr(result, formatMap);
+
+        Assert.assertEquals("{\"eventTime\":\"" + formatInstant(eventTime, "yyyy/MM/dd HH:mm:ss") + "\"}",
+                json);
+    }
+
+    /** The production failure shape: Instant buried in ResultEntity.data.answer[0].eventTime. */
+    @Test
+    public void testToJsonStrSupportsInstantInsideResultEntityAnswer() {
+        Instant eventTime = Instant.parse("2026-11-10T07:02:05Z");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("eventTime", eventTime);
+        Map<String, Object> data = new HashMap<>();
+        data.put("answer", new ArrayList<>(Collections.singletonList(row)));
+
+        String json = JacksonUtils.toJsonStr(ResultEntity.success(data), Collections.emptyMap());
+
+        Assert.assertEquals("{\"code\":0,\"message\":\"success\",\"data\":{\"answer\":[{\"eventTime\":\""
+                + formatInstant(eventTime, "yyyy-MM-dd HH:mm:ss") + "\"}]}}", json);
+    }
+
+    /** Formats in the JSON serialization timezone, without pinning the test JVM's zone. */
+    private static String formatInstant(Instant instant, String pattern) {
+        return DateTimeFormatter.ofPattern(pattern)
+                .withZone(TimeZone.getTimeZone(JacksonUtils.getTimezone()).toZoneId())
+                .format(instant);
     }
 
     @Test

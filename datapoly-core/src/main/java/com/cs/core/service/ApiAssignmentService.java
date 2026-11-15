@@ -331,17 +331,21 @@ public class ApiAssignmentService {
                 .elapsedMs(System.currentTimeMillis() - startedAt)
                 .build());
 
-        response.setStatus(HttpServletResponse.SC_OK);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(Charsets.UTF_8.name());
-
         Map<DataTypeFormatEnum, String> formatMap = request.getFormatMap().stream()
                 .collect(
                         Collectors.toMap(
                                 DataTypeFormatMapValue::getKey,
                                 DataTypeFormatMapValue::getValue,
                                 (a, b) -> a));
-        response.getWriter().append(JacksonUtils.toJsonStr(entity, formatMap));
+        // Serialize before touching the writer: if a value cannot be serialized, the exception handler
+        // still gets a clean response. Calling response.getWriter() first made the handler's
+        // getOutputStream() fail ("getWriter() has already been called") and hid the real error.
+        String json = JacksonUtils.toJsonStr(entity, formatMap);
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(Charsets.UTF_8.name());
+        response.getWriter().append(json);
     }
 
     public Long createAssignment(ApiAssignmentSaveRequest request) {

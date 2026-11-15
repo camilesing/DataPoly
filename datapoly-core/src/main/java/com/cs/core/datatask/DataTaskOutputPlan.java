@@ -8,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
@@ -180,7 +181,11 @@ public class DataTaskOutputPlan {
                 return format.format((java.util.Date) value);
             }
             if (value instanceof TemporalAccessor) {
-                return TEMPORAL_FORMATTERS.computeIfAbsent(pattern, DateTimeFormatter::ofPattern)
+                // A zone-less point in time (Instant, returned by some JDBC drivers for timestamp
+                // columns) has no wall-clock fields of its own; format it in the JVM zone, the same
+                // semantics the java.util.Date branch above uses for Timestamp.
+                return TEMPORAL_FORMATTERS.computeIfAbsent(pattern,
+                                p -> DateTimeFormatter.ofPattern(p).withZone(ZoneId.systemDefault()))
                         .format((TemporalAccessor) value);
             }
         } catch (Exception ignore) {

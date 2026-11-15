@@ -189,6 +189,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- API responses no longer die with `Java 8 date/time type 'java.time.Instant' not supported by default` when a
+  timestamp value reaches the JSON serializer as an `Instant` (some JDBC drivers return that type from
+  `getObject` instead of `java.sql.Timestamp`; the reported case was `SELECT … event_time … FROM
+  ads_risk_event_result`). `JacksonUtils` is the single JSON serializer behind the config debug endpoint, the
+  online API servlet and the MCP tools, and its module covered `java.sql.Date/Time/Timestamp` plus
+  `LocalDate/LocalDateTime` but not `Instant` — so the whole response threw and the client got no JSON at all (the
+  trailing `getWriter() has already been called` warning was `ApiAssignmentService.debugExecute` having asked for
+  the writer before serializing, which left `ExceptionController` unable to write its error body).
+  `DataTypeFormatEnum` gained `INSTANT` (default `yyyy-MM-dd HH:mm:ss`, configurable in the response-format table
+  like the other temporal types), `InstantValueSerializer` renders it in `JSON_TIMEZONE` exactly like `Timestamp`,
+  and `parseValueType` reports such cells as TIME instead of falling back to STRING. Export stringification
+  applies the pattern in the same system-default zone the `java.util.Date` branch uses rather than falling
+  through to `String.valueOf` (a UTC ISO string). `debugExecute` now serializes before touching the response
+  writer, so any future serialization failure still reaches `ExceptionController` as a normal error body. Pinned
+  by `JacksonUtilsTest` (default and configured patterns, plus the exact `ResultEntity.data.answer[0].eventTime`
+  shape) and a `DataTaskOutputPlanTest` case for `Instant` cells.
 - Data task streaming memory and completeness: the single statement now executes
   in an explicit transaction (auto-commit restored when handing the connection
   back, DML committed first) so PostgreSQL-family drivers — including Hologres —

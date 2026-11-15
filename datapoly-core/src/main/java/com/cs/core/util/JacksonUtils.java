@@ -180,7 +180,8 @@ public final class JacksonUtils {
             return ParamTypeEnum.LONG;
         } else if (value instanceof Number) {
             return ParamTypeEnum.DOUBLE;
-        } else if (value instanceof Time || value instanceof Timestamp || value instanceof LocalDateTime) {
+        } else if (value instanceof Time || value instanceof Timestamp || value instanceof LocalDateTime
+                || value instanceof Instant) {
             return ParamTypeEnum.TIME;
         } else if (value instanceof Date || value instanceof LocalDate) {
             return ParamTypeEnum.DATE;

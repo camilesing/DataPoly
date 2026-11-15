@@ -8,6 +8,7 @@ import org.junit.Test;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -85,6 +86,25 @@ public class DataTaskOutputPlanTest {
         DataTaskOutputPlan off = DataTaskOutputPlan.resolve(
                 Collections.singletonList("d"), Collections.emptyMap(), Collections.emptyList(), false, formats);
         Assert.assertSame(now, off.project(new Object[]{now})[0]);
+    }
+
+    /**
+     * Instant carries no wall-clock fields of its own, so the pattern must be applied in the same
+     * zone the java.util.Date branch uses; formatting it bare used to fall back to String.valueOf
+     * and emit an ISO-8601 UTC string.
+     */
+    @Test
+    public void stringifyFormatsInstantInTheSystemZone() {
+        Map<DataTypeFormatEnum, String> formats = new LinkedHashMap<>();
+        formats.put(DataTypeFormatEnum.INSTANT, "yyyy*MM*dd HH|mm|ss");
+        Instant instant = Instant.parse("2026-11-10T07:02:05Z");
+
+        DataTaskOutputPlan plan = DataTaskOutputPlan.resolve(
+                Collections.singletonList("t"), Collections.emptyMap(), Collections.emptyList(), true, formats);
+
+        Object out = plan.project(new Object[]{instant})[0];
+        Assert.assertEquals(new SimpleDateFormat("yyyy*MM*dd HH|mm|ss").format(new Date(instant.toEpochMilli())),
+                out);
     }
 
     @Test

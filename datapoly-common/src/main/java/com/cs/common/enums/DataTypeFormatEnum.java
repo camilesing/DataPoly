@@ -13,6 +13,8 @@ public enum DataTypeFormatEnum {
 
     LOCAL_DATE_TIME(java.time.LocalDateTime.class.getName(), DatePattern.NORM_DATETIME_PATTERN),
     TIMESTAMP(java.sql.Timestamp.class.getName(), DatePattern.NORM_DATETIME_PATTERN),
+    // Some JDBC drivers hand back an Instant for timestamp columns instead of java.sql.Timestamp
+    INSTANT(java.time.Instant.class.getName(), DatePattern.NORM_DATETIME_PATTERN),
 
     BIG_DECIMAL(java.math.BigDecimal.class.getName(), 6),
 
