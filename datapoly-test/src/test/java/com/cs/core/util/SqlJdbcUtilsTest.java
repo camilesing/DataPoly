@@ -32,6 +32,12 @@ public class SqlJdbcUtilsTest {
             this.productName = productName;
         }
 
+        /** Columns whose ResultSet.getObject() blows up: the row must keep a null for them. */
+        final Set<String> getObjectFailures = new HashSet<>();
+
+        /** Simulates a driver whose metadata call fails: isMySqlConnection must fall back to false. */
+        boolean metaDataThrows;
+
         Connection connection() {
             return (Connection) Proxy.newProxyInstance(FakeJdbc.class.getClassLoader(),
                     new Class<?>[]{Connection.class}, this::dispatch);
@@ -120,6 +126,9 @@ public class SqlJdbcUtilsTest {
                                 }
                                 return false;
                             case "getObject":
+                                if (getObjectFailures.contains(String.valueOf(args[0]))) {
+                                    throw new SQLException("getObject failed for " + args[0]);
+                                }
                                 return current[0].get(String.valueOf(args[0]));
                             default:
                                 return defaultValue(method.getReturnType());
@@ -154,6 +163,9 @@ public class SqlJdbcUtilsTest {
                     (proxy, method, args) -> {
                         String name = method.getName();
                         if ("getDatabaseProductName".equals(name)) {
+                            if (metaDataThrows) {
+                                throw new SQLException("metadata unavailable");
+                            }
                             return productName;
                         }
                         if ("hashCode".equals(name)) {
@@ -199,6 +211,43 @@ public class SqlJdbcUtilsTest {
                 });
     }
 
+    /** A Clob reporting a broken length: conversion must collapse to null instead of throwing. */
+    private Object brokenClob() {
+        return Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{Clob.class},
+                (p, m, a) -> {
+                    if ("length".equals(m.getName())) {
+                        throw new SQLException("clob length failed");
+                    }
+                    if ("hashCode".equals(m.getName())) {
+                        return System.identityHashCode(p);
+                    }
+                    if ("equals".equals(m.getName())) {
+                        return p == a[0];
+                    }
+                    return null;
+                });
+    }
+
+    /** A Clob with a negative length: treated as "no data" and converts to null. */
+    private Object negativeLengthClob() {
+        return Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{Clob.class},
+                (p, m, a) -> {
+                    if ("length".equals(m.getName())) {
+                        return -1L;
+                    }
+                    if ("getSubString".equals(m.getName())) {
+                        return "";
+                    }
+                    if ("hashCode".equals(m.getName())) {
+                        return System.identityHashCode(p);
+                    }
+                    if ("equals".equals(m.getName())) {
+                        return p == a[0];
+                    }
+                    return null;
+                });
+    }
+
     private Object blob(final byte[] bytes) {
         return Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{Blob.class},
                 (p, m, a) -> {
@@ -207,6 +256,43 @@ public class SqlJdbcUtilsTest {
                     }
                     if ("getBytes".equals(m.getName())) {
                         return bytes;
+                    }
+                    if ("hashCode".equals(m.getName())) {
+                        return System.identityHashCode(p);
+                    }
+                    if ("equals".equals(m.getName())) {
+                        return p == a[0];
+                    }
+                    return null;
+                });
+    }
+
+    /** A Blob reporting a broken length: conversion must collapse to null instead of throwing. */
+    private Object brokenBlob() {
+        return Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{Blob.class},
+                (p, m, a) -> {
+                    if ("length".equals(m.getName())) {
+                        throw new SQLException("blob length failed");
+                    }
+                    if ("hashCode".equals(m.getName())) {
+                        return System.identityHashCode(p);
+                    }
+                    if ("equals".equals(m.getName())) {
+                        return p == a[0];
+                    }
+                    return null;
+                });
+    }
+
+    /** A Blob with a negative length: treated as "no data" and converts to null. */
+    private Object negativeLengthBlob() {
+        return Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{Blob.class},
+                (p, m, a) -> {
+                    if ("length".equals(m.getName())) {
+                        return -1L;
+                    }
+                    if ("getBytes".equals(m.getName())) {
+                        return new byte[0];
                     }
                     if ("hashCode".equals(m.getName())) {
                         return System.identityHashCode(p);
@@ -380,5 +466,127 @@ public class SqlJdbcUtilsTest {
                 new ArrayList<>(Arrays.asList("x", 42)));
         SqlJdbcUtils.execute(ProductTypeEnum.SQLSERVER, jdbc.connection(), meta, null, 1, 10, false, false);
         assertEquals(Arrays.asList("x", 42), jdbc.boundParams);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testBrokenClobConvertsToNull() throws SQLException {
+        FakeJdbc jdbc = new FakeJdbc("FakeDB");
+        jdbc.columns = Collections.singletonList("TXT");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("TXT", brokenClob());
+        jdbc.rows = Collections.singletonList(row);
+
+        SqlMeta meta = new SqlMeta("SELECT TXT FROM t", new ArrayList<Object>());
+        List<Map<String, Object>> result = (List<Map<String, Object>>) SqlJdbcUtils.execute(
+                ProductTypeEnum.POSTGRESQL, jdbc.connection(), meta, null, 1, 10, false, false);
+
+        assertTrue(result.get(0).containsKey("TXT"));
+        assertNull(result.get(0).get("TXT"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testNegativeLengthClobConvertsToNull() throws SQLException {
+        FakeJdbc jdbc = new FakeJdbc("FakeDB");
+        jdbc.columns = Collections.singletonList("TXT");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("TXT", negativeLengthClob());
+        jdbc.rows = Collections.singletonList(row);
+
+        SqlMeta meta = new SqlMeta("SELECT TXT FROM t", new ArrayList<Object>());
+        List<Map<String, Object>> result = (List<Map<String, Object>>) SqlJdbcUtils.execute(
+                ProductTypeEnum.POSTGRESQL, jdbc.connection(), meta, null, 1, 10, false, false);
+
+        assertNull(result.get(0).get("TXT"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testBrokenAndNegativeLengthBlobsConvertToNull() throws SQLException {
+        FakeJdbc jdbc = new FakeJdbc("FakeDB");
+        jdbc.columns = Arrays.asList("BIN1", "BIN2");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("BIN1", brokenBlob());
+        row.put("BIN2", negativeLengthBlob());
+        jdbc.rows = Collections.singletonList(row);
+
+        SqlMeta meta = new SqlMeta("SELECT BIN1, BIN2 FROM t", new ArrayList<Object>());
+        List<Map<String, Object>> result = (List<Map<String, Object>>) SqlJdbcUtils.execute(
+                ProductTypeEnum.POSTGRESQL, jdbc.connection(), meta, null, 1, 10, false, false);
+
+        assertNull(result.get(0).get("BIN1"));
+        assertNull(result.get(0).get("BIN2"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testNonJsonArrayAndStructFallBackToTheRawValue() throws SQLException {
+        FakeJdbc jdbc = new FakeJdbc("Http");
+        jdbc.columns = Arrays.asList("ARR", "STRUCT");
+        Map<String, Object> row = new LinkedHashMap<>();
+        Object rawArray = array("[not, json");
+        Object rawStruct = struct("{not json");
+        row.put("ARR", rawArray);
+        row.put("STRUCT", rawStruct);
+        jdbc.rows = Collections.singletonList(row);
+
+        SqlMeta meta = new SqlMeta("SELECT ARR, STRUCT FROM t", new ArrayList<Object>());
+        List<Map<String, Object>> result = (List<Map<String, Object>>) SqlJdbcUtils.execute(
+                ProductTypeEnum.HTTP, jdbc.connection(), meta, null, 1, 10, false, false);
+
+        // unparsable payloads are handed back untouched instead of dropping the column
+        assertSame(rawArray, result.get(0).get("ARR"));
+        assertSame(rawStruct, result.get(0).get("STRUCT"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testGetObjectFailureKeepsColumnWithNullValue() throws SQLException {
+        FakeJdbc jdbc = new FakeJdbc("FakeDB");
+        jdbc.columns = Arrays.asList("OK", "BAD");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("OK", "value");
+        row.put("BAD", "dropped");
+        jdbc.rows = Collections.singletonList(row);
+        jdbc.getObjectFailures.add("BAD");
+
+        SqlMeta meta = new SqlMeta("SELECT OK, BAD FROM t", new ArrayList<Object>());
+        List<Map<String, Object>> result = (List<Map<String, Object>>) SqlJdbcUtils.execute(
+                ProductTypeEnum.POSTGRESQL, jdbc.connection(), meta, null, 1, 10, false, false);
+
+        // the failed column stays present but null; the healthy column is untouched
+        assertEquals("value", result.get(0).get("OK"));
+        assertTrue(result.get(0).containsKey("BAD"));
+        assertNull(result.get(0).get("BAD"));
+    }
+
+    @Test
+    public void testPrintSqlLogFlagDoesNotBreakExecution() throws SQLException {
+        FakeJdbc jdbc = new FakeJdbc("MySQL");
+        jdbc.columns = Collections.singletonList("ID");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("ID", 1);
+        jdbc.rows = Collections.singletonList(row);
+
+        SqlMeta meta = new SqlMeta("SELECT ID FROM t", new ArrayList<Object>());
+        Object result = SqlJdbcUtils.execute(ProductTypeEnum.MYSQL, jdbc.connection(), meta,
+                null, 1, 10, false, true);
+
+        assertEquals(Collections.singletonList(Collections.singletonMap("ID", 1)), result);
+    }
+
+    @Test
+    public void testMetaDataFailureIsTreatedAsNonMySqlConnection() throws SQLException {
+        FakeJdbc jdbc = new FakeJdbc("MySQL");
+        jdbc.metaDataThrows = true;
+        jdbc.columns = Collections.emptyList();
+        jdbc.rows = Collections.emptyList();
+
+        SqlMeta meta = new SqlMeta("SELECT * FROM t", new ArrayList<Object>());
+        SqlJdbcUtils.execute(ProductTypeEnum.MYSQL, jdbc.connection(), meta, null, 1, 10, false, false);
+
+        // detection failed -> not the MySQL streaming path -> fetch size 0 for a non-paged query
+        assertEquals(0, jdbc.fetchSize);
     }
 }

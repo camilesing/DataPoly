@@ -108,6 +108,50 @@ public class DataTaskOutputPlanTest {
     }
 
     @Test
+    public void resolveEdgesNullOrderEntryNullFormatsAndSystemKey() {
+        // a null order entry is ignored like an unknown one
+        DataTaskOutputPlan nullEntry = DataTaskOutputPlan.resolve(
+                Arrays.asList("a", "b"), Collections.emptyMap(),
+                Arrays.asList("a", null, "b"), false, Collections.emptyMap());
+        Assert.assertEquals(Arrays.asList("a", "b"), nullEntry.getOutputColumns());
+
+        // stringify on but formats null: no rules, cells pass through untouched
+        DataTaskOutputPlan noFormats = DataTaskOutputPlan.resolve(
+                Collections.singletonList("t"), null, null, true, null);
+        Timestamp ts = new Timestamp(1260000000000L);
+        Assert.assertSame(ts, noFormats.project(new Object[]{ts})[0]);
+
+        // USE_SYSTEM_RESPONSE_FORMAT never becomes a rule; blank pattern falls back to the
+        // enum default, and a rule whose class does not match the value is skipped
+        Map<DataTypeFormatEnum, String> formats = new LinkedHashMap<>();
+        formats.put(DataTypeFormatEnum.USE_SYSTEM_RESPONSE_FORMAT, "ignored");
+        formats.put(DataTypeFormatEnum.DATE, "");
+        formats.put(DataTypeFormatEnum.TIMESTAMP, "HH:mm:ss");
+        DataTaskOutputPlan plan = DataTaskOutputPlan.resolve(
+                Collections.singletonList("v"), null, null, true, formats);
+        // Timestamp is not a java.sql.Date: the DATE rule is passed over, TIMESTAMP applies
+        Assert.assertEquals("HH:mm:ss", new SimpleDateFormat("HH:mm:ss").format(ts),
+                plan.project(new Object[]{ts})[0]);
+
+        // blank pattern on the matching rule uses the enum default pattern
+        Map<DataTypeFormatEnum, String> blank = new LinkedHashMap<>();
+        blank.put(DataTypeFormatEnum.DATE, "   ");
+        DataTaskOutputPlan defaulted = DataTaskOutputPlan.resolve(
+                Collections.singletonList("d"), null, null, true, blank);
+        java.sql.Date date = java.sql.Date.valueOf("2026-11-16");
+        Assert.assertEquals("2026-11-16", defaulted.project(new Object[]{date})[0]);
+    }
+
+    @Test
+    public void stringifyLeavesNullCellsNull() {
+        Map<DataTypeFormatEnum, String> formats = new LinkedHashMap<>();
+        formats.put(DataTypeFormatEnum.TIMESTAMP, "yyyy-MM-dd");
+        DataTaskOutputPlan plan = DataTaskOutputPlan.resolve(
+                Collections.singletonList("t"), null, null, true, formats);
+        Assert.assertNull(plan.project(new Object[]{null})[0]);
+    }
+
+    @Test
     public void selectProjectsParallelPerColumnListsInTheShapedOrder() {
         DataTaskOutputPlan plan = DataTaskOutputPlan.resolve(
                 Arrays.asList("a", "b", "c"), Collections.emptyMap(),

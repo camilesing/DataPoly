@@ -81,4 +81,16 @@ public class JarFileClassLoaderTest {
             assertTrue(expected.getMessage().contains("No jar file found"));
         }
     }
+
+    @Test
+    public void testRegularFilePathIsSkippedAsNonDirectory() throws IOException {
+        // a path naming a plain file exists but is no directory: it contributes no jars
+        Path file = Files.createTempFile("jarloader-plain", ".txt");
+        try {
+            new JarFileClassLoader(file.toString(), getClass().getClassLoader());
+            fail("a regular file path must raise No jar file found");
+        } catch (RuntimeException expected) {
+            assertTrue(expected.getMessage().contains("No jar file found"));
+        }
+    }
 }

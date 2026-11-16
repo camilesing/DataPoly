@@ -25,4 +25,10 @@ public class CacheUtilsTest {
         assertNull(CacheUtils.get("b"));
         assertTrue(CacheUtils.getAll().isEmpty());
     }
+
+    @Test
+    public void testUtilityConstructorIsCallable() throws Exception {
+        // final utility class with the implicit default constructor: instantiate once
+        assertNotNull(CacheUtils.class.getDeclaredConstructor().newInstance());
+    }
 }

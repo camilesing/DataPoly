@@ -138,6 +138,32 @@ public class SimpleDataSourceTest {
     }
 
     @Test
+    public void testGetConnectionWithNullCredentialsFallsBackToDefaults() throws SQLException {
+        SimpleDataSource ds = newDataSource();
+        FakeDriver.next = fakeConnection();
+
+        ds.getConnection(null, null);
+        assertEquals("default-user", FakeDriver.lastInfo.getProperty("user"));
+        assertEquals("default-pass", FakeDriver.lastInfo.getProperty("password"));
+    }
+
+    @Test
+    public void testGetConnectionMirrorsUsernameKeyWhenPresent() throws SQLException {
+        // drivers that read the legacy "username" key get the override mirrored
+        Properties props = new Properties();
+        props.setProperty("username", "original");
+        SimpleDataSource ds = new SimpleDataSource(getClass().getClassLoader(), "jdbc:fake://host:1234/db",
+                FakeDriver.class.getName(), "default-user", "default-pass", props);
+        FakeDriver.next = fakeConnection();
+
+        ds.getConnection("override-user", "override-pass");
+        assertEquals("override-user", FakeDriver.lastInfo.getProperty("user"));
+        assertEquals("override-user", FakeDriver.lastInfo.getProperty("username"));
+        // the base properties object keeps its original entry
+        assertEquals("original", ds.getProperties().getProperty("username"));
+    }
+
+    @Test
     public void testNullConnectionFromDriverRaisesSqlException() {
         SimpleDataSource ds = newDataSource();
         FakeDriver.next = null;

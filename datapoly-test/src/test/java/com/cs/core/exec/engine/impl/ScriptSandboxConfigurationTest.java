@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.exec.engine.impl;
 
+import cn.hutool.extra.spring.SpringUtil;
 import groovy.lang.*;
 import org.junit.*;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.Callable;
 
 /**
  * Script sandbox and timeout test (S1): blacklisted capabilities are rejected at compile time, normal scripts still work,
@@ -141,6 +146,235 @@ public class ScriptSandboxConfigurationTest {
         worker.join(5000);
         Assert.assertFalse("worker should terminate after interrupt", worker.isAlive());
         Assert.assertNull("infinite loop should not finish normally", failure.get());
+    }
+
+    // ------------------------------------------------------------------ cache/DCL branches
+
+    private static Object readStatic(String fieldName) throws Exception {
+        Field field = ScriptSandboxConfiguration.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(null);
+    }
+
+    private static void writeStatic(String fieldName, Object value) throws Exception {
+        Field field = ScriptSandboxConfiguration.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(null, value);
+    }
+
+    /**
+     * Drives the second (inside-lock) null check of the double-checked caches: the worker
+     * passes the outer check while the monitor is held by this thread, the cached value is
+     * installed from outside while the worker still waits on the monitor, so the worker
+     * must take the already-cached value instead of recomputing.
+     */
+    private static void assertSecondLockCheckSeesTheCachedValue(
+            String fieldName, Object clearedValue, Object cachedValue, Callable<Object> reader)
+            throws Exception {
+        Object original = readStatic(fieldName);
+        writeStatic(fieldName, clearedValue);
+        try {
+            AtomicReference<Object> observed = new AtomicReference<>();
+            AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+            Thread worker = new Thread(() -> {
+                try {
+                    observed.set(reader.call());
+                } catch (Throwable t) {
+                    workerFailure.set(t);
+                }
+            }, "dcl-worker");
+            // hold the class monitor so the worker blocks after passing the outer null check
+            synchronized (ScriptSandboxConfiguration.class) {
+                worker.start();
+                long deadline = System.currentTimeMillis() + 5000L;
+                while (worker.getState() != Thread.State.BLOCKED
+                        && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(10L);
+                }
+                Assert.assertEquals("worker must be parked on the class monitor",
+                        Thread.State.BLOCKED, worker.getState());
+                writeStatic(fieldName, cachedValue);
+            }
+            worker.join(5000L);
+            Assert.assertNull("worker must not fail: " + workerFailure.get(), workerFailure.get());
+            Assert.assertEquals("the pre-cached value must be reused", cachedValue, observed.get());
+        } finally {
+            writeStatic(fieldName, original);
+        }
+    }
+
+    @Test
+    public void enabledFlagSecondLockCheckReusesTheCachedValue() throws Exception {
+        assertSecondLockCheckSeesTheCachedValue("sandboxEnabled", null, Boolean.FALSE,
+                (Callable<Object>) ScriptSandboxConfiguration::isSandboxEnabled);
+    }
+
+    @Test
+    public void timeoutSecondLockCheckReusesTheCachedValue() throws Exception {
+        assertSecondLockCheckSeesTheCachedValue("timeoutSeconds", null, 17L,
+                (Callable<Object>) ScriptSandboxConfiguration::getScriptTimeoutSeconds);
+    }
+
+    @Test
+    public void runtimeGuardSecondLockCheckSkipsReinstallation() throws Exception {
+        Method install = ScriptSandboxConfiguration.class.getDeclaredMethod("installRuntimeGuards");
+        install.setAccessible(true);
+        // original flag state is restored by the helper; the worker skips the guard scripts
+        // because the flag flips to true while it waits on the monitor
+        assertSecondLockCheckSeesTheCachedValue("runtimeCommandGuardInstalled",
+                Boolean.FALSE, Boolean.TRUE,
+                (Callable<Object>) () -> {
+                    install.invoke(null);
+                    return Boolean.TRUE;
+                });
+    }
+
+    @Test
+    public void createGroovyShellWithoutSandboxBuildsAPlainShell() throws Exception {
+        Object original = readStatic("sandboxEnabled");
+        writeStatic("sandboxEnabled", Boolean.FALSE);
+        try {
+            GroovyShell plain = ScriptSandboxConfiguration.createGroovyShell(new Binding());
+            // a blacklisted reference compiles fine when the sandbox is switched off
+            Assert.assertNotNull(plain.parse("System.exit(0)"));
+            Assert.assertEquals(Integer.valueOf(3), (Integer) plain.evaluate("1+2"));
+        } finally {
+            writeStatic("sandboxEnabled", original);
+        }
+    }
+
+    @Test
+    public void blankPropertyValuesFallBackToTheDefaults() throws Exception {
+        Object environment = Proxy.newProxyInstance(
+                ScriptSandboxConfigurationTest.class.getClassLoader(),
+                new Class<?>[]{org.springframework.core.env.Environment.class},
+                (proxy, method, args) -> {
+                    if ("getProperty".equals(method.getName()) && null != args && args.length >= 1) {
+                        return "   "; // blank: must be treated as unset
+                    }
+                    if ("hashCode".equals(method.getName())) {
+                        return System.identityHashCode(proxy);
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "blankEnvironment";
+                    }
+                    return null;
+                });
+        Object beanFactory = Proxy.newProxyInstance(
+                ScriptSandboxConfigurationTest.class.getClassLoader(),
+                new Class<?>[]{org.springframework.beans.factory.config.ConfigurableListableBeanFactory.class},
+                (proxy, method, args) -> {
+                    if ("getBean".equals(method.getName()) && null != args && 1 == args.length
+                            && args[0] == org.springframework.core.env.Environment.class) {
+                        return environment;
+                    }
+                    if ("hashCode".equals(method.getName())) {
+                        return System.identityHashCode(proxy);
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "blankBeanFactory";
+                    }
+                    return null;
+                });
+        Field beanFactoryField = SpringUtil.class.getDeclaredField("beanFactory");
+        beanFactoryField.setAccessible(true);
+        Object previousFactory = beanFactoryField.get(null);
+        Object previousEnabled = readStatic("sandboxEnabled");
+        Object previousTimeout = readStatic("timeoutSeconds");
+        beanFactoryField.set(null, beanFactory);
+        try {
+            Assert.assertTrue("blank value must fall back to the enabled default",
+                    ScriptSandboxConfiguration.isSandboxEnabled());
+            Assert.assertEquals("blank value must fall back to the timeout default",
+                    60L, ScriptSandboxConfiguration.getScriptTimeoutSeconds());
+        } finally {
+            beanFactoryField.set(null, previousFactory);
+            writeStatic("sandboxEnabled", previousEnabled);
+            writeStatic("timeoutSeconds", previousTimeout);
+        }
+    }
+
+    // ------------------------------------------------------------------ ClassExpression checker branch
+
+    @Test
+    public void propertyValuesAreCachedAfterTheFirstLookup() throws Exception {
+        // the outer null check of the double-checked lock: a second call must reuse the cache
+        Object first = ScriptSandboxConfiguration.isSandboxEnabled();
+        Assert.assertEquals(first, ScriptSandboxConfiguration.isSandboxEnabled());
+        long timeout = ScriptSandboxConfiguration.getScriptTimeoutSeconds();
+        Assert.assertEquals(timeout, ScriptSandboxConfiguration.getScriptTimeoutSeconds());
+    }
+
+    @Test
+    public void configuredPropertyValuesAreUsedWhenPresent() throws Exception {
+        Object environment = Proxy.newProxyInstance(
+                ScriptSandboxConfigurationTest.class.getClassLoader(),
+                new Class<?>[]{org.springframework.core.env.Environment.class},
+                (proxy, method, args) -> {
+                    if ("getProperty".equals(method.getName()) && null != args && args.length >= 1) {
+                        if ("datapoly.executor.script.sandbox-enabled".equals(args[0])) {
+                            return "true";
+                        }
+                        if ("datapoly.executor.script.timeout-seconds".equals(args[0])) {
+                            return "33";
+                        }
+                        return null;
+                    }
+                    if ("hashCode".equals(method.getName())) {
+                        return System.identityHashCode(proxy);
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "configuredEnvironment";
+                    }
+                    return null;
+                });
+        Object beanFactory = Proxy.newProxyInstance(
+                ScriptSandboxConfigurationTest.class.getClassLoader(),
+                new Class<?>[]{org.springframework.beans.factory.config.ConfigurableListableBeanFactory.class},
+                (proxy, method, args) -> {
+                    if ("getBean".equals(method.getName()) && null != args && 1 == args.length
+                            && args[0] == org.springframework.core.env.Environment.class) {
+                        return environment;
+                    }
+                    if ("hashCode".equals(method.getName())) {
+                        return System.identityHashCode(proxy);
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "configuredBeanFactory";
+                    }
+                    return null;
+                });
+        Field beanFactoryField = SpringUtil.class.getDeclaredField("beanFactory");
+        beanFactoryField.setAccessible(true);
+        Object previousFactory = beanFactoryField.get(null);
+        Object previousEnabled = readStatic("sandboxEnabled");
+        Object previousTimeout = readStatic("timeoutSeconds");
+        beanFactoryField.set(null, beanFactory);
+        try {
+            writeStatic("sandboxEnabled", null);
+            writeStatic("timeoutSeconds", null);
+            Assert.assertTrue("a configured value must win over the default",
+                    ScriptSandboxConfiguration.isSandboxEnabled());
+            Assert.assertEquals("a configured timeout must win over the default",
+                    33L, ScriptSandboxConfiguration.getScriptTimeoutSeconds());
+        } finally {
+            beanFactoryField.set(null, previousFactory);
+            writeStatic("sandboxEnabled", previousEnabled);
+            writeStatic("timeoutSeconds", previousTimeout);
+        }
+    }
+
+    @Test
+    public void classLiteralOfAnAllowedTypePassesTheChecker() {
+        // a bare class reference is visited as a ClassExpression: allowed types return true
+        Assert.assertEquals(Integer.valueOf(3),
+                evaluate("def c = java.math.BigDecimal; return c.valueOf(3).intValue()"));
+    }
+
+    @Test
+    public void classLiteralOfABlacklistedTypeIsRejected() {
+        assertRejected("def c = java.lang.System; c.currentTimeMillis()");
+        assertRejected("def c = java.lang.Runtime; c.availableProcessors()");
     }
 
 }

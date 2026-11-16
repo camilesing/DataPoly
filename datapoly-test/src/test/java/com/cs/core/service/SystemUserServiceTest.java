@@ -6,6 +6,7 @@ import cn.hutool.crypto.digest.BCrypt;
 import com.cs.common.dto.AccessToken;
 import com.cs.common.exception.*;
 import com.cs.common.util.PasswordUtils;
+import com.cs.core.dto.SystemUserDetailResponse;
 import com.cs.persistence.dao.SystemUserDao;
 import com.cs.persistence.entity.SystemUserEntity;
 import org.junit.*;
@@ -131,6 +132,106 @@ public class SystemUserServiceTest {
 
         Assert.assertNotNull(loginSessionService.resolve(mine));
         Assert.assertNull(loginSessionService.resolve(other));
+    }
+
+    @Test
+    public void logoutRevokesTheBearerTokenSession() throws Exception {
+        SystemUserEntity user = buildUser(USERNAME, RAW_PASSWORD);
+        LoginSessionService loginSessionService = new LoginSessionService(new InMemoryLoginTokenDao(),
+                LoginSessionService.DEFAULT_TTL_SECONDS);
+        SystemUserService service = newService(fakeDao(user), loginSessionService);
+        String token = loginSessionService.issue(user);
+        Assert.assertNotNull(loginSessionService.resolve(token));
+
+        service.logout(fakeRequest(token));
+
+        Assert.assertNull(loginSessionService.resolve(token));
+    }
+
+    @Test
+    public void getUserDetailByIdCopiesEntityFields() throws Exception {
+        SystemUserEntity user = buildUser(USERNAME, RAW_PASSWORD);
+        user.setId(7L);
+        user.setEmail("admin@datapoly.local");
+        user.setLocked(Boolean.FALSE);
+        SystemUserService service = newService(new SystemUserDao() {
+            @Override
+            public SystemUserEntity getById(Long id) {
+                return Long.valueOf(7L).equals(id) ? user : null;
+            }
+        });
+
+        SystemUserDetailResponse detail = service.getUserDetailById(7L);
+        Assert.assertEquals(Long.valueOf(7L), detail.getId());
+        Assert.assertEquals(USERNAME, detail.getUsername());
+        Assert.assertEquals(USERNAME, detail.getRealName());
+        Assert.assertEquals("admin@datapoly.local", detail.getEmail());
+        Assert.assertEquals(Boolean.FALSE, detail.getLocked());
+    }
+
+    @Test
+    public void getUserDetailByIdForUnknownIdFails() throws Exception {
+        SystemUserService service = newService(new SystemUserDao() {
+            @Override
+            public SystemUserEntity getById(Long id) {
+                return null;
+            }
+        });
+        try {
+            service.getUserDetailById(404L);
+            Assert.fail("expected not exists");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, e.getCode());
+        }
+    }
+
+    @Test
+    public void getUserDetailByUsernameCopiesEntityFields() throws Exception {
+        SystemUserEntity user = buildUser(USERNAME, RAW_PASSWORD);
+        user.setId(9L);
+        SystemUserService service = newService(fakeDao(user));
+
+        SystemUserDetailResponse detail = service.getUserDetailByUsername(USERNAME);
+        Assert.assertEquals(Long.valueOf(9L), detail.getId());
+        Assert.assertEquals(USERNAME, detail.getUsername());
+        Assert.assertEquals(USERNAME, detail.getRealName());
+    }
+
+    @Test
+    public void getUserDetailByUsernameForUnknownUserFails() throws Exception {
+        SystemUserService service = newService(fakeDao(null));
+        try {
+            service.getUserDetailByUsername("ghost");
+            Assert.fail("expected not exists");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_RESOURCE_NOT_EXISTS, e.getCode());
+        }
+    }
+
+    @Test
+    public void changeOwnPasswordForMissingUserFails() throws Exception {
+        SystemUserService service = newService(fakeDao(null));
+        try {
+            service.changeOwnPassword(fakeRequest(), "old", "new");
+            Assert.fail("expected user not exists");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_USER_NOT_EXISTS, e.getCode());
+        }
+    }
+
+    @Test
+    public void loginAgainstAccountWithoutStoredHashStillFailsClosed() throws Exception {
+        // password column null (e.g. half-provisioned account): constant-time compare
+        // treats it as a mismatch instead of throwing an NPE
+        SystemUserEntity user = buildUser(USERNAME, RAW_PASSWORD);
+        user.setPassword(null);
+        SystemUserService service = newService(fakeDao(user));
+        try {
+            service.login(USERNAME, RAW_PASSWORD);
+            Assert.fail("expected password wrong");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_USER_PASSWORD_WRONG, e.getCode());
+        }
     }
 
     private static SystemUserService newService(SystemUserDao dao) throws Exception {

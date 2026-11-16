@@ -27,4 +27,11 @@ public class ParamLocationEnumTest {
         assertEquals("query", ParamLocationEnum.REQUEST_FORM.getIn());
         assertEquals("body", ParamLocationEnum.REQUEST_BODY.getIn());
     }
+
+    @Test
+    public void testDisplayNames() {
+        assertEquals("请求头", ParamLocationEnum.REQUEST_HEADER.getName());
+        assertEquals("表单数据", ParamLocationEnum.REQUEST_FORM.getName());
+        assertEquals("请求体", ParamLocationEnum.REQUEST_BODY.getName());
+    }
 }

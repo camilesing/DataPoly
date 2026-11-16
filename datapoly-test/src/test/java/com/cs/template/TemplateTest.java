@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.template;
 
+import org.apache.ibatis.builder.BuilderException;
+import org.apache.ibatis.parsing.XNode;
+import org.apache.ibatis.parsing.XPathParser;
+import org.apache.ibatis.session.Configuration;
 import org.junit.*;
 
 import java.util.*;
@@ -360,6 +364,155 @@ public class TemplateTest {
         Assert.assertTrue(process.getSql().contains("dt >= ?"));
         Assert.assertTrue(process.getSql().contains("like 'A&B%'"));
         Assert.assertEquals(Arrays.asList((Object) 100, "2026-01-01"), process.getParameter());
+    }
+
+    @Test
+    public void testMyBatisAttributeSyntaxKeepsThePlainName() {
+        // #{flag,javaType=int}: the stored raw token carries the attributes, the exposed name is
+        // only the property before the comma
+        String content = "select * from t where flag = #{flag,javaType=int}";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+        Map<String, Boolean> names = parser.getParameterNames();
+        Assert.assertTrue(names.containsKey("flag"));
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("flag", 1);
+        SqlMeta process = parser.process(map);
+        Assert.assertTrue(process.getSql().contains("flag = ?"));
+        Assert.assertEquals(Arrays.asList((Object) 1), process.getParameter());
+    }
+
+    /** A bean, so a dotted reference resolves to an object that is not a Map. */
+    public static class Department {
+
+        private final String deptNo;
+
+        public Department(String deptNo) {
+            this.deptNo = deptNo;
+        }
+
+        public String getDeptNo() {
+            return deptNo;
+        }
+    }
+
+    @Test
+    public void testDottedNameOnNonMapBindsTheWholeObject() {
+        String sql = "SELECT * from employees.departments WHERE dept_no=#{obj.deptNo}";
+        XmlSqlTemplate template = new XmlSqlTemplate(sql);
+        Department department = new Department("d001");
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("obj", department);
+        SqlMeta sqlMeta = template.process(params);
+        Assert.assertTrue(sqlMeta.getSql().contains("dept_no=?"));
+        // a non-Map object has no member to pull out: the object itself is what gets bound
+        Assert.assertEquals(Arrays.asList((Object) department), sqlMeta.getParameter());
+    }
+
+    @Test
+    public void testXmlCommentNodesAreIgnored() {
+        String content = "select 1 <!-- cache:none --> from t";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+        Assert.assertTrue(parser.getParameterNames().isEmpty());
+        SqlMeta process = parser.process(new HashMap<>());
+        // the comment node contributes nothing; the two text nodes around it are kept
+        Assert.assertEquals("select 1  from t", process.getSql());
+    }
+
+    @Test
+    public void testBind() {
+        String content = "select * from t <where>"
+                + "<bind name=\"pattern\" value=\"'%' + name + '%'\"/> name like #{pattern}"
+                + "</where>";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+
+        Map<String, Boolean> names = parser.getParameterNames();
+        // the bind's value expression is not scanned, only the #{pattern} placeholder in the body
+        Assert.assertEquals(Collections.singletonMap("pattern", Boolean.FALSE), names);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", "abc");
+        SqlMeta process = parser.process(map);
+        Assert.assertTrue(process.getSql().contains("name like ?"));
+        Assert.assertEquals(Arrays.asList((Object) "%abc%"), process.getParameter());
+    }
+
+    @Test
+    public void testChooseOtherwise() {
+        String content = "select * from user <where><choose>"
+                + "<when test='id != null'> and id = #{id} </when>"
+                + "<otherwise> and id is null </otherwise>"
+                + "</choose></where>";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+
+        Map<String, Object> map = new HashMap<>();
+        SqlMeta process = parser.process(map);
+        Assert.assertFalse(process.getSql().contains("id ="));
+        Assert.assertTrue(process.getSql().contains("id is null"));
+        Assert.assertTrue(process.getSql().toUpperCase().contains("WHERE"));
+    }
+
+    @Test
+    public void testNonBranchElementsInsideChooseAreIgnored() {
+        // a <where> inside <choose> is not a choose arm: only when/otherwise children count
+        String content = "select * from user <choose>"
+                + "<where> id = 1 </where>"
+                + "<when test='id != null'> and id = #{id} </when>"
+                + "</choose>";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", 5);
+        SqlMeta process = parser.process(map);
+        Assert.assertTrue(process.getSql().contains("id = ?"));
+        Assert.assertFalse(process.getSql().toUpperCase().contains("WHERE"));
+    }
+
+    @Test
+    public void testTwoOtherwiseBranchesAreRefused() {
+        XmlSqlTemplate parser = new XmlSqlTemplate(
+                "<choose><otherwise>a</otherwise><otherwise>b</otherwise></choose>");
+        try {
+            parser.getParameterNames();
+            Assert.fail("expected BuilderException");
+        } catch (BuilderException e) {
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("Too many default"));
+        }
+    }
+
+    @Test
+    public void testEmptyDollarTokenInsideForeachRegistersNothingExtra() {
+        // '${}' names no parameter; only the collection is exposed
+        String content = "select * from t where id in "
+                + "<foreach collection='ids' item='i' open='(' separator=',' close=')'>${}</foreach>";
+        XmlSqlTemplate parser = new XmlSqlTemplate(content);
+        Map<String, Boolean> names = parser.getParameterNames();
+        Assert.assertTrue(names.containsKey("ids"));
+        Assert.assertEquals(1, names.size());
+    }
+
+    @Test
+    public void unknownElementsAreRefusedWithTheirName() {
+        // reachable only through a hand-built document: toXmlSafe escapes unknown opening tags in
+        // authored SQL long before parseDynamicTags sees them
+        XNode node = new XPathParser("<script><froeach/></script>").evalNodes("script").get(0);
+        try {
+            new XmlScriptBuilder(new Configuration(), node).parseScriptNode(new HashMap<>());
+            Assert.fail("expected BuilderException");
+        } catch (BuilderException e) {
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("froeach"));
+        }
+    }
+
+    @Test
+    public void nonTextNonElementNodesAreSkipped() {
+        // a processing instruction contributes nothing; authored SQL cannot produce one (toXmlSafe
+        // escapes '<?'), and XPathParser drops comments, so only a hand-built document gets here
+        XNode node = new XPathParser("<script><?target data?></script>").evalNodes("script").get(0);
+        org.apache.ibatis.mapping.SqlSource sqlSource =
+                new XmlScriptBuilder(new Configuration(), node).parseScriptNode(new HashMap<>());
+        Assert.assertEquals("", sqlSource.getBoundSql(null).getSql());
     }
 
     private static int countOccurrences(String text, char c) {

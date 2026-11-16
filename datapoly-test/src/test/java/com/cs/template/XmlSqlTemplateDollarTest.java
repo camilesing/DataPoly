@@ -82,4 +82,30 @@ public class XmlSqlTemplateDollarTest {
         Assert.assertFalse(new SqlMeta("-- only comment", null).isQuerySQL());
         Assert.assertFalse(new SqlMeta("/* unterminated", null).isQuerySQL());
     }
+
+    @Test
+    public void isQuerySqlTreatsLoneMinusAndSlashAsText() {
+        // whitespace between stripped characters is skipped too
+        Assert.assertTrue(new SqlMeta("( select 1)", null).isQuerySQL());
+        // a '-' that is not a line comment stops the stripping
+        Assert.assertFalse(new SqlMeta("(-5) select 1", null).isQuerySQL());
+        Assert.assertFalse(new SqlMeta("(-", null).isQuerySQL());
+        // a '/' that is not a block comment stops the stripping
+        Assert.assertFalse(new SqlMeta("(/ x) select 1", null).isQuerySQL());
+        Assert.assertFalse(new SqlMeta("(/", null).isQuerySQL());
+        // nothing but strippable characters leaves an empty statement, which is no query
+        Assert.assertFalse(new SqlMeta("(", null).isQuerySQL());
+    }
+
+    @Test
+    public void sqlMetaSettersAndToString() {
+        SqlMeta sqlMeta = new SqlMeta("  select 1  ", null);
+        Assert.assertEquals("select 1", sqlMeta.getSql());
+        sqlMeta.setSql("  update t set a = 1  ");
+        Assert.assertEquals("update t set a = 1", sqlMeta.getSql());
+        List<Object> parameters = new ArrayList<>(Arrays.asList("x"));
+        sqlMeta.setParameter(parameters);
+        Assert.assertEquals(parameters, sqlMeta.getParameter());
+        Assert.assertTrue(sqlMeta.toString(), sqlMeta.toString().contains("update t set a = 1"));
+    }
 }
