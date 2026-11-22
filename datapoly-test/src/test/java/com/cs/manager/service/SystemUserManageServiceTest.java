@@ -184,6 +184,19 @@ public class SystemUserManageServiceTest {
         Assert.assertEquals("test", rows.get(0).getUsername());
     }
 
+    @Test
+    public void permissionSaveWithoutItemsWipesEveryRow() {
+        userDao.users.put("test", user("test", "USER"));
+        UserPermissionSaveRequest request = new UserPermissionSaveRequest();
+        request.setUsername("test");
+
+        service.replacePermissions(request);
+
+        List<UserPermissionEntity> rows = permissionDao.replaced.get("test");
+        Assert.assertNotNull("the wholesale replace must still run (clearing all rows)", rows);
+        Assert.assertTrue(rows.isEmpty());
+    }
+
     private static PermissionService newPermissionService() {
         PermissionService permissionService = new PermissionService();
         setField(permissionService, "userPermissionDao", new UserPermissionDao());

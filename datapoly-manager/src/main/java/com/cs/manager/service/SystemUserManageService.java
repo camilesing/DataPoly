@@ -146,7 +146,9 @@ public class SystemUserManageService {
     /**
      * Replaces the account's permission rows wholesale. Unknown modules or actions are rejected
      * (a typo must not silently narrow or widen a grant); an item with an empty action set is
-     * dropped — that module falls back to the read-only default.
+     * dropped — that module falls back to the read-only default. A body without {@code items}
+     * (null, like an empty list) wipes every row — the same "back to read-only defaults" save
+     * the editor performs with nothing checked.
      */
     public void replacePermissions(UserPermissionSaveRequest request) {
         requireUser(request.getUsername());
@@ -154,7 +156,10 @@ public class SystemUserManageService {
         long now = System.currentTimeMillis() / 1000;
         Set<String> seenModules = new HashSet<>();
         List<UserPermissionEntity> rows = new ArrayList<>();
-        for (UserPermissionSaveRequest.Item item : request.getItems()) {
+        List<UserPermissionSaveRequest.Item> items = request.getItems() == null
+                ? List.of()
+                : request.getItems();
+        for (UserPermissionSaveRequest.Item item : items) {
             PermissionModule module = parseModule(item.getModule());
             if (!seenModules.add(module.name())) {
                 throw new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT,
