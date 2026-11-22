@@ -77,6 +77,7 @@ sh build-docker/build_and_push_image.sh
 The assembly step runs when `datapoly-extension/` already exists: the
 extension jars then ship with the release into `lib/common`, on the runtime classpath of manager / executor /
 gateway; otherwise the step is skipped and pure OSS builds are unaffected.
+How an extension plugs into the login page and login sessions is covered in [login-extension.md](login-extension.md).
 
 > Debug builds are for local debugging only and must never be published; rebuild without the argument to restore
 > the production UI.

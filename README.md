@@ -96,6 +96,7 @@ Check out our [CONTRIBUTING.md](CONTRIBUTING.md) guide and the [Build & Deployme
 - [Build & Deployment](docs/en/build-deploy.md): requirements, build, deployment, startup and access
 - [Usage](docs/en/usage.md): guided workflows (in preparation)
 - [Async Data Tasks (DataTask) guide](docs/en/data-task.md): end-to-end walkthrough, sink extension authoring, worker configuration and troubleshooting
+- [Login extensions guide](docs/en/login-extension.md): login-page mount point, account providers, session issuing and validation, Feishu login configuration
 - [One-click install (docker-compose)](build-docker/install/README.md)
 - [中文文档](docs/zh/overview.md)
 

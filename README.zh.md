@@ -91,6 +91,7 @@ IntelliJ 原生支持 Maven；请确认已启用 Lombok 插件与注解处理。
 - [编译打包与部署](docs/zh/build-deploy.md)：环境要求、编译、安装部署、启动与访问
 - [使用教程](docs/zh/usage.md)：向导式使用说明（编写中）
 - [异步数据任务（DataTask）指南](docs/zh/data-task.md)：端到端上手、投递扩展开发、worker 配置与故障排查
+- [登录扩展接入指南](docs/zh/login-extension.md)：登录页挂载点、账号提供方、会话签发与校验、飞书登录配置
 - [一键安装（docker-compose）](build-docker/install/README.md)
 - [English Docs](docs/en/overview.md)
 

@@ -72,6 +72,7 @@ sh build-docker/build_and_push_image.sh
 
 本地已有 `datapoly-extension/` 目录时，`build-extension.sh` 才会构建投放——扩展 jar 随发行版进入
 `lib/common`，打进 manager / executor / gateway 的运行时 classpath；两者皆无则跳过，纯开源构建不受影响。
+扩展如何接入登录页与登录会话，见 [login-extension.md](login-extension.md)。
 
 > 调试构建仅供本机联调，**勿随发行版发布**；不带参数重新构建即可恢复生产版 UI。
 
