@@ -283,3 +283,31 @@ Security notes:
   the exposure surface matches the existing data MCP endpoints and only tokens
   separate privileges. In production, reach the manager through an internal
   network/gateway path only.
+
+## Permission Control (Role x Module x Action)
+
+Since v1.8.0 the manager runs authentication and authorization on Spring Security, and `user_role`
+is an enforced control rather than a display label:
+
+- **Roles**: ADMIN passes everything; a USER is governed by the permission matrix. The role is read
+  from the database row on every request, so role/lock changes apply immediately.
+- **Permission matrix**: admins configure a USER's grants per **module x action** on the User
+  Management page. Modules mirror the console areas (data sources, API assignments, auth groups,
+  API modules, client apps, data tasks, firewall, MCP tokens, MCP tools, nodes & external URLs,
+  dashboard stats, system params, alarm config, version snapshots); actions are **R** (read) /
+  **C** (create) / **U** (update, incl. publish/retire/revert) / **D** (delete) / **X** (execute,
+  incl. debug/preview/parse/connection test).
+- **Decision semantics** (the manager's `PermissionService` is the single judge; rows live in
+  `DATAPOLY_USER_PERMISSION`): a module **without a row falls back to read-only**; a **row is
+  exact** (no R in the row revokes even the read); C/U/D/X always need an explicit grant. Changes
+  take effect on the next request.
+- **Hard rules outside the matrix**: user & permission management and secret plaintexts (appSecret,
+  MCP token) are Admin-only, so a granted USER can never elevate themselves.
+- **User management** (Admin-only page): create accounts, change roles, lock/unlock, reset
+  passwords (revokes every session of the account) and edit the matrix. Guards: you cannot change
+  your own role/lock state, and the system must keep at least one usable (unlocked) ADMIN.
+- **Console experience**: menus and write buttons trim by permission (single front-side judge in
+  `src/utils/permissions.js`); a 403 answers with a "no permission: module/action" toast and stays
+  on the page instead of mistaking it for an expired session.
+- **Direct REST callers**: denied endpoints answer HTTP 403 + `ResultEntity{code:403}`; a missing
+  or dead session answers 401.

@@ -10,6 +10,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.builder.BuilderException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.bind.annotation.*;
@@ -63,6 +64,17 @@ public class ExceptionController {
         return respond(ResponseErrorCode.ERROR_PATH_NOT_EXISTS,
                 ResultEntity.failed(ResponseErrorCode.ERROR_PATH_NOT_EXISTS,
                         e.getHttpMethod() + " " + e.getRequestURL() + " not exists"));
+    }
+
+    /**
+     * Method-security denials ({@code @RequirePermission} / {@code @RequireAdmin}) reach the
+     * advice as AccessDeniedException; answering with the generic handler would turn a missing
+     * permission into a 500. The exception message is already the i18n'd permission detail.
+     */
+    @ExceptionHandler(value = {AccessDeniedException.class})
+    public ResponseEntity<ResultEntity> accessDeniedException(AccessDeniedException e) {
+        return respond(ResponseErrorCode.ERROR_ACCESS_FORBIDDEN,
+                ResultEntity.failed(ResponseErrorCode.ERROR_ACCESS_FORBIDDEN, e.getMessage()));
     }
 
     /**

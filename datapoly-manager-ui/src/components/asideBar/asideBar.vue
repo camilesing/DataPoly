@@ -21,6 +21,27 @@
  
 <script>
 import asideBarItem from "@/components/asideBar/asideBarItem";
+import { can, isAdmin } from "@/utils/permissions";
+
+// 菜单项 → 权限模块（PermissionModule）：无读取权限的模块整项隐藏。
+// 未列出的路由（仪表盘、关于、个人中心）对任何登录者可见；用户管理只看 ADMIN。
+const ROUTE_MODULES = {
+  "/interface/module": "API_MODULE",
+  "/interface/list": "API",
+  "/service/search": "API",
+  "/datasource/driver": "DATASOURCE",
+  "/datasource/list": "DATASOURCE",
+  "/setting/group": "API_GROUP",
+  "/setting/client": "APP_CLIENT",
+  "/setting/firewall": "FIREWALL",
+  "/setting/alarm": "ALARM",
+  "/setting/topology": "NODE",
+  "/setting/url": "NODE",
+  "/mcp/client": "MCP_CLIENT",
+  "/mcp/tool": "MCP_TOOL"
+};
+const ADMIN_ONLY_ROUTES = ["/user/manage"];
+
 export default {
   name: "asideBar",
   components: {
@@ -45,8 +66,25 @@ export default {
       if(router.hidden){
         return false
       }
-
+      if(ADMIN_ONLY_ROUTES.indexOf(router.path) !== -1){
+        return isAdmin();
+      }
+      const module = ROUTE_MODULES[router.path];
+      if(module){
+        return can(module, "R");
+      }
+      // A folder entry (e.g. /interface, /setting) stays as long as one child is visible
+      if(router.children && router.children.length){
+        return router.children.some(child => !child.hidden && this.routeAllowed(child));
+      }
       return true;
+    },
+    routeAllowed(route){
+      if(ADMIN_ONLY_ROUTES.indexOf(route.path) !== -1){
+        return isAdmin();
+      }
+      const module = ROUTE_MODULES[route.path];
+      return module ? can(module, "R") : true;
     },
     handleOpen(key, keyPath) {
       //console.log(key, keyPath, 'handleOpen');

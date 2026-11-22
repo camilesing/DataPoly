@@ -20,8 +20,8 @@ export function redirectToLoginIfAuthError (body, router, notifyError) {
   if (!body) {
     return
   }
-  if (body.code === 401 || body.code === 403) {
-    // This failure is what sends the user to /login: tell the popup gate so the
+  if (body.code === 401) {
+    // A dead session is what sends the user to /login: tell the popup gate so the
     // one-per-request error dialogs of the same burst collapse into the first one
     noteAuthMessage(body.message)
     // Only redirect when not already on the login page
@@ -29,6 +29,13 @@ export function redirectToLoginIfAuthError (body, router, notifyError) {
       router.push({path: '/login'}).catch(() => {
       })
     }
+    return
+  }
+  if (body.code === 403) {
+    // 403 means "logged in but not allowed" (module×action matrix): the session is fine,
+    // so kick nobody to /login — surface the denial and stay on the page. popupGate
+    // still collapses a burst of identical denials into one dialog.
+    notifyError(body.message || 'Access denied')
     return
   }
   if (body.code === 404 && router.currentRoute.path !== '/login') {

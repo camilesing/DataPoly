@@ -14,7 +14,7 @@
           </div>
         </div>
         <div class="right-add-button-group">
-          <el-button type="primary"
+          <el-button v-if="$can('API_GROUP','C')" type="primary"
                      size="mini"
                      icon="el-icon-document-add"
                      @click="addGroup">{{ $t('setting.addGroup') }}</el-button>
@@ -43,19 +43,18 @@
                          :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
-              <el-button size="small"
+              <el-button v-if="$can('API','U')" size="small"
                          type="success"
                          icon="el-icon-document"
                          @click="handleRelation(scope.$index, scope.row)"
                          round>{{ $t('setting.relation') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('API_GROUP','U')" size="small"
                          type="warning"
                          icon="el-icon-edit"
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('setting.edit') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('API_GROUP','D') && scope.row.id!==1" size="small"
                          type="danger"
-                         v-if="scope.row.id!==1"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"
                          round>{{ $t('setting.deleteBtn') }}</el-button>

@@ -14,7 +14,7 @@
           </div>
         </div>
         <div class="right-add-button-group">
-          <el-button type="primary"
+          <el-button v-if="$can('MCP_CLIENT','C')" type="primary"
                      size="mini"
                      icon="el-icon-document-add"
                      @click="addGroup">{{ $t('mcp.add') }}</el-button>
@@ -43,17 +43,17 @@
                          :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
-              <el-button size="small"
+              <el-button v-if="$isAdmin()" size="small"
                          type="success"
                          icon="el-icon-document"
                          @click="handleShowToken(scope.$index, scope.row)"
                          round>{{ $t('mcp.view') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('MCP_CLIENT','U')" size="small"
                          type="warning"
                          icon="el-icon-edit"
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('mcp.edit') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('MCP_CLIENT','D')" size="small"
                          type="danger"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"

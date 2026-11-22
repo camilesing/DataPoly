@@ -29,6 +29,15 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- manager-only: filter-chain auth + module×action authorization. The jars are sorted
+             into lib/manager by datapoly-dist package.xml — they must never reach lib/common or
+             lib/webmvc, whose classpaths are shared with executor/gateway (the security
+             auto-configuration there would lock every endpoint). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>

@@ -45,7 +45,7 @@
           </el-form-item>
         </div>
         <el-form-item>
-          <el-button type="primary"
+          <el-button v-if="$can('FIREWALL','U')" type="primary"
                      @click="handleSave"
                      plain>{{ $t('setting.saveBtn') }}</el-button>
         </el-form-item>

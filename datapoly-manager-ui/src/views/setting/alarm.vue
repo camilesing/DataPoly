@@ -59,11 +59,11 @@
           </el-form-item>
         </div>
         <el-form-item>
-          <el-button type="primary"
+          <el-button v-if="$can('ALARM','X')" type="primary"
                      v-show="status=='ON'"
                      @click="handleShowTest"
                      plain>{{ $t('setting.test') }}</el-button>
-          <el-button type="primary"
+          <el-button v-if="$can('ALARM','U')" type="primary"
                      @click="handleSave"
                      plain>{{ $t('setting.save') }}</el-button>
         </el-form-item>
@@ -87,7 +87,7 @@
       </el-form>
       <div slot="footer"
            class="dialog-footer">
-        <el-button type="primary"
+        <el-button v-if="$can('ALARM','X')" type="primary"
                    @click="handleSendTest"
                    plain>{{ $t('setting.sendTest') }}</el-button>
         <el-button type="primary"

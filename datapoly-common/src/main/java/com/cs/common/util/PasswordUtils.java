@@ -13,4 +13,9 @@ public final class PasswordUtils {
         return BCrypt.hashpw(password, credentialsSalt);
     }
 
+    /** A fresh bcrypt salt for a new credential (user creation, admin password reset). */
+    public static String newSalt() {
+        return BCrypt.gensalt();
+    }
+
 }

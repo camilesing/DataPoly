@@ -3,6 +3,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.ResultEntity;
 import com.cs.core.dto.*;
 import com.cs.core.executor.UnifyAlarmOpsService;
@@ -23,22 +26,26 @@ public class UnifyAlarmController {
     @Resource
     private UnifyAlarmOpsService unifyAlarmOpsService;
 
+    @RequirePermission(module = PermissionModule.ALARM, action = PermissionAction.R)
     @GetMapping(value = "/detail", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<UnifyAlarmEntity> getUnifyAlarmConfig() {
         return ResultEntity.success(unifyAlarmOpsService.getUnifyAlarmConfig());
     }
 
+    @RequirePermission(module = PermissionModule.ALARM, action = PermissionAction.R)
     @GetMapping(value = "/example", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameValueBaseResponse>> getExampleDataModel() {
         return ResultEntity.success(unifyAlarmOpsService.getExampleDataModel());
     }
 
+    @RequirePermission(module = PermissionModule.ALARM, action = PermissionAction.X)
     @PostMapping(value = "/test", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity testUnifyAlarmConfig(@Valid @RequestBody TestAlarmConfigRequest request) {
         unifyAlarmOpsService.testUnifyAlarmConfig(request);
         return ResultEntity.success();
     }
 
+    @RequirePermission(module = PermissionModule.ALARM, action = PermissionAction.U)
     @PostMapping(value = "/save", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity saveUnifyAlarmConfig(@Valid @RequestBody UpdateAlarmConfigRequest request) {
         unifyAlarmOpsService.updateUnifyAlarmConfig(request);

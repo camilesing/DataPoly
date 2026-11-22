@@ -3,6 +3,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.*;
 import com.cs.common.enums.*;
 import com.cs.core.dto.*;
@@ -32,12 +35,14 @@ public class ApiAssignmentController {
     private ExportImportService exportImportService;
 
     @Operation(summary = "获取自动提示列表")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.R)
     @GetMapping(value = "/completions", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity completions() {
         return ResultEntity.success(apiAssignmentService.completions());
     }
 
     @Operation(summary = "响应属性命名策略")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.R)
     @GetMapping(value = "/response-naming-strategy", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity responseNamingStrategy() {
         return ResultEntity.success(
@@ -53,6 +58,7 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "响应数据类型格式")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.R)
     @GetMapping(value = "/response-type-format", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity responseTypeFormat() {
         return ResultEntity.success(
@@ -69,12 +75,14 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "获取SQL中的入参列表")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.X)
     @PostMapping(value = "/parse", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity parse(@RequestParam("sql") String sql) {
         return ResultEntity.success(apiAssignmentService.parseSqlParams(sql));
     }
 
     @Operation(summary = "调试API配置")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.X)
     @PostMapping(value = "/debug", produces = MediaType.APPLICATION_JSON_VALUE)
     public void debug(@Valid @RequestBody ApiDebugExecuteRequest request, HttpServletResponse response)
             throws IOException {
@@ -82,6 +90,7 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "添加API配置")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.C)
     @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity create(@Valid @RequestBody ApiAssignmentSaveRequest request) {
         Long id = apiAssignmentService.createAssignment(request);
@@ -89,6 +98,7 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "更新API配置")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.U)
     @PostMapping(value = "/update", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity update(@Valid @RequestBody ApiAssignmentSaveRequest request) {
         apiAssignmentService.updateAssignment(request);
@@ -96,12 +106,14 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "查看API配置")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.R)
     @GetMapping(value = "/detail/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity detail(@PathVariable("id") Long id) {
         return ResultEntity.success(apiAssignmentService.detailAssignment(id));
     }
 
     @Operation(summary = "删除API配置")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.D)
     @DeleteMapping(value = "/delete/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity delete(@PathVariable("id") Long id) {
         apiAssignmentService.deleteAssignment(id);
@@ -109,18 +121,21 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "查询API配置列表")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.R)
     @PostMapping(value = "/list", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<ApiAssignmentBaseResponse> listAll(@RequestBody AssignmentSearchRequest request) {
         return apiAssignmentService.listAll(request);
     }
 
     @Operation(summary = "上线接口搜索")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.R)
     @PostMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<ApiAssignmentBaseResponse> search(@RequestBody ApiOnlineSearchRequest request) {
         return apiAssignmentService.search(request);
     }
 
     @Operation(summary = "批量更新授权组")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.U)
     @PostMapping(value = "/group/{groupId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity updateGroup(@PathVariable("groupId") Long groupId, @RequestBody List<Long> ids) {
         apiAssignmentService.updateGroup(groupId, ids);
@@ -128,6 +143,7 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "发布版本")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.U)
     @PutMapping(value = "/publish", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity publish(@Valid @RequestBody AssignmentPublishRequest request) {
         apiAssignmentService.publish(request);
@@ -135,6 +151,7 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "上线")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.U)
     @PutMapping(value = "/deploy/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity deploy(@PathVariable("id") Long id,
                                @RequestParam(value = "commitId", required = false) Long commitId) {
@@ -143,6 +160,7 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "下线")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.U)
     @PutMapping(value = "/retire/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity retire(@PathVariable("id") Long id) {
         apiAssignmentService.retireAssignment(id);
@@ -150,12 +168,14 @@ public class ApiAssignmentController {
     }
 
     @Operation(summary = "批量导出API配置")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.R)
     @PostMapping(value = "/export", produces = MediaType.APPLICATION_JSON_VALUE)
     public void exportAssignments(@Valid @NotEmpty @RequestBody List<Long> ids, HttpServletResponse response) {
         exportImportService.exportAssignments(ids, response);
     }
 
     @Operation(summary = "批量导入API配置")
+    @RequirePermission(module = PermissionModule.API, action = PermissionAction.C)
     @PostMapping(value = "/import", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<String> importAssignments(@RequestPart(value = "file") MultipartFile file) throws IOException {
         exportImportService.importAssignments(file);

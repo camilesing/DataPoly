@@ -14,7 +14,7 @@
           </div>
         </div>
         <div class="right-add-button-group">
-          <el-button type="primary"
+          <el-button v-if="$can('MCP_TOOL','C')" type="primary"
                      size="mini"
                      icon="el-icon-document-add"
                      @click="handleAdd">{{ $t('mcp.add') }}</el-button>
@@ -58,12 +58,12 @@
                          icon="el-icon-document"
                          @click="handleLink(scope.$index, scope.row)"
                          round>{{ $t('mcp.view') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('MCP_TOOL','U')" size="small"
                          type="warning"
                          icon="el-icon-edit"
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('mcp.edit') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('MCP_TOOL','D')" size="small"
                          type="danger"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"

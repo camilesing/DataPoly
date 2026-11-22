@@ -3,6 +3,10 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequireAdmin;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.*;
 import com.cs.core.dto.*;
 import com.cs.manager.service.McpManageService;
@@ -27,12 +31,14 @@ public class McpClientController {
     private McpManageService mcpManageService;
 
     @Operation(summary = "获取MCP服务地址")
+    @RequirePermission(module = PermissionModule.MCP_CLIENT, action = PermissionAction.R)
     @GetMapping(value = "/endpoint", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<McpServerAddrResponse> getMcpServerEndpoint() {
         return ResultEntity.success(mcpManageService.getMcpServerEndpoint());
     }
 
     @Operation(summary = "添加令牌")
+    @RequirePermission(module = PermissionModule.MCP_CLIENT, action = PermissionAction.C)
     @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity create(@Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name,
                                @RequestParam(value = "manage", required = false, defaultValue = "false") boolean manage) {
@@ -41,6 +47,7 @@ public class McpClientController {
     }
 
     @Operation(summary = "更新令牌")
+    @RequirePermission(module = PermissionModule.MCP_CLIENT, action = PermissionAction.U)
     @PostMapping(value = "/update/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity update(@PathVariable("id") Long id,
                                @Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name,
@@ -50,6 +57,7 @@ public class McpClientController {
     }
 
     @Operation(summary = "删除令牌")
+    @RequirePermission(module = PermissionModule.MCP_CLIENT, action = PermissionAction.D)
     @DeleteMapping(value = "/delete/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity delete(@PathVariable("id") Long id) {
         mcpManageService.deleteClient(id);
@@ -57,12 +65,14 @@ public class McpClientController {
     }
 
     @Operation(summary = "令牌列表")
+    @RequirePermission(module = PermissionModule.MCP_CLIENT, action = PermissionAction.R)
     @PostMapping(value = "/listAll", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<McpClientEntity> listAll(@RequestBody EntitySearchRequest request) {
         return mcpManageService.listClientAll(request);
     }
 
     @Operation(summary = "获取令牌明文（唯一出口，需已认证会话）")
+    @RequireAdmin
     @GetMapping(value = "/token/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<String> getToken(@PathVariable("id") Long id) {
         return ResultEntity.success(mcpManageService.getClientToken(id));

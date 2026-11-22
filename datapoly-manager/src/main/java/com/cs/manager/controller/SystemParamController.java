@@ -3,6 +3,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.ResultEntity;
 import com.cs.core.service.SystemParamService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,11 +22,13 @@ public class SystemParamController {
     @Resource
     private SystemParamService systemParamService;
 
+    @RequirePermission(module = PermissionModule.SYSTEM_PARAM, action = PermissionAction.R)
     @GetMapping(value = "/value/query", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity getByParamKey(@RequestParam("key") String key) {
         return ResultEntity.success(systemParamService.getByParamKey(key));
     }
 
+    @RequirePermission(module = PermissionModule.SYSTEM_PARAM, action = PermissionAction.U)
     @PostMapping(value = "/value/update", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity updateByParamKey(@RequestParam("key") String key,
                                          @RequestParam("value") String value) {
