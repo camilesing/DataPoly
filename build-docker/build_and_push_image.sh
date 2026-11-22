@@ -2,7 +2,7 @@
 
 set -e
 
-DATAPOLY_VERSION=1.9.0
+DATAPOLY_VERSION=1.10.0
 # Docker image namespace, override as needed, e.g. IMAGE_NAMESPACE=yourname sh build_and_push_image.sh
 IMAGE_NAMESPACE=${IMAGE_NAMESPACE:-camilesing}
 # Set PUSH_IMAGES=1 to also tag and push the images after building

@@ -8,134 +8,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Known limitations and operational conventions are documented in
   `AGENTS.md`.
 
-## [Unreleased] - 2026-08-27
+## [1.10.0] - 2026-11-22
 
 ### Added
 
-- Manager login sessions are now **persisted** (`DATAPOLY_LOGIN_TOKEN`, migration `log-v1.7.0` in both the MySQL
-  and the PostgreSQL chains), because the previous design kept them in the process-local `CacheUtils` Guava cache
-  (`expireAfterAccess` 7200s, max 1000 entries): every manager restart — and every 2 hours of inactivity — logged
-  everyone out. A session is now a row, and the row is the authority. `LoginSessionService` (datapoly-core) is the
-  single judgment: `issue` for both the password login and any account provider that authenticates outside
-  DataPoly (the Feishu login extension), `resolve` on every request (in-memory entry first, the row on miss — that
-  miss is exactly what a restart looks like), `revoke` / `revokeAll` by deleting rows. Lifetime is
-  `datapoly.security.login-token-ttl-seconds` (`DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS`, default 604800 = 7
-  days) and it is **absolute**: activity never extends it. `CacheUtils` is now only the first-level read cache: an
-  entry carries the row's deadline, so one that outlives it — the case that appears as soon as the TTL is shorter
-  than the cache's idle window — is rejected and evicted on sight. Rows are deleted by logout; by a password
-  rotation (a self-service change keeps the caller's own session and drops the account's others, a real
-  `datapoly.admin.password` change drops all of them); and by `LoginTokenCleanService` (startup + nightly) for
-  sessions nobody comes back for, while a row found expired during a lookup is deleted as it is found. The
-  authoritative account row (lock flag, role) is still re-read per request — the cache holds the account name and
-  the deadline, never authorization data. Frontend: the login state moved from `sessionStorage` to `localStorage`
-  (a week-long session would otherwise die with the tab), with the keys and the logout clearing in
-  `datapoly-manager-ui/src/utils/authStorage.js` — the Bearer token injected by `src/assets/http.js`, the login
-  page writing through `setAuth` and a logout clearing exactly those keys (`locale` and the sidebar's `activePath`
-  are left alone). Deployment: the new env key is in the compose manager service (value `604800`, same source as
-  the jar default) and documented in `docs/*/build-deploy.md` and `conf/config.ini`, `AGENTS.md` and this entry.
-  Tests: `LoginSessionServiceTest` (persistence, the restart path, absolute expiry, revocation and its `keepToken`
-  variant, the stale-entry guard, the pre-upgrade cache format) plus `AuthenticationGateTest`, which pins the
-  restart regression on the manager's token gate, and a `SystemUserServiceTest` case for the password rotation;
-  the UI's vitest suite follows the storage move (`test/authStorage.spec.js`, `test/http.spec.js`).
-- The externally reachable gateway / manager addresses are now editable from the management UI instead of only
-  through environment variables. Liquibase migration `log-v1.6.0` (MySQL & PostgreSQL) seeds the system params
-  `gatewayUrl` / `managerUrl` into `DATAPOLY_SYSTEM_PARAM`; the new **External URL** page
-  (系统设置-对外地址, `src/views/setting/url.vue`) reads and writes them through
-  `GET`/`POST /datapoly/manager/api/v1/node/url-config`, showing which source is currently effective for each of
-  the two independent settings (`Page setting` / `Environment variable` / `Auto discovery`, or none while the
-  service is unregistered). The precedence chain lives in exactly one place, the manager's
-  `ServiceUrlResolver`: system param > `DATAPOLY_GATEWAY_URL`/`DATAPOLY_MANAGER_URL` (still effective only while
-  the service instance is registered, as before) > the Nacos discovery address (the `http://<ip>:8091` the page
-  used to show). The value is re-read from the database on every request, so a saved change takes effect
-  immediately without a restart; the update is a partial one — an omitted parameter leaves that setting untouched
-  (a request carrying only one of the two used to fail as a missing-parameter error), while an empty string clears
-  it back to the fallback, and only an absolute `http(s)://` address without whitespace is accepted (every
-  supplied value is validated before anything is stored, so a rejected request changes nothing). A garbage value
-  written into the param through the generic `/param/value/update` endpoint is treated as unset with a WARN on
-  read, so it can never reach the UI. The
-  gateway address already shown by `/node/gateway` and `/node/prefix` (API doc entry and online invocation
-  prefix) and the MCP server address shown by `McpManageService` are now derived from this one resolver, which
-  also replaces the MCP path's own address lookup (the NPE when neither a discovered instance nor a configured
-  address existed is gone, and `manager.not.found` joins `gateway.not.found` in the i18n bundles).
-- The interface list (`/interface/list`) gains a **version history** button on every row: it opens the version
-  list (`GET /version/list/{id}` — the same list the 上线 picker shows, newest first, with 最新 / 在线 markers)
-  and each row's 查看 link opens that snapshot read-only. The button is offered on drafts as well as online
-  interfaces, because 发版 publishes versions without going online; a row with no version yet gets the existing
-  empty-list hint. The snapshot is rendered by the **detail page**, addressed as
-  `/interface/detail?id=<接口>&commitId=<提交>`: on creation that page loads `/version/show/{commitId}` instead of
-  the draft, shows which version is on screen (`正在查看版本 Vn`), and the red 退出版本查看 button (already there
-  for the in-page version drawer) returns to the draft — it now also drops `commitId` from the URL, so a refresh
-  lands back on the editable draft rather than the snapshot. A `commitId` that cannot be read reports the failure
-  and falls back to the draft instead of leaving a blank read-only page. Kept to one renderer on purpose: the list
-  page shows no content of its own, and the snapshot shape is whatever `showVersion` returns. Server-side nothing
-  changed, and the version fetches on the list page go through one helper (`loadVersionList`) instead of a fresh
-  copy per caller. Room for the new button came from the layout rather than from shorter labels: the operation
-  column went 350 → 580 (six buttons in English wrap onto a second line below ~560), and both version dialogs
-  were widened (选择上线版本 40% → 50%, 历史版本 60%) because their last column was being clipped at the old
-  width.
-- The interface list (`/interface/list`) gains a **quick online** action beside 上线: it publishes the current
-  draft as a new version and then puts the **latest** version online. The publish call
-  (`PUT /datapoly/manager/api/v1/assignment/publish`) carries the button's own label as the version
-  description — `快速上线` / `Quick Online`, so the history line follows the UI language, and the generate-time
-  column in the version picker already carries the timestamp — and the version that goes online is *read back*
-  from `GET /version/list/{id}` after publishing rather than assumed, so the toast names the version that is
-  really live (the backend returns that list ordered by `version DESC`, making the first row the one just
-  published). The confirmation preceding the two calls quotes the number the new commit will take
-  (`max(version)+1`, what `VersionCommitDao.createVersion` assigns), and it is deliberately the only thing
-  standing between a click and going online. Drafts only, where 上线 itself is offered; an interface that has
-  never been published goes straight to V1. No server change: `AssignmentPublishRequest` requires only `id`
-  (`description` stays optional) and `deploy/{id}` has always accepted an explicit `commitId`.
+- GraphQL engine: one SDL document per API, `Query` fields bound to SQL templates via `@sql` — third engine beside SQL/SCRIPT.
+- Admin MCP server `/mcp/admin` (entity CRUD, manage tokens); `/mcp` is dual-era Streamable HTTP (legacy + 2026-07-28 stateless).
+- Login sessions persist in `DATAPOLY_LOGIN_TOKEN` (7-day absolute TTL): restarts no longer log everyone out.
+- External gateway/manager URLs editable in the UI without restart.
+- Interface list: drafts and online in one table (status filter), with version history and quick online.
+- DataTask statement sinks: source-side exports (MaxCompute `UNLOAD`) run in the source engine.
+- User roles, login-page extension hook, Feishu login; dark UI re-theme, regrouped sidebar, burst error-popups deduplicated.
 
 ### Changed
 
-- Author-written SQL no longer has to be XML-escaped. A bare `<` (`amount <= 100`, `a<b`) or a bare `&`
-  (`name like 'A&B%'`) made the template parser fail with `BuilderException: Error creating document instance. Cause:
-  org.xml.sax.SAXParseException; … The content of elements must consist of well-formed character data or markup`, so
-  comparisons had to be written `&lt;=` or wrapped in `<![CDATA[ ]]>` — and `>=` looked guilty too, because a
-  statement carrying both operators dies at the first `<`. `datapoly-template` gained `SqlXmlTexts`, applied at the
-  single place user SQL is wrapped into `<script>…</script>` (`XmlSqlTemplate.parseXml`, which covers both features'
-  parse/save-validation/debug/preview/run paths and the Groovy `db` module): only the dynamic tags count as markup
-  (`XmlScriptBuilder.DYNAMIC_TAGS` is now their single source), and everything else XML would reject is escaped
-  transparently — the parser decodes it back, so the statement handed to the driver, the text stored, and the text
-  both editors read back are exactly what the author wrote. Attribute values are covered too, so
-  `<if test='amount <= 100 and dt >= #{dt}'>` is written the way it reads. Existing escaped templates and CDATA keep
-  working unchanged (they resolve to the same SQL), a misspelled or wrongly cased tag is reported by its name
-  (`</iff>`, `<IF>`), and an unknown opening name (`a<b`, `<iff …>`) stays literal text. The one case that still
-  needs escaping is a dynamic tag name inside a string literal. A malformed template now also reaches the caller as
-  an invalid-argument error carrying that reason: manager's `ExceptionController` gained a `BuilderException` handler,
-  so the editors' parse/debug buttons and `/data-task/parse` no longer answer the generic internal error with nothing
-  to act on — and the message key was renamed `datatask.sql.invalid` → `sql.template.invalid`, since both features
-  share it. Tests: `SqlXmlTextsTest` (the rules, comment/CDATA
-  and entity handling, the reported multiline shape), `TemplateTest` (raw operators end to end with `#{}` binding
-  order intact, plus the old escaped form), `DataTaskServiceTest` / `ApiAssignmentServiceTest` (a plain statement is
-  stored verbatim and reads back unchanged), `ExceptionControllerTest` (an unparseable template answers 400 with the
-  offending element named, an unexpected failure still answers 500). Documents: `docs/{zh,en}/data-task.md`
-  (authoring rules and a FAQ row for the old error), the UI editor tip, and the `sql.template.invalid` message.
+- Baseline: Boot 3.5.16, Cloud 2025.0.3, JDK 25; tests centralized in `datapoly-test` (coverage 26% → 47%).
+- Template SQL is plain text: bare `<`/`&` need no escaping; parse failures answer 400 with the reason.
+- Executed statements and parameters log at INFO.
 
-- 上线 on the interface list now demands an explicit version choice, and the state it validates finally holds
-  still: opening the version picker clears the selection carried over from a previously opened row. It used to
-  be cleared only after a *successful* deploy, so cancelling a dialog left its `commitId` behind — the picker
-  rendered nothing selected in the next dialog while that stale id passed the "please select a version" guard
-  and was sent together with the new row's id, a mismatch only the server caught
-  (`api.version.commit.not.belong`). The dialog's own 上 线 button is disabled until a version is picked (the
-  guard's alert stays as a backstop for non-pointer paths), and the newest commit — the first row the backend
-  returns — is tagged `最新`/`Latest`, so the default target is visible without counting down the list.
+### Fixed
 
-- DataTask statement sinks (optional capability, backward compatible): the new
-  interface `com.cs.common.datatask.DataTaskStatementSink` lets a delivery
-  provider claim a definition and run its rendered statement itself, for
-  exports that must complete inside the source engine (MaxCompute
-  `UNLOAD ... INTO LOCATION 'oss://...'`) instead of streaming rows through the
-  executor. `DataTaskJobEngine` consults the sink once, right after rendering
-  and before any JDBC work: on a claim it skips the whole row pipeline (no
-  session, no result set, no row limit or reshaping) and records the returned
-  `SinkOutcome` like any other artifact. Because such a statement can outlive
-  `lease-seconds`, a lazily started daemon refreshes the job lease every
-  `lease-seconds/3` while it blocks; the cancel probe can only stop a statement
-  before submission, so a late cancel keeps the artifact and is recorded as
-  `artifactInfo.cancelRequested`. Existing sinks are untouched — a sink that
-  never claims a definition behaves exactly as before. Documented in
-  `docs/{zh,en}/data-task.md` §5.
+- Security: datasource passwords export as ciphertext (stripped if unencrypted), page size capped at 1000, script `env` whitelisted, SSRF/apidoc/sandbox bypasses closed.
+- Correctness: Sentinel limiting, Redis/Hazelcast ops, `Instant` JSON, Beijing-time timestamps, driver errors, graceful shutdown, UI clipping.
+
+## [1.9.0] - 2026-09-19
+
+### Added
+
 - DataTask sink contract (net-neutral extension): `SinkRequest` now carries
   `columnMetadata` (per-column JDBC type hints, shaped through the same
   projection as the columns) and the terminal `DataTaskEvent` includes the
@@ -155,56 +54,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   result cap (10k rows by default). Driver artifacts live under
   `drivers/odps/odps-3/`; the UI gains an ODPS type icon and About entry.
 
-- The interface list (`/interface/list`) shows drafts and online interfaces in **one** table, picked apart by a
-  status dropdown (All / Developing / Online, default All) instead of the Developing/Online radio group that
-  swapped the data source under the table — the two are views of one row, and the page now reads like it.
-  Behind it, `online` on `POST .../assignment/list` is a tri-state filter (`true` = online only, `false` =
-  drafts only, absent = both) applied to `DATAPOLY_API_ASSIGNMENT` alone: `DATAPOLY_API_ONLINE.api_id` is a
-  cascade foreign key and deleting an api that is online is rejected, so "online" is exactly "this assignment
-  row has an online record", and `listAll` already enriched every row with `status`/`version`/`commitId` read
-  out of `DATAPOLY_API_ONLINE`. One source also means the row set of `online=true` is unchanged, and the
-  online-interface repository page (`/assignment/search`) keeps the snapshot table. The two other callers that
-  pass `online=true` — the module dropdown of the MCP tool page and the online-interface tree of
-  `views/service/interface.vue` — keep the same ids and `commitId`s, and only their name/module/public/alarm
-  fields now come from the current configuration rather than the deployed snapshot (the snapshot is still what
-  the detail and version pages show). With the toggle gone, the Status/Public/Alarm columns and the
-  Import/New/Online Doc/Doc-switch buttons are no longer bound to it, so every action sits on that one page;
-  the status cell renders `Online V{n}` or `Developing` as a tag, and changing the filter resets to page 1.
-  Pinned by a core test that all three flag values reach `ApiAssignmentDao.searchAll` and that none of them
-  reads the online table.
-
-- Manager-side API execution now logs every statement it runs together with the bound parameter values at INFO.
-  The SQL and GraphQL engines already did this (`ExecuteSQL:{sql}\n{params}` in `SqlJdbcUtils`, on because both
-  manager entry points — the data MCP server and `assignment/debug` — pass `printSqlLog=true`); the gaps were the
-  SCRIPT engine, whose `db.*` functions logged the raw template plus the whole script parameter map instead of
-  the executed statement, and the data task preview, which logged nothing. Both now emit the same shape so one
-  grep finds every statement: `ExecuteSQL [db.selectAll]` / `[db.page]` / `[db.insert]` … carry the rendered SQL
-  and the values actually bound (pagination arguments included, since `page` logs after the page consumer ran),
-  `batchUpdate` carries its statement list, and the preview line carries the task name
-  (`ExecuteSQL [data task preview <task>]`). Parameters are printed as-is, matching the existing engine line and
-  the debug endpoint's `logs` payload, so a password that reaches a statement is readable in
-  `manager_server.log`. Gating is unchanged: the `db.*` lines stay behind `printSqlLog` (the executor keeps
-  `datapoly.executor.print-sql-log=false`) and the preview line sits on the manager-only path, the task worker
-  being enabled in the executor alone.
-
 ### Fixed
 
-- API responses no longer die with `Java 8 date/time type 'java.time.Instant' not supported by default` when a
-  timestamp value reaches the JSON serializer as an `Instant` (some JDBC drivers return that type from
-  `getObject` instead of `java.sql.Timestamp`; the reported case was `SELECT … event_time … FROM
-  ads_risk_event_result`). `JacksonUtils` is the single JSON serializer behind the config debug endpoint, the
-  online API servlet and the MCP tools, and its module covered `java.sql.Date/Time/Timestamp` plus
-  `LocalDate/LocalDateTime` but not `Instant` — so the whole response threw and the client got no JSON at all (the
-  trailing `getWriter() has already been called` warning was `ApiAssignmentService.debugExecute` having asked for
-  the writer before serializing, which left `ExceptionController` unable to write its error body).
-  `DataTypeFormatEnum` gained `INSTANT` (default `yyyy-MM-dd HH:mm:ss`, configurable in the response-format table
-  like the other temporal types), `InstantValueSerializer` renders it in `JSON_TIMEZONE` exactly like `Timestamp`,
-  and `parseValueType` reports such cells as TIME instead of falling back to STRING. Export stringification
-  applies the pattern in the same system-default zone the `java.util.Date` branch uses rather than falling
-  through to `String.valueOf` (a UTC ISO string). `debugExecute` now serializes before touching the response
-  writer, so any future serialization failure still reaches `ExceptionController` as a normal error body. Pinned
-  by `JacksonUtilsTest` (default and configured patterns, plus the exact `ResultEntity.data.answer[0].eventTime`
-  shape) and a `DataTaskOutputPlanTest` case for `Instant` cells.
 - Data task streaming memory and completeness: the single statement now executes
   in an explicit transaction (auto-commit restored when handing the connection
   back, DML committed first) so PostgreSQL-family drivers — including Hologres —
@@ -219,19 +70,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and the container `TZ=Asia/Shanghai`. Previously the MySQL session timezone defaulted to UTC,
   so `TIMESTAMP` columns (e.g. `DATAPOLY_DATA_TASK_DEF.create_time`/`update_time`) read back
   with an 8-hour shift.
-- Data task timestamps now serialize as Beijing time: the `DataTaskJobView` fields
-  (`/data-task/jobs/search`, `/data-task/job/{id}`) declared their `@JsonFormat`
-  pattern without a time zone, so Jackson's UTC default applied and a job started at
-  10:48 Beijing was returned as `02:48`; the `/data-task/list` times were raw epoch
-  millis. Both now use `yyyy-MM-dd HH:mm:ss` at `GMT+8` like the other management
-  DTOs, and `DataTaskTimeZoneJsonTest` locks the rendering.
-- Datasource connection test failures now report the driver's reason: `testConnection`/
-  `updateTestConnection` let the driver exception escape as a generic internal error, so the
-  ODPS "Access Denied / NO privilege" text never reached the UI. Failures are now raised as
-  the business error `10` (HTTP 200) with the deepest cause message (whitespace collapsed,
-  capped at 500 chars) under the new `datasource.connect.failed` i18n key; functional
-  `CommonException`s still pass through untouched, and
-  `DataSourceServiceConnectFailureTest` locks the extraction.
 - Asynchronous data task framework (DataTask): manager endpoints under
   `/datapoly/manager/api/v1/data-task/**` for task definitions (SQL + input parameter
   declarations + output reshaping: naming strategy / column aliases / column order /
@@ -264,46 +102,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   failed to boot with an unresolvable bean; it is now a `@Component` with an
   optional sink list, and Spring-bean sinks take precedence over
   ServiceLoader-discovered ones on duplicate `type()` (as documented).
-- The management UI no longer pops one error dialog per failing request when a burst fails the same way — the
-  everyday case being a stale login session, where every request on the page answers 401 at once and each
-  page-level `alert(prefix + res.data.message)` fired on its own (the page-level call sites — native `alert`,
-  `$alert` and `$message` — are spread across the host UI, and extension pages are compiled into the same
-  bundle and share both the axios instance and `main.js`). A new gate,
-  `datapoly-manager-ui/src/utils/popupGate.js`, installed once from `main.js` right after `Vue.use(ElementUI)`,
-  wraps `window.alert`, `Vue.prototype.$alert` and `Vue.prototype.$message`: a popup repeating within a
-  3-second window is silently dropped, and the window is counted from the moment the previous popup was
-  **closed** — a native alert blocks the JS thread, so the queued duplicates only run their callbacks after the
-  user dismisses the first one, and a window counted from "shown" would let the whole queue through on the
-  first click. The response interceptor (`src/assets/http.js`) also feeds the backend message of a login-state
-  error (the codes that already trigger the redirect to `/login`) into the gate, so popups carrying different
-  page prefixes (`加载失败：Token已过期…` here, `加载列表失败:…` there) count as one event and only the first
-  one shows; the redirect, the 401/403 predicate and the response normalization are unchanged, nothing is
-  cleared from localStorage on expiry, and `$confirm`/`$prompt` are deliberately not wrapped (they ask, never
-  repeat).
-
-- 操作 columns are now sized by their buttons instead of by the room the table has, through a
-  shared mixin (`datapoly-manager-ui/src/utils/operationColumn.js`) used by seven tables: interface list,
-  授权分组, 模块配置, 客户应用, MCP 客户端, MCP 工具 and 数据源列表. Element puts every column
-  whose `width` is not a number into its flexible set and hands it a share of the leftover space, so a
-  column declared with `min-width` only has no width of its own: the interface list's grew as the window
-  did (580px at 1440/1920, 650px at 2560, for buttons needing ~510), and the menu pages were worse
-  off because a percentage `min-width` is parsed by `parseInt` as that many **pixels** (35% → 35px),
-  leaving the whole column to the distribution — buttons sat in a wide gap on a big screen and wrapped
-  onto a second line when it shrank. Each operation column now binds `:width="operationColumnWidth"`,
-  measured from the widest row's `el-button-group` after every render (data load, pagination, language
-  switch — English labels are wider and re-render in place) plus the cell's 22px paddings, written back
-  only when it changed by more than 1px so the measure/render loop settles. Buttons keep their text,
-  icons, rounding and grouping. Measured widths (zh / en): interface list 503 / 590 for a page with
-  drafts (six buttons) and 335 / 391 for an all-online one; 授权分组 239 / 267, 模块配置 167 / 175,
-  客户应用 239 / 288, MCP 客户端 239 / 249, MCP 工具 239 / 249, 数据源列表 sizing to its three
-  buttons — identical at 900 and 2560, one line per row throughout. The interface list also stops
-  wrapping its six English buttons, which the old 580px column could not fit.
-
-- The interface detail/update page's 路径 field no longer clips the tail of long paths. It takes the whole
-  row instead of half of it, and when it cannot be edited (the detail page and every update page — the path
-  is fixed once the interface exists) it renders as a wrapping read-only field
-  (`isPathEditable` in `datapoly-manager-ui/src/views/interface/common.vue`) instead of a single-line
-  `el-input`, whose prefix slot took a fixed slice and left the rest of the URL behind a horizontal clip.
-  The read-only look mirrors a disabled input (drawn with the theme tokens, so it also holds in the dark
-  theme), the prefix is greyed, and the URL always wraps onto as many lines as it needs. The interface
-  fields below it were re-flowed accordingly: 方法/类型, 名称/模块, 授权, 描述.

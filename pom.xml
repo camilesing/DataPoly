@@ -7,7 +7,7 @@
     <groupId>com.cs</groupId>
     <artifactId>datapoly-parent</artifactId>
     <packaging>pom</packaging>
-    <version>1.9.0</version>
+    <version>1.10.0</version>
 
     <name>DataPoly</name>
     <description>A tool for quickly building RESTful APIs from SQL, DSL and scripts over 20+ databases</description>
