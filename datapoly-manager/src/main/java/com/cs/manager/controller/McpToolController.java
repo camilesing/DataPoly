@@ -3,6 +3,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.*;
 import com.cs.core.dto.*;
 import com.cs.manager.service.McpManageService;
@@ -23,6 +26,7 @@ public class McpToolController {
     private McpManageService mcpManageService;
 
     @Operation(summary = "添加MCP工具")
+    @RequirePermission(module = PermissionModule.MCP_TOOL, action = PermissionAction.C)
     @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity create(@Valid @RequestBody McpToolSaveRequest request) {
         mcpManageService.createTool(request);
@@ -30,6 +34,7 @@ public class McpToolController {
     }
 
     @Operation(summary = "更新MCP工具")
+    @RequirePermission(module = PermissionModule.MCP_TOOL, action = PermissionAction.U)
     @PostMapping(value = "/update", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity update(@Valid @RequestBody McpToolSaveRequest request) {
         mcpManageService.updateTool(request);
@@ -37,6 +42,7 @@ public class McpToolController {
     }
 
     @Operation(summary = "删除MCP工具")
+    @RequirePermission(module = PermissionModule.MCP_TOOL, action = PermissionAction.D)
     @DeleteMapping(value = "/delete/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity delete(@PathVariable("id") Long id) {
         mcpManageService.deleteTool(id);
@@ -44,6 +50,7 @@ public class McpToolController {
     }
 
     @Operation(summary = "MCP工具列表")
+    @RequirePermission(module = PermissionModule.MCP_TOOL, action = PermissionAction.R)
     @PostMapping(value = "/listAll", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<McpToolResponse> listAll(@RequestBody EntitySearchRequest request) {
         return mcpManageService.listToolAll(request);

@@ -131,6 +131,14 @@ const constantRouter = new Router({
           component: () => import('@/views/aboutme/readme')
         },
         {
+          // Admin-only console: asideBar hides it for USER (ADMIN_ONLY_ROUTES), and the
+          // backend answers 403 for non-admin callers regardless — hidden:false on purpose
+          path: '/user/manage',
+          name: 'menu.user',
+          icon: "el-icon-user",
+          component: () => import('@/views/user/manage')
+        },
+        {
           path: '/user/self',
           name: 'menu.personal',
           hidden: true,

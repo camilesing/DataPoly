@@ -25,7 +25,7 @@
           </div>
         </div>
         <div class="right-add-button-group">
-          <el-button type="primary"
+          <el-button v-if="$can('APP_CLIENT','C')" type="primary"
                      size="mini"
                      icon="el-icon-document-add"
                      @click="addClient">{{ $t('setting.add') }}</el-button>
@@ -86,17 +86,17 @@
                          :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
-              <el-button size="small"
+              <el-button v-if="$can('APP_CLIENT','C')" size="small"
                          type="success"
                          icon="el-icon-document"
                          @click="handleAuthorize(scope.$index, scope.row)"
                          round>{{ $t('setting.authorize') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$isAdmin()" size="small"
                          type="warning"
                          icon="el-icon-document"
                          @click="handleShowSecret(scope.$index, scope.row)"
                          round>{{ $t('setting.secret') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('APP_CLIENT','D')" size="small"
                          type="danger"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"

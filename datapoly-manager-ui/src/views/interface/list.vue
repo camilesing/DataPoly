@@ -91,7 +91,7 @@
                      :disabled="apiDocStatus==false"
                      icon="el-icon-document-add"
                      @click="openOnlineApiDoc">{{ $t('interface.onlineDoc') }}</el-button>
-          <el-button type="primary"
+          <el-button v-if="$can('API','C')" type="primary"
                      size="mini"
                      icon="el-icon-document-add"
                      @click="handleCreate">{{ $t('interface.newInterface') }}</el-button>
@@ -179,31 +179,31 @@
                          :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
-              <el-button size="small"
+              <el-button v-if="$can('API','U')" size="small"
                          type="primary"
                          icon="el-icon-timer"
                          v-if="scope.row.status===false"
                          @click="handleOnline(scope.$index, scope.row)"
                          round>{{ $t('interface.goOnline') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('API','U')" size="small"
                          type="primary"
                          plain
                          icon="el-icon-s-promotion"
                          v-if="scope.row.status===false"
                          @click="handleQuickOnline(scope.$index, scope.row)"
                          round>{{ $t('interface.quickOnline') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('API','U')" size="small"
                          type="info"
                          icon="el-icon-delete-location"
                          v-if="scope.row.status===true"
                          @click="handleOffline(scope.$index, scope.row)"
                          round>{{ $t('interface.goOffline') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('API','U')" size="small"
                          type="warning"
                          icon="el-icon-edit"
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('common.edit') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('API','U')" size="small"
                          type="success"
                          icon="el-icon-position"
                          @click="handlePublish(scope.$index, scope.row)"
@@ -214,7 +214,7 @@
                          icon="el-icon-time"
                          @click="handleShowHistoryVersion(scope.$index, scope.row)"
                          round>{{ $t('interface.historyVersion') }}</el-button>
-              <el-button size="small"
+              <el-button v-if="$can('API','D')" size="small"
                          type="danger"
                          icon="el-icon-delete"
                          v-if="scope.row.status===false"

@@ -5,9 +5,11 @@ package com.cs.persistence.dao;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.cs.persistence.entity.SystemUserEntity;
 import com.cs.persistence.mapper.SystemUserMapper;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Repository;
 
 import jakarta.annotation.Resource;
+import java.util.List;
 import java.util.Objects;
 
 @Repository
@@ -41,6 +43,50 @@ public class SystemUserDao {
      */
     public void insert(SystemUserEntity userEntity) {
         systemUserMapper.insert(userEntity);
+    }
+
+    /** All users ordered by id, optionally narrowed by a username/realName keyword. */
+    public List<SystemUserEntity> listAll(String searchText) {
+        QueryWrapper<SystemUserEntity> queryWrapper = new QueryWrapper<>();
+        String keyword = StringUtils.trimToNull(searchText);
+        if (keyword != null) {
+            queryWrapper.lambda().and(w -> w
+                    .like(SystemUserEntity::getUsername, keyword)
+                    .or()
+                    .like(SystemUserEntity::getRealName, keyword));
+        }
+        queryWrapper.lambda().orderByAsc(SystemUserEntity::getId);
+        return systemUserMapper.selectList(queryWrapper);
+    }
+
+    /**
+     * Unlocked ADMIN rows — the guard behind "the system must keep at least one usable
+     * administrator": demoting or locking the last one would lock everybody out.
+     */
+    public long countUnlockedAdmins() {
+        QueryWrapper<SystemUserEntity> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda()
+                .eq(SystemUserEntity::getRole, "ADMIN")
+                .and(w -> w.isNull(SystemUserEntity::getLocked).or().eq(SystemUserEntity::getLocked, false));
+        return systemUserMapper.selectCount(queryWrapper);
+    }
+
+    /**
+     * Profile update by the admin console; null fields of {@code user} are left untouched
+     * (MyBatis-Plus default NOT_NULL strategy), so callers only set what changes.
+     */
+    public void updateUser(SystemUserEntity user) {
+        systemUserMapper.updateById(user);
+    }
+
+    /** Rotates a credential together with its salt (admin reset); per-user salt, per-user hash. */
+    public void updateUserPasswordAndSalt(String username, String password, String salt) {
+        QueryWrapper<SystemUserEntity> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda().eq(SystemUserEntity::getUsername, username);
+        SystemUserEntity update = new SystemUserEntity();
+        update.setPassword(password);
+        update.setSalt(salt);
+        systemUserMapper.update(update, queryWrapper);
     }
 
 }

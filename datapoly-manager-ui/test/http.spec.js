@@ -95,6 +95,17 @@ describe('响应拦截器（鉴权跳转与 ResultEntity 归一化）', () => {
     expect(notify).toHaveBeenLastCalledWith('Not Found')
   })
 
+  it('403 是权限不足而不是登录失效：弹错误、留在当前页', () => {
+    const notify = vi.fn()
+    const router = fakeRouter('/datasource/list')
+    redirectToLoginIfAuthError({ code: 403, message: '无权访问: DATASOURCE/C' }, router, notify)
+    expect(router.push).not.toHaveBeenCalled()
+    expect(notify).toHaveBeenCalledWith('无权访问: DATASOURCE/C')
+    // 兜底文案：后端 message 缺失时不弹空白
+    redirectToLoginIfAuthError({ code: 403 }, fakeRouter('/datasource/list'), notify)
+    expect(notify).toHaveBeenLastCalledWith('Access denied')
+  })
+
   it('非 2xx 带 ResultEntity 体归一化为 resolve({data})', async () => {
     const router = fakeRouter('/dashboard')
     const { responseError } = registerInterceptors(router)

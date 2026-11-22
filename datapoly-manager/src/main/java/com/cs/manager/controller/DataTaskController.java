@@ -2,6 +2,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.PageResult;
 import com.cs.common.dto.ResultEntity;
 import com.cs.core.datatask.DataTaskService;
@@ -38,6 +41,7 @@ public class DataTaskController {
     private DataTaskSinkRegistry sinkRegistry;
 
     @Operation(summary = "已注册的投递类型（sinkType 取值来源）")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.R)
     @GetMapping(value = "/sink-types", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity sinkTypes() {
         return ResultEntity.success(sinkRegistry.knownTypes().stream()
@@ -46,18 +50,21 @@ public class DataTaskController {
     }
 
     @Operation(summary = "解析SQL中的入参列表")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.X)
     @PostMapping(value = "/parse", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity parse(@RequestParam("sql") String sql) {
         return ResultEntity.success(apiAssignmentService.parseSqlParams(sql));
     }
 
     @Operation(summary = "创建数据任务")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.C)
     @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity create(@RequestBody DataTaskSaveRequest request) {
         return ResultEntity.success(dataTaskService.create(request));
     }
 
     @Operation(summary = "更新数据任务")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.U)
     @PostMapping(value = "/update", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity update(@RequestBody DataTaskSaveRequest request) {
         dataTaskService.update(request);
@@ -65,12 +72,14 @@ public class DataTaskController {
     }
 
     @Operation(summary = "查看数据任务")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.R)
     @GetMapping(value = "/detail/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity detail(@PathVariable("id") Long id) {
         return ResultEntity.success(dataTaskService.detail(id));
     }
 
     @Operation(summary = "删除数据任务")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.D)
     @DeleteMapping(value = "/delete/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity delete(@PathVariable("id") Long id) {
         dataTaskService.delete(id);
@@ -78,6 +87,7 @@ public class DataTaskController {
     }
 
     @Operation(summary = "查询数据任务列表")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.R)
     @PostMapping(value = "/list", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<DataTaskBaseResponse> list(@RequestBody DataTaskSearchRequest request) {
         return PageUtils.getPage(dataTaskService.list(request),
@@ -86,6 +96,7 @@ public class DataTaskController {
     }
 
     @Operation(summary = "试运行（不产生执行记录，返回 shaping 后的行）")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.X)
     @PostMapping(value = "/preview", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity preview(@RequestBody DataTaskRunRequest request) {
         Map<String, Object> view = dataTaskService.preview(request);
@@ -93,6 +104,7 @@ public class DataTaskController {
     }
 
     @Operation(summary = "提交异步执行")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.X)
     @PostMapping(value = "/submit", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity submit(@RequestBody DataTaskRunRequest request, HttpServletRequest servletRequest) {
         Object username = servletRequest.getAttribute("username");
@@ -101,12 +113,14 @@ public class DataTaskController {
     }
 
     @Operation(summary = "执行记录详情（前端轮询此接口获取完成状态与产物地址）")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.R)
     @GetMapping(value = "/job/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity job(@PathVariable("id") Long id) {
         return ResultEntity.success(dataTaskService.jobView(id));
     }
 
     @Operation(summary = "执行记录搜索")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.R)
     @PostMapping(value = "/jobs/search", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<DataTaskJobView> jobs(@RequestBody DataTaskJobSearchRequest request) {
         return PageUtils.getPage(dataTaskService.jobViews(request),
@@ -115,6 +129,7 @@ public class DataTaskController {
     }
 
     @Operation(summary = "取消执行（排队中直接取消；运行中的为协作式取消）")
+    @RequirePermission(module = PermissionModule.DATA_TASK, action = PermissionAction.X)
     @PostMapping(value = "/job/{id}/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity cancel(@PathVariable("id") Long id) {
         dataTaskService.cancel(id);

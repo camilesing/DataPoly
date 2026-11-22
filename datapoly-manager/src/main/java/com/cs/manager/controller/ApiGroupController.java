@@ -3,6 +3,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.*;
 import com.cs.core.dto.EntitySearchRequest;
 import com.cs.core.service.ApiGroupService;
@@ -27,6 +30,7 @@ public class ApiGroupController {
     private ApiGroupService apiGroupService;
 
     @Operation(summary = "添加分组")
+    @RequirePermission(module = PermissionModule.API_GROUP, action = PermissionAction.C)
     @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity create(@Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name) {
         apiGroupService.createGroup(name);
@@ -34,6 +38,7 @@ public class ApiGroupController {
     }
 
     @Operation(summary = "更新分组")
+    @RequirePermission(module = PermissionModule.API_GROUP, action = PermissionAction.U)
     @PostMapping(value = "/update/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity update(@PathVariable("id") Long id,
                                @Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name) {
@@ -42,6 +47,7 @@ public class ApiGroupController {
     }
 
     @Operation(summary = "删除分组")
+    @RequirePermission(module = PermissionModule.API_GROUP, action = PermissionAction.D)
     @DeleteMapping(value = "/delete/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity delete(@PathVariable("id") Long id) {
         apiGroupService.deleteGroup(id);
@@ -49,6 +55,7 @@ public class ApiGroupController {
     }
 
     @Operation(summary = "分组列表")
+    @RequirePermission(module = PermissionModule.API_GROUP, action = PermissionAction.R)
     @PostMapping(value = "/listAll", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<ApiGroupEntity> listAll(@RequestBody EntitySearchRequest request) {
         return apiGroupService.listAll(request);

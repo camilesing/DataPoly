@@ -3,6 +3,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.ResultEntity;
 import com.cs.core.dto.UpdateFirewallRulesRequest;
 import com.cs.core.gateway.FirewallFilterService;
@@ -22,11 +25,13 @@ public class FirewallController {
     @Resource
     private FirewallFilterService firewallFilterService;
 
+    @RequirePermission(module = PermissionModule.FIREWALL, action = PermissionAction.R)
     @GetMapping(value = "/detail", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<FirewallRulesEntity> queryFirewallRules() {
         return ResultEntity.success(firewallFilterService.getFirewallRules());
     }
 
+    @RequirePermission(module = PermissionModule.FIREWALL, action = PermissionAction.U)
     @PostMapping(value = "/save", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity saveFirewallRules(@Valid @RequestBody UpdateFirewallRulesRequest request) {
         firewallFilterService.updateFirewallRules(request);

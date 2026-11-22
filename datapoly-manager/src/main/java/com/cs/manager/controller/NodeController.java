@@ -3,6 +3,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.ResultEntity;
 import com.cs.core.dto.TopologyNodeResponse;
 import com.cs.core.service.SystemParamService;
@@ -27,22 +30,26 @@ public class NodeController {
     @Resource
     private SystemParamService systemParamService;
 
+    @RequirePermission(module = PermissionModule.NODE, action = PermissionAction.R)
     @GetMapping(value = "/gateway", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<String> getApiGatewayPrefix() {
         return ResultEntity.success(nodeService.getGatewayAddr());
     }
 
+    @RequirePermission(module = PermissionModule.NODE, action = PermissionAction.R)
     @GetMapping(value = "/prefix", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<String> getApiPrefix() {
         return ResultEntity.success(nodeService.getApiPrefix());
     }
 
     // https://blog.csdn.net/weixin_39085822/article/details/114287774
+    @RequirePermission(module = PermissionModule.NODE, action = PermissionAction.R)
     @GetMapping(value = "/topology", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<TopologyNodeResponse> getNodesTopology() {
         return ResultEntity.success(nodeService.getNodesTopology());
     }
 
+    @RequirePermission(module = PermissionModule.NODE, action = PermissionAction.R)
     @GetMapping(value = "/url-config", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<ServiceUrlsConfigResponse> getUrlConfig() {
         return ResultEntity.success(ServiceUrlsConfigResponse.builder()
@@ -56,6 +63,7 @@ public class NodeController {
      * (back to the env / discovered fallback). Every supplied value is validated before anything is
      * written, so a rejected request changes nothing.
      */
+    @RequirePermission(module = PermissionModule.NODE, action = PermissionAction.U)
     @PostMapping(value = "/url-config", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity updateUrlConfig(@RequestParam(value = "gatewayUrl", required = false) String gatewayUrl,
                                         @RequestParam(value = "managerUrl", required = false) String managerUrl) {

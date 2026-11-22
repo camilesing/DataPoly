@@ -33,7 +33,7 @@
           <div class="effective-line">{{ $t('setting.effectiveAddr') }}: {{ effectiveText(manager) }}</div>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary"
+          <el-button v-if="$can('NODE','U')" type="primary"
                      @click="handleSave"
                      plain>{{ $t('setting.save') }}</el-button>
         </el-form-item>

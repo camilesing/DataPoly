@@ -191,6 +191,9 @@
                 <exclude>spring-cloud-starter-netflix-eureka-server-*.jar</exclude>
                 <exclude>httpclient5-*.jar</exclude>
                 <exclude>httpcore5-*.jar</exclude>
+                <!-- spring-security belongs to the manager's filter chain only; see lib/manager below -->
+                <exclude>spring-security-*.jar</exclude>
+                <exclude>spring-boot-starter-security-*.jar</exclude>
             </excludes>
             <includes>
                 <include>*.jar</include>
@@ -217,6 +220,10 @@
                 <include>liquibase-core-*.jar</include>
                 <include>spring-cloud-netflix-eureka-server-*.jar</include>
                 <include>spring-cloud-starter-netflix-eureka-server-*.jar</include>
+                <!-- manager 专属的安全栈：不能进 lib/common / lib/webmvc（executor 也在用，
+                     security 自动配置会在那两个服务上把所有端点锁死） -->
+                <include>spring-security-*.jar</include>
+                <include>spring-boot-starter-security-*.jar</include>
             </includes>
         </fileSet>
 

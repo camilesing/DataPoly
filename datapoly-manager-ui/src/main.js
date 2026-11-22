@@ -11,6 +11,8 @@ import extension from '@extension'
 import { mergeExtensionI18n } from './lang/merge'
 import { setupHttpInterceptors } from './assets/http.js'
 import { installPopupGate } from './utils/popupGate'
+import { getAuth } from './utils/authStorage'
+import { can, isAdmin, refreshPermissions } from './utils/permissions'
 import './assets/iconfont/iconfont.css'
 import './assets/dbicon/iconfont.css'
 import './assets/dbicon/iconfont.js'
@@ -64,6 +66,15 @@ Vue.prototype.$echarts = echarts
 // http interceptors (token/language headers, auth-error redirect, ResultEntity
 // error normalization) — extracted to assets/http.js and covered by unit tests
 setupHttpInterceptors(axios, router, message => ElementUI.Message.error(message))
+
+// Permission trimming (menu + write buttons) — the single front-side judge lives in
+// utils/permissions.js; $can/$isAdmin are thin wrappers so templates read naturally.
+// A refresh re-fetches the matrix, so a grant made by an admin applies on next load.
+Vue.prototype.$can = can
+Vue.prototype.$isAdmin = isAdmin
+if (getAuth('token')) {
+  refreshPermissions(axios)
+}
 
 /* eslint-disable no-new */
 new Vue({

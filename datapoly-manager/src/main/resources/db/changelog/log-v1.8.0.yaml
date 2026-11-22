@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.8.0-user-permission-ddl
+      author: datapoly
+      runOnChange: false
+      changes:
+        - sqlFile:
+            encoding: UTF-8
+            path: db/migration/V1_8_0__user-permission-ddl.sql

@@ -3,9 +3,19 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.dto.PageResult;
 import com.cs.common.dto.ResultEntity;
+import com.cs.core.dto.EntitySearchRequest;
+import com.cs.core.dto.SystemUserCreateRequest;
 import com.cs.core.dto.SystemUserDetailResponse;
+import com.cs.core.dto.SystemUserManageResponse;
+import com.cs.core.dto.SystemUserResetPasswordRequest;
+import com.cs.core.dto.SystemUserUpdateRequest;
+import com.cs.core.dto.UserPermissionResponse;
+import com.cs.core.dto.UserPermissionSaveRequest;
 import com.cs.core.service.SystemUserService;
+import com.cs.manager.security.RequireAdmin;
+import com.cs.manager.service.SystemUserManageService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.MediaType;
@@ -13,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import java.util.List;
 
 @Tag(name = "用户管理接口")
 @RestController
@@ -21,6 +33,9 @@ public class SystemUserController {
 
     @Resource
     private SystemUserService systemUserService;
+
+    @Resource
+    private SystemUserManageService systemUserManageService;
 
     @Operation(summary = "用户详情", description = "根据用户ID获取用户详情")
     @GetMapping(value = "/detail/id", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -43,4 +58,56 @@ public class SystemUserController {
         return ResultEntity.success();
     }
 
+    @Operation(summary = "用户列表", description = "分页列出账号，可按用户名/实际名过滤")
+    @RequireAdmin
+    @PostMapping(value = "/list", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageResult<SystemUserManageResponse> listUsers(@RequestBody EntitySearchRequest request) {
+        return systemUserManageService.list(request);
+    }
+
+    @Operation(summary = "创建用户", description = "管理员创建账号并指定角色（USER 的细粒度权限另经权限矩阵配置）")
+    @RequireAdmin
+    @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResultEntity createUser(@Valid @RequestBody SystemUserCreateRequest request) {
+        systemUserManageService.create(request);
+        return ResultEntity.success();
+    }
+
+    @Operation(summary = "更新用户", description = "改名/邮箱/地址/角色/锁定；不能改自己的角色与锁定，不能动最后一个可用管理员")
+    @RequireAdmin
+    @PostMapping(value = "/update", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResultEntity updateUser(@Valid @RequestBody SystemUserUpdateRequest request, HttpServletRequest httpRequest) {
+        systemUserManageService.update(request, httpRequest.getAttribute("username").toString());
+        return ResultEntity.success();
+    }
+
+    @Operation(summary = "重置口令", description = "管理员重置他人口令，该账号全部会话随之吊销")
+    @RequireAdmin
+    @PostMapping(value = "/resetPassword", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResultEntity resetPassword(@Valid @RequestBody SystemUserResetPasswordRequest request) {
+        systemUserManageService.resetPassword(request);
+        return ResultEntity.success();
+    }
+
+    @Operation(summary = "查询权限配置行", description = "某账号已配置的权限行（未出现的模块走默认只读）")
+    @RequireAdmin
+    @GetMapping(value = "/permission/list", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResultEntity<List<UserPermissionResponse>> listPermissions(@RequestParam("username") String username) {
+        return ResultEntity.success(systemUserManageService.configuredMatrix(username));
+    }
+
+    @Operation(summary = "保存权限配置", description = "整表替换该账号的权限行；actions 为空的模块回到默认只读")
+    @RequireAdmin
+    @PostMapping(value = "/permission/update", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResultEntity updatePermissions(@Valid @RequestBody UserPermissionSaveRequest request) {
+        systemUserManageService.replacePermissions(request);
+        return ResultEntity.success();
+    }
+
+    @Operation(summary = "自己的有效权限", description = "当前登录者的有效权限矩阵（前端按它裁剪菜单与按钮）")
+    @GetMapping(value = "/permission/self", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResultEntity<List<UserPermissionResponse>> selfPermissions(HttpServletRequest request) {
+        return ResultEntity.success(
+                systemUserManageService.effectiveMatrix(request.getAttribute("username").toString()));
+    }
 }

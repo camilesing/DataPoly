@@ -3,6 +3,9 @@
 package com.cs.manager.controller;
 
 import com.cs.common.consts.Constants;
+import com.cs.common.consts.PermissionAction;
+import com.cs.common.consts.PermissionModule;
+import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.*;
 import com.cs.core.dto.ApiAccessLogBasicResponse;
 import com.cs.core.service.OverviewService;
@@ -23,42 +26,49 @@ public class OverviewController {
     private OverviewService overviewService;
 
     @Operation(summary = "计数统计")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/counter", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity count() {
         return ResultEntity.success(overviewService.count());
     }
 
     @Operation(summary = "趋势统计")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/trend/{days}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<DateCount>> trend(@PathVariable("days") Integer days) {
         return ResultEntity.success(overviewService.trend(days));
     }
 
     @Operation(summary = "HTTP状态统计")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/ratio/{days}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity httpStatus(@PathVariable("days") Integer days) {
         return ResultEntity.success(overviewService.httpStatus(days));
     }
 
     @Operation(summary = "路径TOP")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/top/path/{days}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> topPath(@PathVariable("days") Integer days, @RequestParam("n") Integer n) {
         return ResultEntity.success(overviewService.topPath(days, n));
     }
 
     @Operation(summary = "地址TOP")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/top/addr/{days}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> topAddr(@PathVariable("days") Integer days, @RequestParam("n") Integer n) {
         return ResultEntity.success(overviewService.topAddr(days, n));
     }
 
     @Operation(summary = "客户端TOP")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/top/client/{days}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> topClient(@PathVariable("days") Integer days, @RequestParam("n") Integer n) {
         return ResultEntity.success(overviewService.topClient(days, n));
     }
 
     @Operation(summary = "接口调用日志")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/log/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResult<ApiAccessLogBasicResponse> callLogs(@PathVariable("id") Long id, @RequestParam("page") Integer page,
                                                           @RequestParam("size") Integer size,
@@ -69,36 +79,42 @@ public class OverviewController {
     }
 
     @Operation(summary = "数据源类别占比")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/datasource-type-ratio", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> datasourceTypeRatio() {
         return ResultEntity.success(overviewService.datasourceTypeRatio());
     }
 
     @Operation(summary = "引擎类型占比")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/engine-ratio", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> engineRatio() {
         return ResultEntity.success(overviewService.engineRatio());
     }
 
     @Operation(summary = "数据源接口数量")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/datasource-api-count", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> datasourceApiCount() {
         return ResultEntity.success(overviewService.datasourceApiCount());
     }
 
     @Operation(summary = "接口方法占比")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/method-ratio", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> methodRatio() {
         return ResultEntity.success(overviewService.methodRatio());
     }
 
     @Operation(summary = "模块接口数量")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/module-api-count", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> moduleApiCount() {
         return ResultEntity.success(overviewService.moduleApiCount());
     }
 
     @Operation(summary = "API状态码占比")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/api/{apiId}/status-ratio/{days}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<NameCount>> apiStatusRatio(@PathVariable("apiId") Long apiId,
                                                         @PathVariable("days") Integer days) {
@@ -106,6 +122,7 @@ public class OverviewController {
     }
 
     @Operation(summary = "API每日调用趋势")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/api/{apiId}/daily-trend/{days}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<DateCount>> apiDailyTrend(@PathVariable("apiId") Long apiId,
                                                        @PathVariable("days") Integer days) {
@@ -113,6 +130,7 @@ public class OverviewController {
     }
 
     @Operation(summary = "API 24小时调用趋势")
+    @RequirePermission(module = PermissionModule.OVERVIEW, action = PermissionAction.R)
     @GetMapping(value = "/api/{apiId}/hourly-trend", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity<List<HourCount>> apiHourlyTrend(@PathVariable("apiId") Long apiId,
                                                         @RequestParam("date") String date) {

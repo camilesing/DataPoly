@@ -63,6 +63,7 @@
 <script>
 import extension from '@extension'
 import { setAuth } from '@/utils/authStorage'
+import { refreshPermissions } from '@/utils/permissions'
 
 export default {
   name: 'LoginPage',
@@ -139,6 +140,8 @@ export default {
           setAuth('username', this.loginForm.username);
           setAuth('realname', res.data.data.realName);
           setAuth('role', res.data.data.role || '');
+          // 拉取自己的有效权限矩阵，进入后菜单/按钮按它裁剪（utils/permissions.js 唯一判据）
+          refreshPermissions(this.$http);
           this.$http.get("/datapoly/manager/api/v1/health/version").then(
             res => {
               if (0 === res.data.code) {
