@@ -53,9 +53,8 @@
                          icon="el-icon-edit"
                          @click="handleUpdate(scope.$index, scope.row)"
                          round>{{ $t('setting.edit') }}</el-button>
-              <el-button v-if="$can('API_GROUP','D')" size="small"
+              <el-button v-if="$can('API_GROUP','D') && scope.row.id!==1" size="small"
                          type="danger"
-                         v-if="scope.row.id!==1"
                          icon="el-icon-delete"
                          @click="handleDelete(scope.$index, scope.row)"
                          round>{{ $t('setting.deleteBtn') }}</el-button>

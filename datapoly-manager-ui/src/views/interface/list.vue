@@ -179,23 +179,20 @@
                          :width="operationColumnWidth">
           <template slot-scope="scope">
             <el-button-group>
-              <el-button v-if="$can('API','U')" size="small"
+              <el-button v-if="$can('API','U') && scope.row.status===false" size="small"
                          type="primary"
                          icon="el-icon-timer"
-                         v-if="scope.row.status===false"
                          @click="handleOnline(scope.$index, scope.row)"
                          round>{{ $t('interface.goOnline') }}</el-button>
-              <el-button v-if="$can('API','U')" size="small"
+              <el-button v-if="$can('API','U') && scope.row.status===false" size="small"
                          type="primary"
                          plain
                          icon="el-icon-s-promotion"
-                         v-if="scope.row.status===false"
                          @click="handleQuickOnline(scope.$index, scope.row)"
                          round>{{ $t('interface.quickOnline') }}</el-button>
-              <el-button v-if="$can('API','U')" size="small"
+              <el-button v-if="$can('API','U') && scope.row.status===true" size="small"
                          type="info"
                          icon="el-icon-delete-location"
-                         v-if="scope.row.status===true"
                          @click="handleOffline(scope.$index, scope.row)"
                          round>{{ $t('interface.goOffline') }}</el-button>
               <el-button v-if="$can('API','U')" size="small"
@@ -214,10 +211,9 @@
                          icon="el-icon-time"
                          @click="handleShowHistoryVersion(scope.$index, scope.row)"
                          round>{{ $t('interface.historyVersion') }}</el-button>
-              <el-button v-if="$can('API','D')" size="small"
+              <el-button v-if="$can('API','D') && scope.row.status===false" size="small"
                          type="danger"
                          icon="el-icon-delete"
-                         v-if="scope.row.status===false"
                          @click="handleDelete(scope.$index, scope.row)"
                          round>{{ $t('common.delete') }}</el-button>
             </el-button-group>
