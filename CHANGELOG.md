@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - External gateway/manager URLs editable in the UI without restart.
 - Interface list: drafts and online in one table (status filter), with version history and quick online.
 - DataTask statement sinks: source-side exports (MaxCompute `UNLOAD`) run in the source engine.
-- User roles, login-page extension hook, Feishu login; dark UI re-theme, regrouped sidebar, burst error-popups deduplicated.
+- User roles, login-page extension hook; dark UI re-theme, regrouped sidebar, burst error-popups deduplicated.
 
 ### Changed
 

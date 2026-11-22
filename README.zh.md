@@ -15,7 +15,7 @@ sh ./build-docker/build_and_push_image.sh
 cd build-docker/install
 docker compose up -d
 ```
-打开 `http://127.0.0.1:8091/#/login`，使用用户名 `admin`、密码 `DataPoly@123456` 登录。
+打开 `http://127.0.0.1:8091/#/login` ，使用用户名 `admin` 、密码 `DataPoly@123456` 登录。
 
 ## 从源码构建 DataPoly
 
