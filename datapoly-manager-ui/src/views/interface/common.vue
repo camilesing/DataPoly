@@ -1681,13 +1681,15 @@ export default {
       this.$refs.form.validate(valid => {
         if (valid) {
           var sqls = []
-          var isSql = true;
+          var contentTip = this.$t('common2.checkSqlContent');
           if (this.createParam.engine === 'SQL') {
-            isSql = true
             sqls = this.$refs.sqlEditors.queryContent()
-          } else {
-            isSql = false
+          } else if (this.createParam.engine === 'SCRIPT') {
+            contentTip = this.$t('common2.checkScriptContent');
             sqls = this.$refs.scriptEditer.queryContent()
+          } else {
+            contentTip = this.$t('common2.checkGraphqlContent');
+            sqls = this.$refs.graphqlEditer.queryContent()
           }
 
           if (!this.createParam.dataSourceId) {
@@ -1701,7 +1703,7 @@ export default {
           }
 
           if (this.checkSqlsOrScriptEmpty(sqls)) {
-            this.$alert(isSql ? this.$t('common2.checkSqlContent') : this.$t('common2.checkScriptContent'), this.$t('common2.parseError'),
+            this.$alert(contentTip, this.$t('common2.parseError'),
               {
                 confirmButtonText: this.$t('common.confirm'),
                 type: "error"
