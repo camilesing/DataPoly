@@ -364,8 +364,13 @@ public class ApiAssignmentService {
                 }
             }
 
-            for (ItemParam itemParam : request.getParams()) {
-                itemParam.checkValid(request.getMethod());
+            // GRAPHQL skips the generic checkValid: its params are the fixed query/variables pair,
+            // where variables is an opaque JSON object (OBJECT without children) bound by the engine
+            // itself; validateGraphqlAssignment replaces the submitted params with the canonical pair.
+            if (ExecuteEngineEnum.GRAPHQL != request.getEngine()) {
+                for (ItemParam itemParam : request.getParams()) {
+                    itemParam.checkValid(request.getMethod());
+                }
             }
         }
         if (!CollectionUtils.isEmpty(request.getOutputs())) {
@@ -467,8 +472,12 @@ public class ApiAssignmentService {
                             "api.get.head.no.body");
                 }
             }
-            for (ItemParam itemParam : request.getParams()) {
-                itemParam.checkValid(exists.getMethod());
+            // Same GRAPHQL exemption as createAssignment: the fixed pair is canonical, variables is
+            // an opaque object and gets replaced by validateGraphqlAssignment before persisting.
+            if (ExecuteEngineEnum.GRAPHQL != request.getEngine()) {
+                for (ItemParam itemParam : request.getParams()) {
+                    itemParam.checkValid(exists.getMethod());
+                }
             }
         }
         if (!CollectionUtils.isEmpty(request.getOutputs())) {

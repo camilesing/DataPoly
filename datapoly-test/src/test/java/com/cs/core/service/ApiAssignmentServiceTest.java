@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.service;
 
+import com.cs.common.consts.Constants;
 import com.cs.common.dto.ApiIdVersion;
+import com.cs.common.dto.ItemParam;
 import com.cs.common.dto.PageResult;
 import com.cs.common.enums.*;
 import com.cs.common.exception.*;
@@ -125,6 +127,53 @@ public class ApiAssignmentServiceTest {
     }
 
     @Test
+    public void createAssignmentAcceptsGraphqlVariablesObjectWithoutChildren() {
+        CreateHarness harness = wireCreateService();
+
+        harness.service.createAssignment(validGraphqlCreateRequest());
+
+        Assert.assertEquals(1, harness.inserted.size());
+        List<ItemParam> stored = harness.inserted.get(0).getParams();
+        Assert.assertEquals(2, stored.size());
+        Assert.assertEquals(Constants.PARAM_GRAPHQL_QUERY, stored.get(0).getName());
+        Assert.assertEquals(ParamTypeEnum.STRING, stored.get(0).getType());
+        Assert.assertEquals(Constants.PARAM_GRAPHQL_VARIABLES, stored.get(1).getName());
+        Assert.assertEquals(ParamTypeEnum.OBJECT, stored.get(1).getType());
+        Assert.assertTrue(stored.get(1).getChildren().isEmpty());
+    }
+
+    @Test
+    public void updateAssignmentAcceptsGraphqlVariablesObjectWithoutChildren() {
+        ApiAssignmentEntity exists = ApiAssignmentEntity.builder()
+                .id(1L).method(HttpMethodEnum.POST).path("/demo").build();
+        UpdateHarness harness = wireUpdateService(exists);
+
+        harness.service.updateAssignment(validGraphqlUpdateRequest());
+
+        Assert.assertEquals(1, harness.updated.size());
+        List<ItemParam> stored = harness.updated.get(0).getParams();
+        Assert.assertEquals(2, stored.size());
+        Assert.assertEquals(ParamTypeEnum.OBJECT, stored.get(1).getType());
+        Assert.assertTrue(stored.get(1).getChildren().isEmpty());
+    }
+
+    @Test
+    public void createAssignmentStillRejectsObjectParamWithoutChildrenForSqlEngine() {
+        CreateHarness harness = wireCreateService();
+
+        ApiAssignmentSaveRequest request = validGraphqlCreateRequest();
+        request.setEngine(ExecuteEngineEnum.SQL);
+        request.setParams(graphqlSubmittedParams());
+        try {
+            harness.service.createAssignment(request);
+            Assert.fail("Expected CommonException for object param without children.");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_INVALID_ARGUMENT, e.getCode());
+        }
+        Assert.assertTrue(harness.inserted.isEmpty());
+    }
+
+    @Test
     public void parseSqlParamsAcceptsPlainComparisonOperators() {
         List<SqlParamParseResponse> parsed = new ApiAssignmentService()
                 .parseSqlParams("select id from t_order "
@@ -220,6 +269,77 @@ public class ApiAssignmentServiceTest {
         request.setContextList(Collections.singletonList("select 1"));
         request.setFormatMap(new ArrayList<DataTypeFormatMapValue>());
         return request;
+    }
+
+    private static final String GRAPHQL_SDL = "type Query { users: [User] @sql(sql: \"select 1\") }\n"
+            + "type User { id: Long }";
+
+    /**
+     * The exact pair the manager UI submits for a GraphQL interface: query is the document,
+     * variables is an opaque JSON object (OBJECT without children) bound by the engine itself.
+     */
+    private static List<ItemParam> graphqlSubmittedParams() {
+        ItemParam query = new ItemParam();
+        query.setName(Constants.PARAM_GRAPHQL_QUERY);
+        query.setType(ParamTypeEnum.STRING);
+        query.setLocation(ParamLocationEnum.REQUEST_BODY);
+        query.setRequired(true);
+        ItemParam variables = new ItemParam();
+        variables.setName(Constants.PARAM_GRAPHQL_VARIABLES);
+        variables.setType(ParamTypeEnum.OBJECT);
+        variables.setLocation(ParamLocationEnum.REQUEST_BODY);
+        variables.setRequired(false);
+        variables.setChildren(Collections.emptyList());
+        return new ArrayList<>(Arrays.asList(query, variables));
+    }
+
+    private static ApiAssignmentSaveRequest validGraphqlCreateRequest() {
+        ApiAssignmentSaveRequest request = new ApiAssignmentSaveRequest();
+        request.setGroupId(10L);
+        request.setModuleId(20L);
+        request.setDatasourceId(2L);
+        request.setName("gql-demo");
+        request.setMethod(HttpMethodEnum.POST);
+        request.setContentType("application/json");
+        request.setPath("gql/demo");
+        request.setOpen(false);
+        request.setAlarm(false);
+        request.setEngine(ExecuteEngineEnum.GRAPHQL);
+        request.setContextList(Collections.singletonList(GRAPHQL_SDL));
+        request.setParams(graphqlSubmittedParams());
+        request.setFormatMap(new ArrayList<DataTypeFormatMapValue>());
+        return request;
+    }
+
+    private static ApiAssignmentSaveRequest validGraphqlUpdateRequest() {
+        ApiAssignmentSaveRequest request = validGraphqlCreateRequest();
+        request.setId(1L);
+        request.setPath("/demo");
+        return request;
+    }
+
+    private static CreateHarness wireCreateService() {
+        CreateHarness harness = new CreateHarness();
+        ApiAssignmentService service = new ApiAssignmentService();
+        DataTaskTestSupport.setField(service, "apiAssignmentDao", new ApiAssignmentDao() {
+            @Override
+            public ApiAssignmentEntity getByUk(HttpMethodEnum method, String path) {
+                return null;
+            }
+
+            @Override
+            public void insert(ApiAssignmentEntity entity) {
+                harness.inserted.add(entity);
+            }
+        });
+        DataTaskTestSupport.setField(service, "dataSourceDao", new DataSourceDao() {
+            @Override
+            public DataSourceEntity getById(Long id) {
+                return new DataSourceEntity();
+            }
+        });
+        harness.service = service;
+        return harness;
     }
 
     private static UpdateHarness wireUpdateService(ApiAssignmentEntity exists) {
@@ -334,6 +454,11 @@ public class ApiAssignmentServiceTest {
         final List<ApiAssignmentEntity> updated = new ArrayList<>();
         final List<ApiUpdatePostContext> fired = new ArrayList<>();
         final List<Object> events = new ArrayList<>();
+        ApiAssignmentService service;
+    }
+
+    private static final class CreateHarness {
+        final List<ApiAssignmentEntity> inserted = new ArrayList<>();
         ApiAssignmentService service;
     }
 }
