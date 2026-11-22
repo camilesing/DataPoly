@@ -16,4 +16,10 @@ public class PasswordUtilsTest {
         assertTrue(BCrypt.checkpw("secret-123", hashed));
         assertFalse(BCrypt.checkpw("wrong-password", hashed));
     }
+
+    @Test
+    public void testUtilityConstructorIsCallable() throws Exception {
+        // final utility class with the implicit default constructor: instantiate once
+        assertNotNull(PasswordUtils.class.getDeclaredConstructor().newInstance());
+    }
 }

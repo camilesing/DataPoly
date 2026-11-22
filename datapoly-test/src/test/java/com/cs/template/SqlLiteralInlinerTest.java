@@ -4,6 +4,7 @@ package com.cs.template;
 import org.junit.*;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.*;
 
 public class SqlLiteralInlinerTest {
@@ -104,5 +105,97 @@ public class SqlLiteralInlinerTest {
         Assert.assertEquals("select 1", SqlLiteralInliner.inline("select 1", Collections.emptyList(), null));
         Assert.assertEquals("select 1", SqlLiteralInliner.inline("select 1", null, null));
         Assert.assertNull(SqlLiteralInliner.inline(null, values("v"), null));
+    }
+
+    @Test
+    public void minusAndSlashAreOnlyCommentsWhenDoubledOrStarred() {
+        Assert.assertEquals("select 5 - 1", SqlLiteralInliner.inline("select 5 - ?", values(1), names("a")));
+        Assert.assertEquals("select 6 / 2", SqlLiteralInliner.inline("select 6 / ?", values(2), names("a")));
+        // a trailing '-' or '/' is one more ordinary character; the placeholder it swallows is missed
+        assertRefused("select 5 -", values(1), names("a"), "0 '?'");
+        assertRefused("select 5 /", values(1), names("a"), "0 '?'");
+    }
+
+    @Test
+    public void everyIntegerWidthRendersAsItself() {
+        Assert.assertEquals("123456789012345", SqlLiteralInliner.literal(new BigInteger("123456789012345"), "p"));
+        Assert.assertEquals("7", SqlLiteralInliner.literal((byte) 7, "p"));
+        Assert.assertEquals("300", SqlLiteralInliner.literal((short) 300, "p"));
+        Assert.assertEquals("42", SqlLiteralInliner.literal(42, "p"));
+        Assert.assertEquals("1.5", SqlLiteralInliner.literal(1.5F, "p"));
+    }
+
+    @Test
+    public void infiniteFloatsAreRefusedLikeNaN() {
+        try {
+            SqlLiteralInliner.literal(Float.POSITIVE_INFINITY, "ratio");
+            Assert.fail("expected ParameterInliningException");
+        } catch (ParameterInliningException e) {
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("ratio"));
+        }
+    }
+
+    @Test
+    public void nulCharactersInAValueAreRefused() {
+        try {
+            SqlLiteralInliner.literal("a\0b", "payload");
+            Assert.fail("expected ParameterInliningException");
+        } catch (ParameterInliningException e) {
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("NUL"));
+        }
+    }
+
+    @Test
+    public void missingNamesFallBackToPositionalNumbers() {
+        // a null name list renders fine; names only appear in diagnostics
+        Assert.assertEquals("select 'v'", SqlLiteralInliner.inline("select ?", values("v"), null));
+        Assert.assertEquals("select 'a', 'b'",
+                SqlLiteralInliner.inline("select ?, ?", values("a", "b"), names("only-first")));
+        Assert.assertEquals("select 'a', 'b'",
+                SqlLiteralInliner.inline("select ?, ?", values("a", "b"), names("x", null)));
+        // the positional fallback is what the error message shows
+        try {
+            SqlLiteralInliner.inline("select ?, ?", values("a", Arrays.asList(1)), names("first"));
+            Assert.fail("expected ParameterInliningException");
+        } catch (ParameterInliningException e) {
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("#2"));
+        }
+    }
+
+    @Test
+    public void unbalancedQuotesSwallowTheirQuestionMarks() {
+        // a quote that never closes takes the rest with it, so no placeholder is found
+        assertRefused("select 'a", values("v"), names("v"), "0 '?'");
+        assertRefused("select 'a", values("v"), names("v"), "unbalanced");
+        // a closing quote as the very last character
+        assertRefused("select 'a'", values("v"), names("v"), "0 '?'");
+        // a backslash as the very last character cannot escape anything
+        assertRefused("select 'a\\", values("v"), names("v"), "0 '?'");
+    }
+
+    @Test
+    public void commentsRunningPastTheEndSwallowTheirQuestionMarks() {
+        assertRefused("-- tail ?", values("v"), names("v"), "0 '?'");
+        assertRefused("/* open ?", values("v"), names("v"), "0 '?'");
+    }
+
+    @Test
+    public void blockCommentEdgeCharactersStayLiteral() {
+        // '*' inside a block comment that is not the closing pair
+        Assert.assertEquals("/* a*b ? */ select 'v' from t",
+                SqlLiteralInliner.inline("/* a*b ? */ select ? from t", values("v"), names("v")));
+        // '*' as the very last character: no '/' can follow
+        Assert.assertEquals("select 'v' /* *", SqlLiteralInliner.inline("select ? /* *", values("v"), names("v")));
+    }
+
+    /** Inlining that must fail; the message is asserted to contain {@code fragment}. */
+    private static void assertRefused(String sql, List<Object> values, List<String> names, String fragment) {
+        try {
+            SqlLiteralInliner.inline(sql, values, names);
+        } catch (ParameterInliningException e) {
+            Assert.assertTrue("message: " + e.getMessage(), e.getMessage().contains(fragment));
+            return;
+        }
+        throw new AssertionError("expected ParameterInliningException for: " + sql);
     }
 }

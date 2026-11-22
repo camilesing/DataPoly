@@ -84,4 +84,19 @@ public class OutParamTest {
         assertNotNull(param.getChildren());
         assertTrue(param.getChildren().isEmpty());
     }
+
+    @Test
+    public void testObjectWithEmptyChildrenListRejected() {
+        // present-but-empty children list must be rejected like a missing one
+        OutParam param = new OutParam();
+        param.setName("obj");
+        param.setType(ParamTypeEnum.OBJECT);
+        param.setChildren(new java.util.ArrayList<>());
+        try {
+            param.checkValid();
+            fail("empty children list must be rejected for object outputs");
+        } catch (CommonException expected) {
+            assertTrue(expected.getMessage().contains("child parameter"));
+        }
+    }
 }

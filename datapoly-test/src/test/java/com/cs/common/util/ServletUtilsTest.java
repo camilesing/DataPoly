@@ -73,4 +73,77 @@ public class ServletUtilsTest {
         HttpServletRequest request = fakeRequest("http://x/y", "/y", "10.0.0.1", new HashMap<>());
         assertEquals("10.0.0.1", ServletUtils.getIpAddr(request));
     }
+
+    @Test
+    public void testIpAddrWalksEveryProxyHeaderInOrder() {
+        // each proxy header wins when all previous ones are absent or "unknown"
+        assertEquals("8.8.4.4", ServletUtils.getIpAddr(requestWithHeaders("WL-Proxy-Client-IP", "8.8.4.4")));
+        assertEquals("7.7.7.7", ServletUtils.getIpAddr(requestWithHeaders("HTTP_CLIENT_IP", "7.7.7.7")));
+        assertEquals("6.6.6.6", ServletUtils.getIpAddr(requestWithHeaders("HTTP_X_FORWARDED_FOR", "6.6.6.6")));
+    }
+
+    @Test
+    public void testIpAddrTreatsBlankHeaderValuesAsAbsent() {
+        // empty-string and "unknown" (case-insensitive) headers fall through the whole walk
+        Map<String, String> headers = new HashMap<>();
+        headers.put("x-forwarded-for", "");
+        headers.put("Proxy-Client-IP", "");
+        headers.put("WL-Proxy-Client-IP", "unknown");
+        headers.put("HTTP_CLIENT_IP", "");
+        headers.put("HTTP_X_FORWARDED_FOR", "UNKNOWN");
+        HttpServletRequest request = fakeRequest("http://x/y", "/y", "10.0.0.2", headers);
+        assertEquals("10.0.0.2", ServletUtils.getIpAddr(request));
+    }
+
+    @Test
+    public void testIpAddrUnknownProxyHeaderFallsThroughToLaterHeader() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("x-forwarded-for", "unknown");
+        headers.put("Proxy-Client-IP", "unknown");
+        headers.put("WL-Proxy-Client-IP", "5.5.5.5");
+        HttpServletRequest request = fakeRequest("http://x/y", "/y", "10.0.0.1", headers);
+        assertEquals("5.5.5.5", ServletUtils.getIpAddr(request));
+    }
+
+    @Test
+    public void testIpAddrHeaderReadFailureReturnsInitialAddress() {
+        HttpServletRequest request = (HttpServletRequest) Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{HttpServletRequest.class},
+                (proxy, method, args) -> {
+                    if ("getHeader".equals(method.getName())) {
+                        throw new IllegalStateException("header access broken");
+                    }
+                    if ("getRemoteAddr".equals(method.getName())) {
+                        return "10.9.9.9";
+                    }
+                    return null;
+                });
+        // the guard value survives when header access blows up
+        assertEquals("0.0.0.0", ServletUtils.getIpAddr(request));
+    }
+
+    @Test
+    public void testIpAddrSkipsUnknownHttpClientIpHeader() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("x-forwarded-for", "");
+        headers.put("Proxy-Client-IP", "");
+        headers.put("WL-Proxy-Client-IP", "");
+        headers.put("HTTP_CLIENT_IP", "unknown");
+        headers.put("HTTP_X_FORWARDED_FOR", "9.8.7.6");
+        HttpServletRequest request = fakeRequest("http://x/y", "/y", "10.0.0.1", headers);
+        assertEquals("9.8.7.6", ServletUtils.getIpAddr(request));
+    }
+
+    @Test
+    public void testUtilityConstructorIsCallable() throws Exception {
+        // implicit default constructor of the final utility class: instantiate once
+        assertNotNull(ServletUtils.class.getDeclaredConstructor().newInstance());
+    }
+
+    private HttpServletRequest requestWithHeaders(String name, String value) {
+        Map<String, String> headers = new HashMap<>();
+        headers.put(name, value);
+        return fakeRequest("http://x/y", "/y", "10.0.0.1", headers);
+    }
 }

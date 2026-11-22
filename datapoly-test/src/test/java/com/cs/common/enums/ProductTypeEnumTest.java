@@ -5,8 +5,11 @@ import com.cs.common.util.JdbcUrlUtils;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 
@@ -146,6 +149,329 @@ public class ProductTypeEnumTest {
         assertTrue(matcher.matches());
         assertEquals("service.cn-hangzhou.maxcompute.aliyun.com", matcher.group("host"));
         assertEquals("project=test_project&useProjectTimeZone=true", matcher.group("params"));
+    }
+
+    @Test
+    public void testUrlTemplatesStartWithUrlPrefixForEveryType() {
+        for (ProductTypeEnum type : ProductTypeEnum.values()) {
+            String[] templates = type.getUrl();
+            assertNotNull("tplUrls missing for " + type, templates);
+            assertTrue("tplUrls empty for " + type, templates.length > 0);
+            boolean anyStartsWithPrefix = false;
+            for (String template : templates) {
+                assertNotNull(template);
+                assertFalse("blank template for " + type, template.trim().isEmpty());
+                if (template.startsWith(type.getUrlPrefix())) {
+                    anyStartsWithPrefix = true;
+                }
+            }
+            assertTrue("no template of " + type + " starts with its urlPrefix",
+                    anyStartsWithPrefix);
+        }
+    }
+
+    @Test
+    public void testDriversLookLikeClassNames() {
+        for (ProductTypeEnum type : ProductTypeEnum.values()) {
+            String driver = type.getDriver();
+            assertNotNull("driver missing for " + type, driver);
+            assertTrue("driver must be a class name: " + type + " -> " + driver,
+                    driver.matches("[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z0-9_$]+)+"));
+        }
+    }
+
+    @Test
+    public void testQuotesAndPortsSane() {
+        // sqlite has no port; http carries no quoting
+        assertEquals(0, ProductTypeEnum.SQLITE3.getContext().getDefaultPort());
+        assertNull(ProductTypeEnum.HTTP.getContext().getQuote());
+        for (ProductTypeEnum type : ProductTypeEnum.values()) {
+            if (type != ProductTypeEnum.SQLITE3) {
+                assertTrue("unexpected port " + type.getContext().getDefaultPort() + " for " + type,
+                        type.getContext().getDefaultPort() > 0);
+            }
+            if (type != ProductTypeEnum.HTTP) {
+                assertNotNull(type.getContext().getQuote());
+            }
+        }
+    }
+
+    @Test
+    public void testCatalogAndSchemaSwitches() {
+        // only SQLSERVER and SYBASE work in catalog+schema mode
+        Set<ProductTypeEnum> expected = new HashSet<>(Arrays.asList(
+                ProductTypeEnum.SQLSERVER, ProductTypeEnum.SYBASE));
+        for (ProductTypeEnum type : ProductTypeEnum.values()) {
+            assertEquals("hasCatalogAndSchema drifted for " + type,
+                    expected.contains(type), type.getContext().isHasCatalogAndSchema());
+        }
+    }
+
+    @Test
+    public void testAdapterSplitsCatalogAndSchema() {
+        // the adapter maps the logical database to (catalog, schema) per product family
+        assertEquals("db", ProductTypeEnum.MYSQL.getContext().getAdapter().apply("db").getLeft());
+        assertNull(ProductTypeEnum.MYSQL.getContext().getAdapter().apply("db").getRight());
+        assertNull(ProductTypeEnum.ORACLE.getContext().getAdapter().apply("db").getLeft());
+        assertEquals("db", ProductTypeEnum.ORACLE.getContext().getAdapter().apply("db").getRight());
+        assertEquals("db", ProductTypeEnum.GBASE8A.getContext().getAdapter().apply("db").getLeft());
+        assertNull(ProductTypeEnum.GBASE8A.getContext().getAdapter().apply("db").getRight());
+        // OceanBase is multi-dialect: no fixed mapping
+        assertNull(ProductTypeEnum.OCEANBASE.getContext().getAdapter());
+    }
+
+    @Test
+    public void testEveryAdapterMapsDatabaseIntoDeclaredSlot() {
+        // MySQL-family products keep the database in the catalog slot, everything else
+        // (except adapter-less OceanBase) maps it into the schema slot
+        Set<ProductTypeEnum> catalogSlot = new HashSet<>(Arrays.asList(
+                ProductTypeEnum.MYSQL, ProductTypeEnum.MARIADB, ProductTypeEnum.GBASE8A,
+                ProductTypeEnum.DORIS, ProductTypeEnum.STARROCKS, ProductTypeEnum.TDENGINE,
+                ProductTypeEnum.MONGODB));
+        for (ProductTypeEnum type : ProductTypeEnum.values()) {
+            if (type == ProductTypeEnum.OCEANBASE) {
+                assertNull("multi-dialect type must stay unmapped", type.getContext().getAdapter());
+                continue;
+            }
+            org.apache.commons.lang3.tuple.Pair<String, String> mapped =
+                    type.getContext().getAdapter().apply("demo_db");
+            assertNotNull("adapter missing for " + type, mapped);
+            if (catalogSlot.contains(type)) {
+                assertEquals(type.name() + " must map database to catalog", "demo_db", mapped.getLeft());
+                assertNull(type.name() + " catalog types leave schema empty", mapped.getRight());
+            } else {
+                assertNull(type.name() + " schema types leave catalog empty", mapped.getLeft());
+                assertEquals(type.name() + " must map database to schema", "demo_db", mapped.getRight());
+            }
+        }
+    }
+
+    @Test
+    public void testSchemaListAvailability() {
+        assertNull(ProductTypeEnum.SYBASE.getContext().getSqlSchemaList());
+        assertNull(ProductTypeEnum.SQLITE3.getContext().getSqlSchemaList());
+        assertNull(ProductTypeEnum.HTTP.getContext().getSqlSchemaList());
+        assertEquals("SHOW DATABASES", ProductTypeEnum.HIVE.getContext().getSqlSchemaList());
+        // types without a schema query return a fixed list instead
+        assertEquals(Collections.singletonList("sqlite_master"),
+                ProductTypeEnum.SQLITE3.getContext().getRetSchemaList());
+        assertEquals(Collections.singletonList("elasticsearch"),
+                ProductTypeEnum.ELASTICSEARCH.getContext().getRetSchemaList());
+        assertEquals(Collections.singletonList("http"),
+                ProductTypeEnum.HTTP.getContext().getRetSchemaList());
+        assertNull(ProductTypeEnum.MYSQL.getContext().getRetSchemaList());
+    }
+
+    @Test
+    public void testPageConsumerOrderingPerDialectFamily() {
+        assertPageConsumer(ProductTypeEnum.MYSQL, 2, 10, 10, 10);        // LIMIT size OFFSET (page-1)*size
+        assertPageConsumer(ProductTypeEnum.MARIADB, 3, 5, 5, 10);
+        assertPageConsumer(ProductTypeEnum.ORACLE, 3, 10, 30, 20);       // <= page*size, > (page-1)*size
+        assertPageConsumer(ProductTypeEnum.SQLSERVER, 4, 10, 30);          // only the offset
+        assertPageConsumer(ProductTypeEnum.DB2, 2, 10, 10, 20);           // BETWEEN (page-1)*size AND page*size
+        assertPageConsumer(ProductTypeEnum.SYBASE, 2, 10, 10, 20);
+        assertPageConsumer(ProductTypeEnum.TDENGINE, 2, 4, 4, 4);
+        // MaxCompute pagination is a deliberate no-op
+        List<Object> noOpParameters = new ArrayList<>();
+        ProductTypeEnum.ODPS.getPageConsumer().accept(2, 10, noOpParameters);
+        assertTrue(noOpParameters.isEmpty());
+
+        // every other dialect shares the plain LIMIT size OFFSET (page-1)*size family
+        Set<ProductTypeEnum> special = new HashSet<>(Arrays.asList(
+                ProductTypeEnum.ORACLE, ProductTypeEnum.SQLSERVER, ProductTypeEnum.DB2,
+                ProductTypeEnum.SYBASE, ProductTypeEnum.ODPS));
+        for (ProductTypeEnum type : ProductTypeEnum.values()) {
+            if (type.getContext().getPageConsumer() == null || special.contains(type)) {
+                continue;
+            }
+            assertPageConsumer(type, 3, 7, 7, 14);
+        }
+        // consumers exist for every type that defines a pageSql template
+        for (ProductTypeEnum type : ProductTypeEnum.values()) {
+            if (null != type.getContext().getPageSql()) {
+                assertNotNull("page consumer missing for " + type, type.getPageConsumer());
+            }
+        }
+    }
+
+    private void assertPageConsumer(ProductTypeEnum type, int page, int size, int... expected) {
+        List<Object> parameters = new ArrayList<>();
+        type.getPageConsumer().accept(page, size, parameters);
+        List<Integer> expectedList = new ArrayList<>();
+        for (int value : expected) {
+            expectedList.add(value);
+        }
+        assertEquals(type.name(), expectedList, parameters);
+    }
+
+    @Test
+    public void testHiveFamilyRunsUniqueColumnNamesBeforeQuery() throws Exception {
+        List<String> executed = new ArrayList<>();
+        boolean[] closed = {false};
+        java.sql.Statement statement = (java.sql.Statement) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[]{java.sql.Statement.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "execute":
+                            executed.add(String.valueOf(args[0]));
+                            return Boolean.TRUE;
+                        case "close":
+                            closed[0] = true;
+                            return null;
+                        default:
+                            return defaultValue(method.getReturnType());
+                    }
+                });
+        java.sql.Connection connection = (java.sql.Connection) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[]{java.sql.Connection.class},
+                (proxy, method, args) -> "createStatement".equals(method.getName())
+                        ? statement : defaultValue(method.getReturnType()));
+
+        for (ProductTypeEnum type : Arrays.asList(ProductTypeEnum.HIVE, ProductTypeEnum.IMPALA,
+                ProductTypeEnum.INCEPTOR)) {
+            executed.clear();
+            closed[0] = false;
+            type.getContext().getExecuteBeforeQuery().accept(connection);
+            assertEquals(Collections.singletonList("set hive.resultset.use.unique.column.names=false"),
+                    executed);
+            assertTrue("statement must be closed by try-with-resources", closed[0]);
+        }
+        assertNull(ProductTypeEnum.MYSQL.getContext().getExecuteBeforeQuery());
+    }
+
+    @Test
+    public void testExecuteBeforeQueryWrapsSqlExceptionAsRuntime() {
+        java.sql.Connection connection = (java.sql.Connection) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[]{java.sql.Connection.class},
+                (proxy, method, args) -> {
+                    if ("createStatement".equals(method.getName())) {
+                        java.sql.Statement statement = (java.sql.Statement) Proxy.newProxyInstance(
+                                getClass().getClassLoader(), new Class<?>[]{java.sql.Statement.class},
+                                (p, m, a) -> {
+                                    if ("execute".equals(m.getName())) {
+                                        throw new java.sql.SQLException("set failed");
+                                    }
+                                    return defaultValue(m.getReturnType());
+                                });
+                        return statement;
+                    }
+                    return defaultValue(method.getReturnType());
+                });
+        for (ProductTypeEnum type : Arrays.asList(ProductTypeEnum.HIVE, ProductTypeEnum.IMPALA,
+                ProductTypeEnum.INCEPTOR)) {
+            try {
+                type.getContext().getExecuteBeforeQuery().accept(connection);
+                fail("SQLException must surface as RuntimeException for " + type);
+            } catch (RuntimeException expected) {
+                assertTrue(expected.getCause() instanceof java.sql.SQLException);
+            }
+        }
+    }
+
+    @Test
+    public void testSybaseResultSetFuncWrapsSqlExceptionAsRuntime() {
+        java.sql.Statement statement = (java.sql.Statement) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[]{java.sql.Statement.class},
+                (proxy, method, args) -> {
+                    if ("getMoreResults".equals(method.getName())) {
+                        throw new java.sql.SQLException("broken");
+                    }
+                    return defaultValue(method.getReturnType());
+                });
+        try {
+            ProductTypeEnum.SYBASE.getResultSetFunc().apply(false, statement);
+            fail("SQLException must surface as RuntimeException");
+        } catch (RuntimeException expected) {
+            assertTrue(expected.getCause() instanceof java.sql.SQLException);
+        }
+    }
+
+    @Test
+    public void testSybaseResultSetFuncSkipsUpdateOnlyResults() throws Exception {
+        int[] moreResultsCalls = {0};
+        java.sql.Statement statement = (java.sql.Statement) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[]{java.sql.Statement.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getUpdateCount":
+                            // first update count consumed, then exhausted
+                            return moreResultsCalls[0] == 0 ? 0 : -1;
+                        case "getMoreResults":
+                            moreResultsCalls[0]++;
+                            return Boolean.TRUE;
+                        default:
+                            return defaultValue(method.getReturnType());
+                    }
+                });
+        assertTrue("result set behind update counts must be found",
+                ProductTypeEnum.SYBASE.getResultSetFunc().apply(false, statement));
+    }
+
+    @Test
+    public void testDialectPageSqlTemplates() {
+        assertTrue(ProductTypeEnum.ORACLE.getPageSql("SELECT 1", 2, 10).contains("ROWNUM"));
+        assertTrue(ProductTypeEnum.DB2.getPageSql("SELECT 1", 2, 10).contains("ROWNUMBER()"));
+        assertTrue(ProductTypeEnum.SYBASE.getPageSql("SELECT 1", 2, 10).contains("#delTmpTb"));
+        // types without a paging template return the sql untouched
+        assertEquals("SELECT 1", ProductTypeEnum.ELASTICSEARCH.getPageSql("SELECT 1", 2, 10));
+        assertEquals("SELECT 1", ProductTypeEnum.HTTP.getPageSql("SELECT 1", 2, 10));
+    }
+
+    @Test
+    public void testNoViewTablesFlag() {
+        assertTrue(ProductTypeEnum.TDENGINE.isNoViewTables());
+        assertTrue(ProductTypeEnum.MONGODB.isNoViewTables());
+        assertTrue(ProductTypeEnum.ELASTICSEARCH.isNoViewTables());
+        assertTrue(ProductTypeEnum.HTTP.isNoViewTables());
+        assertFalse(ProductTypeEnum.MYSQL.isNoViewTables());
+        assertFalse(ProductTypeEnum.ORACLE.isNoViewTables());
+        assertFalse(ProductTypeEnum.HIVE.isNoViewTables());
+    }
+
+    @Test
+    public void testInceptorKeepsHiveFamilyDefaults() {
+        assertNull(ProductTypeEnum.INCEPTOR.getTestSql());
+        assertEquals("jdbc:hive2://", ProductTypeEnum.INCEPTOR.getUrlPrefix());
+        assertTrue(ProductTypeEnum.INCEPTOR.offTransactional());
+        assertTrue(ProductTypeEnum.INCEPTOR.getContext().getSqlSchemaList().contains("DATABASES"));
+    }
+
+    @Test
+    public void testExistsAndOfRejectEmptyName() {
+        assertFalse(ProductTypeEnum.exists(""));
+        try {
+            ProductTypeEnum.of("");
+            fail("empty name must be rejected");
+        } catch (IllegalArgumentException expected) {
+        }
+    }
+
+    private static Object defaultValue(Class<?> type) {
+        if (!type.isPrimitive() || type == void.class) {
+            return null;
+        }
+        if (type == boolean.class) {
+            return Boolean.FALSE;
+        }
+        if (type == long.class) {
+            return 0L;
+        }
+        if (type == double.class) {
+            return 0D;
+        }
+        if (type == float.class) {
+            return 0F;
+        }
+        if (type == char.class) {
+            return '\0';
+        }
+        if (type == byte.class) {
+            return (byte) 0;
+        }
+        if (type == short.class) {
+            return (short) 0;
+        }
+        return 0;
     }
 
     private boolean matchesAny(String[] templates, String url) {

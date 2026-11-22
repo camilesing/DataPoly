@@ -73,4 +73,17 @@ public class ItemParamTest {
         assertNotNull(plain.getChildren());
         assertTrue(plain.getChildren().isEmpty());
     }
+
+    @Test
+    public void testObjectInputWithEmptyChildrenListRejected() {
+        // present-but-empty children list is as useless as no children at all
+        ItemParam parent = param("obj", ParamTypeEnum.OBJECT);
+        parent.setChildren(new java.util.ArrayList<>());
+        try {
+            parent.checkValid(HttpMethodEnum.POST);
+            fail("empty children list must be rejected for object params");
+        } catch (CommonException expected) {
+            assertTrue(expected.getMessage().contains("child parameter"));
+        }
+    }
 }

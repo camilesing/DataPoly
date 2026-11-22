@@ -98,6 +98,98 @@ public class SqlXmlTextsTest {
             Assert.assertTrue(e.getMessage(), e.getMessage().contains("<IF>"));
             Assert.assertTrue(e.getMessage(), e.getMessage().contains("<if>"));
         }
+        // a wrongly cased closing tag names the lowercase spelling too
+        try {
+            SqlXmlTexts.toXmlSafe("select 1 <if>x</IF>");
+            Assert.fail("expected a wrongly cased closing tag to be reported");
+        } catch (BuilderException e) {
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("</IF>"));
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("</if>"));
+        }
+    }
+
+    @Test
+    public void closingBracketWithoutANameIsAComparison() {
+        // '</' with no name after it cannot be a tag, so it escapes like any bare '<'
+        Assert.assertEquals("a &lt;/ b", SqlXmlTexts.toXmlSafe("a </ b"));
+        Assert.assertEquals("a &lt;/", SqlXmlTexts.toXmlSafe("a </"));
+    }
+
+    @Test
+    public void unterminatedDynamicTagIsCopiedAsFarAsItGoes() {
+        // the tag runs into the end of the template: copied verbatim, the XML parser reports it
+        Assert.assertEquals("select 1 <if", SqlXmlTexts.toXmlSafe("select 1 <if"));
+        Assert.assertEquals("select 1 <if ", SqlXmlTexts.toXmlSafe("select 1 <if "));
+    }
+
+    @Test
+    public void selfClosingTagEndsItsNameWithASlash() {
+        Assert.assertEquals("<if/>", SqlXmlTexts.toXmlSafe("<if/>"));
+        Assert.assertEquals("<set></set>", SqlXmlTexts.toXmlSafe("<set></set>"));
+    }
+
+    @Test
+    public void operatorsInsideATagButOutsideQuotesAreEscapedToo() {
+        // a '<' or a bare '&' after the quoted attribute value is escaped like anywhere else
+        Assert.assertEquals("<if test='a != null' and b &lt; c>x</if>",
+                SqlXmlTexts.toXmlSafe("<if test='a != null' and b < c>x</if>"));
+        Assert.assertEquals("<if test='a != null' and b &amp; c>x</if>",
+                SqlXmlTexts.toXmlSafe("<if test='a != null' and b & c>x</if>"));
+    }
+
+    @Test
+    public void namesWithPunctuationAreComparisonOperands() {
+        // '-' and '.' are name characters, but the name is still not a dynamic tag
+        Assert.assertEquals("a&lt;x-y.z&lt;b", SqlXmlTexts.toXmlSafe("a<x-y.z<b"));
+    }
+
+    @Test
+    public void unterminatedBlocksAreCopiedToTheEnd() {
+        Assert.assertEquals("where a <![CDATA[ x", SqlXmlTexts.toXmlSafe("where a <![CDATA[ x"));
+        Assert.assertEquals("<!-- x", SqlXmlTexts.toXmlSafe("<!-- x"));
+    }
+
+    @Test
+    public void incompleteEntityReferencesAreData() {
+        // '&' as the last character cannot start a reference
+        Assert.assertEquals("a &amp;", SqlXmlTexts.toXmlSafe("a &"));
+        // '&#' at the end: the numeric reference is never finished
+        Assert.assertEquals("a &amp;#", SqlXmlTexts.toXmlSafe("a &#"));
+        // an entity name that runs to the end without ';' is data
+        Assert.assertEquals("a &amp;amp", SqlXmlTexts.toXmlSafe("a &amp"));
+        // digits that never reach ';' are data as well, decimal or hex
+        Assert.assertEquals("a &amp;#60", SqlXmlTexts.toXmlSafe("a &#60"));
+        Assert.assertEquals("a &amp;#x3c", SqlXmlTexts.toXmlSafe("a &#x3c"));
+        Assert.assertEquals("a &amp;#60 b", SqlXmlTexts.toXmlSafe("a &#60 b"));
+        Assert.assertEquals("a &amp;#x3c b", SqlXmlTexts.toXmlSafe("a &#x3c b"));
+    }
+
+    @Test
+    public void emptyEntityBodiesAreData() {
+        // no name between '&' and ';'
+        Assert.assertEquals("a &amp;; b", SqlXmlTexts.toXmlSafe("a &; b"));
+        // no digits between '&#' and ';' (decimal or hex)
+        Assert.assertEquals("a &amp;#; b", SqlXmlTexts.toXmlSafe("a &#; b"));
+        Assert.assertEquals("a &amp;#x; b", SqlXmlTexts.toXmlSafe("a &#x; b"));
+        // '#' is not a hex digit
+        Assert.assertEquals("a &amp;#x#; b", SqlXmlTexts.toXmlSafe("a &#x#; b"));
+        // 'g' is not a hex digit either
+        Assert.assertEquals("a &amp;#xg; b", SqlXmlTexts.toXmlSafe("a &#xg; b"));
+    }
+
+    @Test
+    public void hexReferencesAcceptBothLetterCases() {
+        Assert.assertEquals("a &#xAb09F; b", SqlXmlTexts.toXmlSafe("a &#xAb09F; b"));
+        // an uppercase 'X' marker is kept verbatim — XML itself only accepts the lowercase form,
+        // so a parser rejecting it later is the same misspelling feedback as an unknown element
+        Assert.assertEquals("a &#X3c; b", SqlXmlTexts.toXmlSafe("a &#X3c; b"));
+    }
+
+    @Test
+    public void cdataTailNeedsTwoBracketsBeforeIt() {
+        // a '>' right after one ']' is ordinary text; only ']]' forms the forbidden CDATA tail
+        Assert.assertEquals("]> x", SqlXmlTexts.toXmlSafe("]> x"));
+        Assert.assertEquals(">=", SqlXmlTexts.toXmlSafe(">="));
     }
 
     @Test

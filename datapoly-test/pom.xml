@@ -75,8 +75,9 @@
                  report-aggregate 在 verify 阶段聚合各上游模块的类与源码生成统一报告 -->
             <plugin>
                 <groupId>org.jacoco</groupId>
+                <!-- 0.8.13 起才认 Java 25+ 字节码（major 69），0.8.12 在 report-aggregate 直接报 Unsupported class file major version -->
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.16</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>

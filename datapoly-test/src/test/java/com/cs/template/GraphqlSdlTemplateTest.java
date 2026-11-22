@@ -82,6 +82,21 @@ public class GraphqlSdlTemplateTest {
     }
 
     @Test
+    public void rejectsRootFieldWithDirectiveButNoSqlArgument() {
+        String sdl = "type Query {\n" +
+                "  users: [User] @sql\n" +
+                "}\n" +
+                "type User { id: Long }\n";
+        try {
+            new GraphqlSdlTemplate(sdl).validate();
+            fail("@sql without the sql argument should be rejected");
+        } catch (GraphqlSdlException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("Query.users"));
+            assertTrue(expected.getMessage(), expected.getMessage().contains("sql argument"));
+        }
+    }
+
+    @Test
     public void rejectsMalformedSdl() {
         try {
             new GraphqlSdlTemplate("type Query {").validate();
@@ -140,5 +155,34 @@ public class GraphqlSdlTemplateTest {
         assertEquals(2, fields.size());
         assertTrue(fields.containsKey(FieldCoordinates.coordinates("Mutation", "add")));
         new GraphqlSdlTemplate(sdl).validate();
+    }
+
+    @Test
+    public void userDeclaredSqlDirectiveIsNotInjectedTwice() {
+        // the document already declares @sql itself: nothing is prepended, and it still works
+        String sdl = "directive @sql(sql: String!) on FIELD_DEFINITION\n" +
+                "type Query {\n" +
+                "  users: [User] @sql(sql: \"SELECT 1 AS id\")\n" +
+                "}\n" +
+                "type User { id: Long }\n";
+        GraphqlSdlTemplate template = new GraphqlSdlTemplate(sdl);
+        template.validate();
+        assertEquals("SELECT 1 AS id", template.extractRootFieldSql()
+                .get(FieldCoordinates.coordinates("Query", "users")));
+    }
+
+    @Test
+    public void rejectsQueryTypeWithoutFields() {
+        try {
+            new GraphqlSdlTemplate("type Query {\n}").validate();
+            fail("A Query type without fields should be rejected");
+        } catch (GraphqlSdlException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("no field"));
+        }
+    }
+
+    @Test
+    public void getSdlReturnsTheDocumentAsWritten() {
+        assertEquals(VALID_SDL, new GraphqlSdlTemplate(VALID_SDL).getSdl());
     }
 }

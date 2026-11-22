@@ -9,12 +9,17 @@ import com.cs.common.exception.CommonException;
 import com.cs.common.exception.ResponseErrorCode;
 import com.cs.persistence.entity.ApiContextEntity;
 import com.zaxxer.hikari.HikariDataSource;
+import cn.hutool.extra.spring.SpringUtil;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.core.env.Environment;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -62,10 +67,11 @@ public class GraphqlExecutorServiceTest {
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception {
         if (null != dataSource) {
             dataSource.close();
         }
+        clearSpringUtil();
     }
 
     private GraphqlExecutorService engine() {
@@ -217,5 +223,347 @@ public class GraphqlExecutorServiceTest {
         int afterFirst = cache.size();
         Assert.assertEquals(3, usersOf(execute("{ users { name } }", null)).size());
         Assert.assertEquals("identical SDL must reuse the compiled schema", afterFirst, cache.size());
+    }
+
+    // ------------------------------------------------------------------ error/edge extensions
+
+    /** SDL variants unique per scenario: the schema cache is keyed by SDL digest, so each
+     *  property-dependent build (introspection off, slow fetcher, broken SQL) needs its own SDL. */
+    private static final String SDL_BROKEN_TABLE = "type Query {\n" +
+            "  broken: [String] @sql(sql: \"\"\"SELECT id FROM no_such_table\"\"\")\n" +
+            "}\n";
+
+    private static final String SDL_DOLLAR = "type Query {\n" +
+            "  dyn(name: String): [String] @sql(sql: \"\"\"SELECT name FROM t_user WHERE name = '${name}'\"\"\")\n" +
+            "}\n";
+
+    private static final String SDL_PING_INTROSPECTION = "type Query {\n" +
+            "  pingA: String @sql(sql: \"\"\"SELECT 'pong' AS ponga\"\"\")\n" +
+            "}\n";
+
+    private static final String SDL_PING_GARBAGE = "type Query {\n" +
+            "  pingB: String @sql(sql: \"\"\"SELECT 'pong' AS pongb\"\"\")\n" +
+            "}\n";
+
+    private static final String SDL_PING_MAXDEPTH = "type Query {\n" +
+            "  rows: [PingRow] @sql(sql: \"\"\"SELECT 'pong' AS pongc\"\"\")\n" +
+            "}\ntype PingRow { pongc: String }\n";
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> executeWith(String sdl, String query, Object variables) {
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.PARAM_GRAPHQL_QUERY, query);
+        params.put(Constants.PARAM_GRAPHQL_VARIABLES, variables);
+        List<Object> results = new GraphqlExecutorService(dataSource, ProductTypeEnum.MYSQL)
+                .execute(Collections.singletonList(ApiContextEntity.builder().sqlText(sdl).build()),
+                        params, NamingStrategyEnum.CAMEL_CASE, true);
+        Assert.assertEquals(1, results.size());
+        return (Map<String, Object>) results.get(0);
+    }
+
+    private static void installEnvironment(Map<String, String> properties) throws Exception {
+        Environment environment = (Environment) Proxy.newProxyInstance(
+                GraphqlExecutorServiceTest.class.getClassLoader(), new Class[]{Environment.class},
+                (proxy, method, args) -> {
+                    String name = method.getName();
+                    if ("getProperty".equals(name) && null != args && args.length >= 1) {
+                        String value = properties.get(args[0]);
+                        if (null != value) {
+                            return value;
+                        }
+                        return args.length > 1 ? args[1] : null;
+                    }
+                    if ("hashCode".equals(name)) {
+                        return System.identityHashCode(proxy);
+                    }
+                    if ("toString".equals(name)) {
+                        return "stubEnvironment";
+                    }
+                    return null;
+                });
+        Object beanFactory = Proxy.newProxyInstance(GraphqlExecutorServiceTest.class.getClassLoader(),
+                new Class[]{ConfigurableListableBeanFactory.class},
+                (proxy, method, args) -> {
+                    String name = method.getName();
+                    if ("getBean".equals(name) && null != args && 1 == args.length
+                            && args[0] == Environment.class) {
+                        return environment;
+                    }
+                    if ("getBeansOfType".equals(name)) {
+                        return Collections.emptyMap();
+                    }
+                    if ("hashCode".equals(name)) {
+                        return System.identityHashCode(proxy);
+                    }
+                    if ("toString".equals(name)) {
+                        return "stubBeanFactory";
+                    }
+                    return null;
+                });
+        Field field = SpringUtil.class.getDeclaredField("beanFactory");
+        field.setAccessible(true);
+        field.set(null, beanFactory);
+    }
+
+    private static void clearSpringUtil() throws Exception {
+        Field field = SpringUtil.class.getDeclaredField("beanFactory");
+        field.setAccessible(true);
+        field.set(null, null);
+    }
+
+    @Test
+    public void invalidJsonVariablesStringRejected() {
+        try {
+            execute("query($uid: Long) { users(id: $uid) { name } }", "{not json");
+            Assert.fail("invalid variables JSON must be rejected");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_INVALID_ARGUMENT, e.getCode());
+        }
+    }
+
+    @Test
+    public void blankStringAndNonStringVariablesFallBackToEmptyMap() {
+        Assert.assertEquals(3, usersOf(execute("{ users { name } }", "")).size());
+        Assert.assertEquals(3, usersOf(execute("{ users { name } }", 42)).size());
+    }
+
+    @Test
+    public void nullParamsBehaveLikeMissingQuery() {
+        try {
+            new GraphqlExecutorService(dataSource, ProductTypeEnum.MYSQL)
+                    .execute(sdlContext(), null, NamingStrategyEnum.CAMEL_CASE, true);
+            Assert.fail("null params must fail like a missing query");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_INVALID_ARGUMENT, e.getCode());
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void sqlFailureBecomesFieldErrorNotTransportError() {
+        Map<String, Object> result = executeWith(SDL_BROKEN_TABLE, "{ broken }", null);
+        List<Map<String, Object>> errors = (List<Map<String, Object>>) result.get("errors");
+        Assert.assertNotNull(errors);
+        Assert.assertFalse(errors.isEmpty());
+        Assert.assertTrue("JDBC details must stay server-side, generic message expected",
+                errors.get(0).containsValue("SQL execution failed")
+                        || String.valueOf(errors.get(0).get("message")).contains("SQL execution failed"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void dollarForbiddenInFieldSqlBecomesFieldError() {
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.PARAM_GRAPHQL_QUERY, "{ dyn(name: \"alice\") }");
+        List<Object> results = new GraphqlExecutorService(dataSource, ProductTypeEnum.MYSQL)
+                .execute(Collections.singletonList(ApiContextEntity.builder().sqlText(SDL_DOLLAR).build()),
+                        params, NamingStrategyEnum.CAMEL_CASE, false);
+        Map<String, Object> result = (Map<String, Object>) results.get(0);
+        List<Map<String, Object>> errors = (List<Map<String, Object>>) result.get("errors");
+        Assert.assertNotNull(errors);
+        Assert.assertFalse("${} must surface as a GraphQL error when forbidden", errors.isEmpty());
+        Assert.assertTrue(String.valueOf(errors.get(0).get("message")),
+                String.valueOf(errors.get(0).get("message")).contains("api.sql.dollar.forbidden"));
+    }
+
+    /**
+     * Exercises the introspection property branch (schema rebuild path). NOTE: with graphql-java
+     * 26.1 the meta-fields stay queryable even with {@code introspection-enabled=false} — the
+     * schema rebuild re-attaches __schema/__type automatically — so the assertion below pins the
+     * actually observable behavior; the toggle's stated intent is not achieved (product finding).
+     */
+    @Test
+    public void introspectionDisabledPropertyRunsSchemaRebuildPath() throws Exception {
+        installEnvironment(Collections.singletonMap("datapoly.executor.graphql.introspection-enabled", "false"));
+        Map<String, Object> meta = executeWith(SDL_PING_INTROSPECTION, "{ __schema { queryType { name } } }", null);
+        Assert.assertNotNull(meta.get("data"));
+        // a String-typed field gets the SQL rows coerced to their string form
+        Map<String, Object> pong = executeWith(SDL_PING_INTROSPECTION, "{ pingA }", null);
+        Assert.assertNull(pong.get("errors"));
+        Assert.assertEquals("[{ponga=pong}]", ((Map<?, ?>) pong.get("data")).get("pingA"));
+    }
+
+    @Test
+    public void garbageMaxDepthPropertyFallsBackToDefault() throws Exception {
+        installEnvironment(Collections.singletonMap("datapoly.executor.graphql.max-depth", "not-a-number"));
+        Map<String, Object> pong = executeWith(SDL_PING_GARBAGE, "{ pingB }", null);
+        Assert.assertNull(pong.get("errors"));
+        Assert.assertEquals("[{pongb=pong}]", ((Map<?, ?>) pong.get("data")).get("pingB"));
+    }
+
+    @Test
+    public void maxDepthLimitEnforcedByProperty() throws Exception {
+        installEnvironment(Collections.singletonMap("datapoly.executor.graphql.max-depth", "1"));
+        Map<String, Object> result = executeWith(SDL_PING_MAXDEPTH, "{ rows { pongc } }", null);
+        List<?> errors = (List<?>) result.get("errors");
+        Assert.assertNotNull("depth 2 must exceed the configured limit 1", errors);
+        Assert.assertFalse(errors.isEmpty());
+        Assert.assertTrue(String.valueOf(errors.get(0)),
+                String.valueOf(errors.get(0)).contains("depth"));
+    }
+
+    @Test
+    public void blankTimeoutPropertyFallsBackToDefault() throws Exception {
+        installEnvironment(Collections.singletonMap("datapoly.executor.graphql.timeout-seconds", "  "));
+        Map<String, Object> pong = executeWith(SDL_PING_GARBAGE, "{ pingB }", null);
+        Assert.assertNull(pong.get("errors"));
+        Assert.assertEquals("[{pongb=pong}]", ((Map<?, ?>) pong.get("data")).get("pingB"));
+    }
+
+    // ------------------------------------------------------------------ execution-failure branches
+
+    @Test
+    public void nullScriptsRejected() {
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.PARAM_GRAPHQL_QUERY, "{ users { name } }");
+        try {
+            new GraphqlExecutorService(dataSource, ProductTypeEnum.MYSQL)
+                    .execute(null, params, NamingStrategyEnum.CAMEL_CASE, true);
+            Assert.fail("null scripts must be rejected");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_INVALID_ARGUMENT, e.getCode());
+        }
+    }
+
+    /** Minimal SDL each stub schema is assembled from (unique per test via suffix replacement). */
+    private static String stubSdl(String pingName) {
+        return "type Query {\n  " + pingName + ": String @sql(sql: \"\"\"SELECT 'pong' AS p\"\"\")\n}\n";
+    }
+
+    private static graphql.schema.GraphQLSchema stubSchema(String sdl) {
+        return new com.cs.template.GraphqlSdlTemplate(sdl)
+                .buildGraphQLSchema((coordinates, sql) -> environment -> Collections.singletonList("pong"));
+    }
+
+    /** GraphQL double whose execution fails before any field resolution with the given throwable. */
+    private static graphql.GraphQL failingGraphQL(graphql.schema.GraphQLSchema schema, Throwable failure) {
+        return graphql.GraphQL.newGraphQL(schema)
+                .instrumentation(new graphql.execution.instrumentation.SimpleInstrumentation() {
+                    @Override
+                    public graphql.execution.instrumentation.InstrumentationContext<graphql.ExecutionResult> beginExecution(
+                            graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters parameters,
+                            graphql.execution.instrumentation.InstrumentationState state) {
+                        if (failure instanceof RuntimeException) {
+                            throw (RuntimeException) failure;
+                        }
+                        throw (Error) failure;
+                    }
+                })
+                .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, graphql.GraphQL> schemaCache() throws Exception {
+        Field cacheField = GraphqlExecutorService.class.getDeclaredField("SCHEMA_CACHE");
+        cacheField.setAccessible(true);
+        return (Map<String, graphql.GraphQL>) cacheField.get(null);
+    }
+
+    private static Map<String, Object> queryParams() {
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.PARAM_GRAPHQL_QUERY, "{ ping }");
+        return params;
+    }
+
+    @Test
+    public void commonExceptionFromExecutionIsRethrownAsIs() throws Exception {
+        String sdl = stubSdl("pingFailA");
+        CommonException boom = new CommonException(ResponseErrorCode.ERROR_INVALID_ARGUMENT, "api.graphql.boom");
+        schemaCache().put(cn.hutool.crypto.digest.DigestUtil.sha256Hex(sdl),
+                failingGraphQL(stubSchema(sdl), boom));
+        try {
+            engine().execute(Collections.singletonList(ApiContextEntity.builder().sqlText(sdl).build()),
+                    queryParams(), NamingStrategyEnum.CAMEL_CASE, true);
+            Assert.fail("the engine-level CommonException must cross unchanged");
+        } catch (CommonException e) {
+            Assert.assertSame(boom, e);
+        }
+    }
+
+    @Test
+    public void runtimeExceptionFromExecutionIsRethrownAsIs() throws Exception {
+        String sdl = stubSdl("pingFailB");
+        IllegalStateException boom = new IllegalStateException("fetcher exploded");
+        schemaCache().put(cn.hutool.crypto.digest.DigestUtil.sha256Hex(sdl),
+                failingGraphQL(stubSchema(sdl), boom));
+        try {
+            engine().execute(Collections.singletonList(ApiContextEntity.builder().sqlText(sdl).build()),
+                    queryParams(), NamingStrategyEnum.CAMEL_CASE, true);
+            Assert.fail("the engine-level RuntimeException must cross unchanged");
+        } catch (IllegalStateException e) {
+            Assert.assertSame(boom, e);
+        }
+    }
+
+    @Test
+    public void nonRuntimeExceptionFromExecutionBecomesAnInternalError() throws Exception {
+        String sdl = stubSdl("pingFailC");
+        // an Error is neither CommonException nor RuntimeException: wrapped as ERROR_INTERNAL_ERROR
+        AssertionError boom = new AssertionError("engine bug");
+        schemaCache().put(cn.hutool.crypto.digest.DigestUtil.sha256Hex(sdl),
+                failingGraphQL(stubSchema(sdl), boom));
+        try {
+            engine().execute(Collections.singletonList(ApiContextEntity.builder().sqlText(sdl).build()),
+                    queryParams(), NamingStrategyEnum.CAMEL_CASE, true);
+            Assert.fail("non-runtime failures must surface as CommonException");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_INTERNAL_ERROR, e.getCode());
+            Assert.assertSame(boom, e.getCause());
+        }
+    }
+
+    @Test
+    public void schemaCacheEvictsTheLeastRecentlyUsedEntry() throws Exception {
+        Map<String, graphql.GraphQL> cache = schemaCache();
+        graphql.GraphQL shared = graphql.GraphQL.newGraphQL(stubSchema(stubSdl("lruShared"))).build();
+        for (int i = 0; i < 129; i++) {
+            cache.put("lru-seed-" + i, shared);
+        }
+        Assert.assertTrue("seeding alone must not exceed the cap", cache.size() <= 128);
+        Assert.assertFalse("the eldest seed entry must have been evicted", cache.containsKey("lru-seed-0"));
+
+        // one more real build through the engine keeps the cache within the bound
+        Map<String, Object> pong = executeWith(stubSdl("lruFresh"), "{ lruFresh }", null);
+        Assert.assertNull(pong.get("errors"));
+        Assert.assertTrue("the cache must stay at or below 128 entries, saw " + cache.size(),
+                cache.size() <= 128);
+    }
+
+    @Test
+    public void getOrBuildGraphQLSecondLockCheckReusesTheCachedInstance() throws Exception {
+        String sdl = stubSdl("dclPing");
+        String digest = cn.hutool.crypto.digest.DigestUtil.sha256Hex(sdl);
+        Map<String, graphql.GraphQL> cache = schemaCache();
+        cache.remove(digest);
+        graphql.GraphQL cached = graphql.GraphQL.newGraphQL(stubSchema(sdl)).build();
+
+        Field lockField = GraphqlExecutorService.class.getDeclaredField("SCHEMA_ASSEMBLY_LOCK");
+        lockField.setAccessible(true);
+        Object lock = lockField.get(null);
+        Method build = GraphqlExecutorService.class.getDeclaredMethod("getOrBuildGraphQL", String.class);
+        build.setAccessible(true);
+
+        java.util.concurrent.atomic.AtomicReference<Object> built = new java.util.concurrent.atomic.AtomicReference<>();
+        Thread worker = new Thread(() -> {
+            try {
+                built.set(build.invoke(null, sdl));
+            } catch (Throwable t) {
+                built.set(t);
+            }
+        }, "graphql-dcl-worker");
+        // hold the assembly lock: the worker passes the cache lookup (miss) and parks on the monitor
+        synchronized (lock) {
+            worker.start();
+            long deadline = System.currentTimeMillis() + 5000L;
+            while (worker.getState() != Thread.State.BLOCKED && System.currentTimeMillis() < deadline) {
+                Thread.sleep(10L);
+            }
+            Assert.assertEquals("worker must be parked on the assembly lock",
+                    Thread.State.BLOCKED, worker.getState());
+            cache.put(digest, cached); // another thread assembled it while we held the lock
+        }
+        worker.join(5000L);
+        Assert.assertSame("the second lock check must return the cached instance",
+                cached, built.get());
     }
 }
