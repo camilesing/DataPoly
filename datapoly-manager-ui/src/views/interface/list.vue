@@ -804,17 +804,10 @@ export default {
       });
     },
     handleSelectionChange (arr) {
-      if (arr.length > 0) {
-        this.isSelected = false;
-        for (var item of arr) {
-          if (!this.idsSelected.includes(item.id)) {
-            this.idsSelected.push(item.id);
-          }
-        }
-      } else {
-        this.isSelected = true;
-        this.idsSelected = []
-      }
+      // selection-change carries the whole current selection: a row the user unchecked leaves the
+      // batch with it, instead of staying in the export until every row was unchecked
+      this.idsSelected = arr.map(item => item.id);
+      this.isSelected = 0 === this.idsSelected.length;
     },
     handleBatchExport: function () {
       this.$http({
