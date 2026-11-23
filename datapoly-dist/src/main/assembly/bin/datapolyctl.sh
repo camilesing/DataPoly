@@ -82,15 +82,16 @@ else
 fi
 
 # 配置classpath和启动类
+# 文档用 sh 调用本脚本：Debian/Ubuntu 的 sh 是 dash，比较只能用 POSIX 的 = 与 [ ]
 CLASSPATH=$APP_CONF_PATH
 APP_MAIN_CLASS='com.cs.manager.ManagerApplication'
-if [ "$module" == "manager" ]; then
+if [ "$module" = "manager" ]; then
   CLASSPATH="$APP_CONF_PATH/manager:$APP_LIB_COMMON_PATH/*:$APP_HOME/lib/webmvc/*:$APP_HOME/lib/manager/*"
   APP_MAIN_CLASS='com.cs.manager.ManagerApplication'
-elif [ "$module" == "executor" ]; then
+elif [ "$module" = "executor" ]; then
   CLASSPATH="$APP_CONF_PATH/executor:$APP_LIB_COMMON_PATH/*:$APP_HOME/lib/webmvc/*:$APP_HOME/lib/executor/*"
   APP_MAIN_CLASS='com.cs.executor.ExecutorApplication'
-elif [ "$module" == "gateway" ]; then
+elif [ "$module" = "gateway" ]; then
   CLASSPATH="$APP_CONF_PATH/gateway:$APP_LIB_COMMON_PATH/*:$APP_HOME/lib/webflux/*:$APP_HOME/lib/gateway/*"
   APP_MAIN_CLASS='com.cs.gateway.GatewayApplication'
 else
@@ -155,7 +156,7 @@ case $operator in
     state="STOP"
     #  font color - red
     state="[ \033[1;31m $state \033[0m ]"
-    if [[ $serverCount -gt 0 ]];then
+    if [ "$serverCount" -gt 0 ];then
       state="RUNNING"
       # font color - green
       state="[ \033[1;32m $state \033[0m ]"
