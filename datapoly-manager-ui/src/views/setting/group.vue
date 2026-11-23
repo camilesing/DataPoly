@@ -147,6 +147,7 @@
                      @click="relationFormVisible = false">{{ $t('common.close') }}</el-button>
           <el-button type="danger"
                      v-if="currentGroupId!==1"
+                     :disabled="!relationReady"
                      @click="handleRelationSave">{{ $t('setting.modifyRelation') }}</el-button>
         </div>
       </el-dialog>
@@ -197,6 +198,8 @@ export default {
       moduleAssignments: [],
       initCheckedKeys: [],
       currentGroupId: 0,
+      // the modify-relation save is only offered once the clicked group's tree is on screen
+      relationReady: false,
       defaultProps: {
         children: 'children',
         label: 'name'
@@ -295,12 +298,16 @@ export default {
     },
     handleRelation: function (index, row) {
       this.moduleAssignments = [];
+      // The dialog opens at once. The save has to target the group that was clicked, and must not
+      // be available before its tree arrived: saving the still-empty tree posted [] against the
+      // group opened before, wiping that group's relations.
+      this.currentGroupId = row.id;
+      this.initCheckedKeys = [];
+      this.relationReady = false;
       this.$http.get(
         "/datapoly/manager/api/v1/module/moduleTree/" + row.id
       ).then(res => {
         if (0 === res.data.code) {
-          this.initCheckedKeys = [];
-          this.currentGroupId = row.id;
           this.moduleAssignments = res.data.data;
           for (let item of this.moduleAssignments) {
             Vue.set(item, 'id', this.uuid());
@@ -312,11 +319,19 @@ export default {
               }
             }
           }
+          this.relationReady = true;
+        } else {
+          alert(this.$t('setting.loadFailed') + res.data.message);
         }
+      }).catch(() => {
+        alert(this.$t('setting.loadFailed'));
       });
       this.relationFormVisible = true;
     },
     handleRelationSave: function () {
+      if (!this.relationReady) {
+        return;
+      }
       let checkedKeys = this.$refs.relationTree.getCheckedKeys(true);
       this.$http({
         method: "POST",
