@@ -10,6 +10,7 @@ import com.cs.common.enums.ParamTypeEnum;
 import com.cs.core.exec.ApiExecuteService;
 import com.cs.core.service.SystemParamService;
 import com.cs.core.util.JacksonUtils;
+import com.cs.persistence.dao.ApiOnlineDao;
 import com.cs.persistence.entity.ApiAssignmentEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,13 +42,16 @@ public class McpToolCallHandler {
     private final String toolName;
     private final String toolDescription;
     private final ApiAssignmentEntity config;
+    private final ApiOnlineDao apiOnlineDao;
     private final ApiExecuteService apiExecuteService;
     private final int defaultPageSize;
 
-    public McpToolCallHandler(String toolName, String description, ApiAssignmentEntity config) {
+    public McpToolCallHandler(String toolName, String description, ApiAssignmentEntity config,
+                              ApiOnlineDao apiOnlineDao) {
         this.toolName = toolName;
         this.toolDescription = description;
         this.config = config;
+        this.apiOnlineDao = apiOnlineDao;
         this.apiExecuteService = SpringUtil.getBean(ApiExecuteService.class);
         this.defaultPageSize = SpringUtil.getBean(SystemParamService.class)
                 .getIntByParamKey(Constants.SYS_PARAM_KEY_MCP_TOOL_LIST_PAGE_SIZE, 1000);
@@ -110,22 +114,33 @@ public class McpToolCallHandler {
     }
 
     public CallToolResult executeTool(McpSyncServerExchange exchange, Map<String, Object> arguments) {
-        prepareArgumentsPageSizeParameter(arguments);
+        // The registration snapshot must not outlive the API's online row: retire and delete only
+        // touch DATAPOLY_API_ONLINE, so re-read it on every call — an API taken offline answers
+        // with an error instead of running, a republished one runs its current version
+        ApiAssignmentEntity online = apiOnlineDao.getByApiId(config.getId());
+        if (null == online) {
+            return failure("接口已下线, apiId=" + config.getId());
+        }
+        prepareArgumentsPageSizeParameter(online, arguments);
         try {
-            ResultEntity<Object> resultEntity = apiExecuteService.execute(config, arguments, true);
-            String json = JacksonUtils.toJsonStr(resultEntity.getData(), config.getResponseFormat());
+            ResultEntity<Object> resultEntity = apiExecuteService.execute(online, arguments, true);
+            String json = JacksonUtils.toJsonStr(resultEntity.getData(), online.getResponseFormat());
             McpSchema.TextContent content = new McpSchema.TextContent("操作成功，JSON格式的响应数据为:\n " + json);
             return new McpSchema.CallToolResult(Lists.newArrayList(content), false);
         } catch (Throwable t) {
             String message = null != t.getMessage() ? t.getMessage() : ExceptionUtil.getRootCauseMessage(t);
-            McpSchema.TextContent content = new McpSchema.TextContent("操作异常，JSON格式的响应数据为:\n " + message);
-            return new McpSchema.CallToolResult(Lists.newArrayList(content), true);
+            return failure(message);
         }
     }
 
-    private void prepareArgumentsPageSizeParameter(Map<String, Object> arguments) {
-        if (CollectionUtils.isNotEmpty(config.getParams())) {
-            for (ItemParam param : config.getParams()) {
+    private CallToolResult failure(String message) {
+        McpSchema.TextContent content = new McpSchema.TextContent("操作异常，JSON格式的响应数据为:\n " + message);
+        return new McpSchema.CallToolResult(Lists.newArrayList(content), true);
+    }
+
+    private void prepareArgumentsPageSizeParameter(ApiAssignmentEntity online, Map<String, Object> arguments) {
+        if (CollectionUtils.isNotEmpty(online.getParams())) {
+            for (ItemParam param : online.getParams()) {
                 String name = param.getName();
                 ParamTypeEnum type = param.getType();
                 Boolean required = param.getRequired();
