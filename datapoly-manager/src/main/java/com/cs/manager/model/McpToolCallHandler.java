@@ -71,7 +71,8 @@ public class McpToolCallHandler {
                     node.put(FN_DESCRIPTION, param.getRemark());
                     node.set(FN_ITEMS, items);
                 } else {
-                    if (param.getRequired()) {
+                    // null-safe like the executor: a missing flag means "not required"
+                    if (Boolean.TRUE.equals(param.getRequired())) {
                         rootRequired.add(param.getName());
                     }
                     node.put(FN_TYPE, param.getType().getJsType());
@@ -80,7 +81,7 @@ public class McpToolCallHandler {
                         ArrayNode subRequired = objectMapper.createArrayNode();
                         ObjectNode properties = objectMapper.createObjectNode();
                         for (BaseParam subParam : param.getChildren()) {
-                            if (subParam.getRequired()) {
+                            if (Boolean.TRUE.equals(subParam.getRequired())) {
                                 subRequired.add(subParam.getName());
                             }
                             ObjectNode item = objectMapper.createObjectNode();
@@ -129,7 +130,7 @@ public class McpToolCallHandler {
                 ParamTypeEnum type = param.getType();
                 Boolean required = param.getRequired();
                 String defaultValue = param.getDefaultValue();
-                if (!required && !arguments.containsKey(param.getName())) {
+                if (!Boolean.TRUE.equals(required) && !arguments.containsKey(param.getName())) {
                     if (!type.isObject()) {
                         arguments.put(name, type.getConverter().apply(defaultValue));
                     }

@@ -188,6 +188,48 @@ public class McpToolCallHandlerTest {
         assertTrue(schema.getRequired().isEmpty());
     }
 
+    /**
+     * Regression: a missing required flag is legal data (the admin MCP tool marks it optional and the
+     * executor treats null as "not required"); unboxing it here threw an NPE that failed every later startup.
+     */
+    @Test
+    public void schemaTreatsMissingRequiredFlagAsNotRequired() throws Exception {
+        installBeans(new FakeSystemParamService());
+
+        ItemParam keyword = param("keyword", ParamTypeEnum.STRING, true, "abc");
+        keyword.setRequired(null);
+        ItemParam filter = param("filter", ParamTypeEnum.OBJECT, false, null);
+        filter.setRequired(null);
+        BaseParam city = new BaseParam();
+        city.setName("city");
+        city.setType(ParamTypeEnum.STRING);
+        city.setRequired(null);
+        filter.setChildren(Collections.singletonList(city));
+        McpToolCallHandler handler = new McpToolCallHandler("query_users", "查询用户",
+                configWithParams(Arrays.asList(keyword, filter)));
+
+        McpSchema.JsonSchema schema = handler.getMcpToolSchema().getInputSchema();
+
+        assertTrue(schema.getRequired().isEmpty());
+        Map<?, ?> filterNode = (Map<?, ?>) schema.getProperties().get("filter");
+        assertTrue(((List<?>) filterNode.get("required")).isEmpty());
+    }
+
+    @Test
+    public void executeToolTreatsMissingRequiredFlagAsOptional() throws Exception {
+        FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
+        ItemParam keyword = param("keyword", ParamTypeEnum.STRING, true, "abc");
+        keyword.setRequired(null);
+        McpToolCallHandler handler = new McpToolCallHandler("query_users", "查询用户",
+                configWithParams(Collections.singletonList(keyword)));
+
+        CallToolResult result = handler.executeTool(null, new HashMap<>());
+
+        assertFalse(result.getIsError());
+        // the absent argument behaves like any optional scalar: its default value goes out
+        assertEquals("abc", executeService.capturedArgs.get("keyword"));
+    }
+
     @Test
     public void executeToolRunsApiAndInjectsDefaultsAndPageSize() throws Exception {
         FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
