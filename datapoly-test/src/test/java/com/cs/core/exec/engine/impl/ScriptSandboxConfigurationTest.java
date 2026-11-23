@@ -4,6 +4,7 @@ package com.cs.core.exec.engine.impl;
 
 import cn.hutool.extra.spring.SpringUtil;
 import groovy.lang.*;
+import org.codehaus.groovy.control.CompilationFailedException;
 import org.junit.*;
 
 import java.lang.reflect.Field;
@@ -50,6 +51,47 @@ public class ScriptSandboxConfigurationTest {
         // The compile-time receiver type of an untyped (def) variable holding a collection is Object; the runtime metaclass guard intercepts it
         assertRejected("def l = ['sh','-c','ls']; l.execute()");
         assertRejected("def l = new ArrayList(); l.add('ls'); l.execute()");
+    }
+
+    /** Not a real command: if a guard is missing the script must fail with something other than "ran". */
+    private static final String HARMLESS = "dp-sandbox-probe-not-a-command";
+
+    private void assertBlockedAtRuntime(String script) {
+        try {
+            evaluate(script);
+            Assert.fail("the command ran: " + script);
+        } catch (SecurityException | CompilationFailedException blocked) {
+            // the runtime metaclass guard, or already the compile-time check
+        } catch (Exception gotThrough) {
+            Assert.fail("command execution got past the sandbox for: " + script + " -> " + gotThrough);
+        }
+    }
+
+    /**
+     * Regression: Groovy dispatches by the concrete class of the receiver and DGM execute() exists on
+     * every List and on StringBuffer/StringBuilder — the runtime guard only covered the ArrayList
+     * family, so List.of(...), an unmodifiable List or a StringBuilder ran commands unchecked.
+     */
+    @Test
+    public void runtimeGuardCoversEveryStandardCommandReceiver() {
+        assertBlockedAtRuntime("def o = (Object) java.util.Arrays.asList('" + HARMLESS + "'); o.execute()");
+        assertBlockedAtRuntime("def o = (Object) java.util.Collections.singletonList('" + HARMLESS + "'); o.execute()");
+        assertBlockedAtRuntime("def o = (Object) java.util.Collections.unmodifiableList(new ArrayList()); o.execute()");
+        assertBlockedAtRuntime("def o = (Object) java.util.Collections.emptyList(); o.execute()");
+        assertBlockedAtRuntime("def o = (Object) java.util.Collections.nCopies(1, '" + HARMLESS + "'); o.execute()");
+        assertBlockedAtRuntime("def o = (Object) java.util.Collections.synchronizedList(new ArrayList()); o.execute()");
+        assertBlockedAtRuntime("def o = (Object) new java.util.concurrent.CopyOnWriteArrayList(); o.execute()");
+        assertBlockedAtRuntime("def l = java.util.List.of('" + HARMLESS + "'); l.execute()");
+        assertBlockedAtRuntime("def l = java.util.List.of(); l.execute()");
+        assertBlockedAtRuntime("def l = java.util.List.of('" + HARMLESS + "', 'x'); l.execute()");
+        assertBlockedAtRuntime("def l = ['" + HARMLESS + "'].asImmutable(); l.execute()");
+        assertBlockedAtRuntime("def l = ['" + HARMLESS + "'].asUnmodifiable(); l.execute()");
+        assertBlockedAtRuntime("def l = new ArrayList().subList(0, 0); l.execute()");
+        assertBlockedAtRuntime("def l = new java.util.LinkedList().subList(0, 0); l.execute()");
+        assertBlockedAtRuntime("def l = new java.util.concurrent.CopyOnWriteArrayList().subList(0, 0); l.execute()");
+        assertBlockedAtRuntime("def l = java.util.List.of('" + HARMLESS + "').subList(0, 1); l.execute()");
+        assertBlockedAtRuntime("def o = (Object) new StringBuffer('" + HARMLESS + "'); o.execute()");
+        assertBlockedAtRuntime("def o = (Object) new StringBuilder('" + HARMLESS + "'); o.execute()");
     }
 
     @Test
