@@ -118,7 +118,9 @@ public class McpAdminTools {
                 .property("username", T_STRING, "用户名", true)
                 .property("password", T_STRING, "密码(更新时省略表示保留原密码)", false)
                 .property("poolConfig", poolConfig, "连接池配置", false);
-        Schema updateSchema = saveSchema.property("id", T_INTEGER, "数据源ID", true);
+        // property() mutates in place: the update schema has to start from a copy, or the create tool
+        // ends up demanding the id of a row that does not exist yet
+        Schema updateSchema = saveSchema.copy().property("id", T_INTEGER, "数据源ID", true);
 
         return Lists.newArrayList(
                 tool("dp_datasource_types",
@@ -285,7 +287,7 @@ public class McpAdminTools {
                 .property("cacheKeyType", T_STRING, "缓存键类型,枚举: NONE, AUTO, SPEL", false)
                 .property("cacheKeyExpr", T_STRING, "SPEL缓存键表达式(cacheKeyType=SPEL时必填)", false)
                 .property("cacheExpireSeconds", T_INTEGER, "缓存过期秒数(启用缓存时必填>0)", false);
-        Schema apiUpdateSchema = apiSaveSchema.property("id", T_INTEGER, "API ID", true);
+        Schema apiUpdateSchema = apiSaveSchema.copy().property("id", T_INTEGER, "API ID", true);
 
         return Lists.newArrayList(
                 tool("dp_api_list", "分页查询API定义列表(支持按上线状态/分组/模块过滤)",

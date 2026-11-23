@@ -478,6 +478,26 @@ public class McpAdminToolsTest {
     // ------------------------------------------------------------------
 
     @Test
+    public void createToolsDoNotDemandAnIdAndUpdateToolsDo() {
+        // Regression: the update schema was derived by adding `id` to the very same mutable object,
+        // so the create tools asked for an id that does not exist yet
+        McpAdminTools tools = newTools(new FakeApiModuleService(), new FakeApiAssignmentService(),
+                new FakeDataSourceService(), new FakeAppClientService(), new FakeMcpManageService());
+        List<SyncToolSpecification> specs = tools.buildToolSpecifications();
+
+        for (String create : new String[]{"dp_datasource_create", "dp_api_create"}) {
+            McpSchema.JsonSchema schema = findTool(specs, create).getTool().getInputSchema();
+            assertFalse(create + " must not take an id", schema.getProperties().containsKey("id"));
+            assertFalse(create + " must not require an id", schema.getRequired().contains("id"));
+        }
+        for (String update : new String[]{"dp_datasource_update", "dp_api_update"}) {
+            McpSchema.JsonSchema schema = findTool(specs, update).getTool().getInputSchema();
+            assertTrue(update + " must take its id", schema.getProperties().containsKey("id"));
+            assertTrue(update + " must require the id", schema.getRequired().contains("id"));
+        }
+    }
+
+    @Test
     public void toolSchemasAreUniquePrefixedAndValidJson() throws Exception {
         McpAdminTools tools = newTools(new FakeApiModuleService(), new FakeApiAssignmentService(),
                 new FakeDataSourceService(), new FakeAppClientService(), new FakeMcpManageService());
