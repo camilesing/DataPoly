@@ -161,6 +161,21 @@ public class DataTaskJobEngine {
         }
     }
 
+    /**
+     * Extends the lease of a row-pipeline job without touching its row count: the pipeline reports
+     * progress itself, once per batch, and this only covers the time between those ticks.
+     */
+    private void renewLease(Long jobId) {
+        try {
+            if (!dataTaskJobDao.renewLease(jobId,
+                    new Timestamp(System.currentTimeMillis() + leaseSeconds * 1000L))) {
+                log.warn("Data task job {} is no longer RUNNING; the row pipeline notices on its next tick", jobId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to renew the lease of data task job {}: {}", jobId, e.getMessage());
+        }
+    }
+
     private ScheduledExecutorService leaseKeeper() {
         ScheduledExecutorService keeper = leaseKeeper;
         if (null == keeper) {
@@ -289,11 +304,13 @@ public class DataTaskJobEngine {
                                 ? NamingStrategyEnum.CAMEL_CASE : snapshot.getNamingStrategy())
                         .cancelSupplier(channel::isJobCancelled)
                         .rowLimit(effectiveMaxRows(snapshot.getMaxRows()))
-                        .flushIntervalMs(flushIntervalMs)
-                        .fetchSize(fetchSize)
-                        .timeoutSeconds(queryTimeoutSeconds)
-                        .progress(rows -> onProgress(jobId, rows))
-                        .build();
+                    .flushIntervalMs(flushIntervalMs)
+                    .fetchSize(fetchSize)
+                    .timeoutSeconds(queryTimeoutSeconds)
+                    .progress(rows -> onProgress(jobId, rows))
+                    .leaseRefresher(() -> renewLease(jobId))
+                    .leaseIntervalMs(Math.max(1000L, leaseSeconds * 1000L / 3))
+                    .build();
 
                 StreamResult result = streamQuery(streamSpec, channel);
                 delivered = result.getRows();
@@ -420,6 +437,12 @@ public class DataTaskJobEngine {
     protected StreamResult streamQuery(StreamSpec spec, ResultChannel channel) throws Exception {
         Connection connection = spec.getDataSource().getConnection();
         boolean autoCommitChanged = false;
+        // The lease must not depend on rows arriving: a statement may block longer than the whole lease
+        // window before its first batch (or hold fewer rows than one), and the reaper would then fail a
+        // perfectly healthy job as "executor lost". The row pipeline's own ticks report progress on top.
+        ScheduledFuture<?> lease = null == spec.getLeaseRefresher() ? null
+                : leaseKeeper().scheduleAtFixedRate(spec.getLeaseRefresher(),
+                        spec.getLeaseIntervalMs(), spec.getLeaseIntervalMs(), TimeUnit.MILLISECONDS);
         try {
             Consumer<Connection> executeBeforeQuery = spec.getProduct().getContext().getExecuteBeforeQuery();
             LambdaUtils.ifDo(null != executeBeforeQuery, () -> executeBeforeQuery.accept(connection));
@@ -453,6 +476,9 @@ public class DataTaskJobEngine {
                 statement.close();
             }
         } finally {
+            if (null != lease) {
+                lease.cancel(false);
+            }
             if (autoCommitChanged) {
                 try {
                     connection.setAutoCommit(true);
@@ -629,6 +655,12 @@ public class DataTaskJobEngine {
         private final int timeoutSeconds;
         /** coarse progress callback; null for synchronous previews */
         private final LongConsumer progress;
+        /**
+         * Keeps the job lease alive while the statement runs, independently of row flow; null for
+         * synchronous previews.
+         */
+        private final Runnable leaseRefresher;
+        private final long leaseIntervalMs;
     }
 
     private class SessionChannel implements ResultChannel {

@@ -163,6 +163,8 @@ public class DataTaskJobEngineTest {
         String successInfoJson;
         String failureMessage;
         int heartbeats;
+        /** lease-only renewals of the row pipeline (they leave the row count alone) */
+        volatile int leaseRenewals;
         List<Long> claimPendingResult = Collections.emptyList();
         int reapExpiredResult;
         String reapedMessage;
@@ -192,6 +194,12 @@ public class DataTaskJobEngineTest {
                 return (Boolean) next;
             }
             return true;
+        }
+
+        @Override
+        public boolean renewLease(Long id, java.sql.Timestamp leaseExpireAt) {
+            leaseRenewals++;
+            return null != current && DataTaskStatus.RUNNING == current.getStatus();
         }
 
         @Override
@@ -1964,6 +1972,45 @@ public class DataTaskJobEngineTest {
                 channel.metadata.get(1).getJdbcType());
         Assert.assertNull("failing getColumnClassName leaves className null",
                 channel.metadata.get(1).getClassName());
+    }
+
+    @Test
+    public void leaseIsRenewedWhileAStatementBlocksBeforeItsFirstBatch() throws Exception {
+        // The lease must not depend on rows arriving: a query that needs longer than the lease window
+        // before its first batch — fewer than one batch of rows in total, even — was reaped as
+        // "executor lost" while the worker was perfectly healthy
+        final java.util.concurrent.atomic.AtomicInteger renewals = new java.util.concurrent.atomic.AtomicInteger();
+        final ResultSet rows = rowSetProxy(3, new String[]{"c1"},
+                index -> java.sql.Types.VARCHAR, index -> "java.lang.String", index -> "v");
+        final boolean[] blocked = {false};
+        ResultSet slow = (ResultSet) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[]{ResultSet.class}, (p, m, a) -> {
+                    if ("next".equals(m.getName()) && !blocked[0]) {
+                        blocked[0] = true;
+                        Thread.sleep(2600L); // well past two renewal intervals
+                    }
+                    return m.invoke(rows, a);
+                });
+        HikariDataSource pool = pooled(connectionProxy(slow, new ArrayList<>(), "H2"));
+        DataTaskJobEngine.StreamSpec spec = DataTaskJobEngine.StreamSpec.builder()
+                .dataSource(pool)
+                .product(ProductTypeEnum.MYSQL)
+                .sqlMeta(new com.cs.template.SqlMeta("SELECT c1 FROM t", Collections.<Object>emptyList()))
+                .cancelSupplier(() -> false)
+                .rowLimit(5L)
+                .flushIntervalMs(5000L)
+                .fetchSize(55)
+                .timeoutSeconds(30)
+                .leaseRefresher(renewals::incrementAndGet)
+                .leaseIntervalMs(1000L)
+                .build();
+        CaptureChannel channel = new CaptureChannel();
+
+        DataTaskJobEngine.StreamResult result = new DataTaskJobEngine().streamQuery(spec, channel);
+
+        Assert.assertEquals(3L, result.getRows());
+        Assert.assertTrue("the lease must be renewed while the statement blocks, saw " + renewals.get(),
+                renewals.get() >= 1);
     }
 
     private static Object sqlFailure(String message) {
