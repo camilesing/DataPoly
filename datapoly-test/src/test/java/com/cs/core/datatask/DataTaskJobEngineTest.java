@@ -225,6 +225,16 @@ public class DataTaskJobEngineTest {
             }
             return true;
         }
+
+        @Override
+        public boolean finishCanceled(Long id, String errorMessage, long totalRows,
+                                      java.sql.Timestamp finishTime) {
+            this.failureMessage = errorMessage;
+            if (null != current) {
+                current.setStatus(DataTaskStatus.CANCELED);
+            }
+            return true;
+        }
     }
 
     private static class RecordingDataSourceDao extends DataSourceDao {
@@ -495,6 +505,8 @@ public class DataTaskJobEngineTest {
         Assert.assertTrue(String.valueOf(jobDao.failureMessage).toLowerCase().contains("cancel"));
         Assert.assertEquals(1, events.size());
         Assert.assertEquals(DataTaskStatus.CANCELED, events.get(0).getStatus());
+        // the record must tell the same story as the event (the state machine: RUNNING → CANCELED)
+        Assert.assertEquals(DataTaskStatus.CANCELED, jobDao.current.getStatus());
     }
 
     @Test
@@ -1606,6 +1618,8 @@ public class DataTaskJobEngineTest {
         Assert.assertFalse(sink.completed);
         Assert.assertTrue(String.valueOf(jobDao.failureMessage).toLowerCase().contains("cancel"));
         Assert.assertEquals(DataTaskStatus.CANCELED, events.get(0).getStatus());
+        Assert.assertEquals("a cooperatively cancelled job is recorded as CANCELED, not FAILED",
+                DataTaskStatus.CANCELED, jobDao.current.getStatus());
     }
 
     @Test

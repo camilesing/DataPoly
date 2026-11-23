@@ -334,7 +334,12 @@ public class DataTaskJobEngine {
             boolean cancelled = t instanceof CancelledException || isRunningAndCancelled(jobId);
             terminal = cancelled ? DataTaskStatus.CANCELED : DataTaskStatus.FAILED;
             failureMessage = null == t.getMessage() ? t.getClass().getSimpleName() : t.getMessage();
-            dataTaskJobDao.finishFailure(jobId, truncate(failureMessage), delivered, now());
+            // the record must reach the same terminal state as the event published below it
+            if (cancelled) {
+                dataTaskJobDao.finishCanceled(jobId, truncate(failureMessage), delivered, now());
+            } else {
+                dataTaskJobDao.finishFailure(jobId, truncate(failureMessage), delivered, now());
+            }
             artifactUri = null;
         }
         publish(new DataTaskEvent(jobId, job.getDefId(), job.getDefName(), terminal,
