@@ -33,14 +33,18 @@ public class SqlJdbcUtils {
             // Second line of defense: clamp an illegal size passed in bypassing PageSizeUtils back to the default page size, avoiding empty LIMIT 0/TOP 0 results
             size = 10;
         }
+        // one dialect answers for both the paging SQL and the order of its bound values
+        ProductTypeEnum pagingDialect = appendPagination
+                ? PageSqlUtils.pagingDialect(productType, connection)
+                : productType;
         String sql = appendPagination
-                ? PageSqlUtils.getPageSql(productType, connection, sqlMeta.getSql(), page, size)
+                ? pagingDialect.getPageSql(sqlMeta.getSql(), page, size)
                 : sqlMeta.getSql();
         Consumer<Connection> executeBeforeQuery = productType.getContext().getExecuteBeforeQuery();
         LambdaUtils.ifDo(Objects.nonNull(executeBeforeQuery), () -> executeBeforeQuery.accept(connection));
 
         long start = System.currentTimeMillis();
-        try (PreparedStatement statement = buildStatement(productType, connection, sql, page, size,
+        try (PreparedStatement statement = buildStatement(pagingDialect, connection, sql, page, size,
                 appendPagination, paramValues, printSqlLog)) {
             Function<String, String> converter = getConverter(strategy);
             if (execute(productType, statement)) {
@@ -88,13 +92,14 @@ public class SqlJdbcUtils {
         }
     }
 
-    private static PreparedStatement buildStatement(ProductTypeEnum productType, Connection connection,
+    /** {@code pagingDialect} supplies the bound values in the order {@code sql}'s placeholders expect. */
+    private static PreparedStatement buildStatement(ProductTypeEnum pagingDialect, Connection connection,
                                                     String sql, int page, int size, boolean appendPagination, List<Object> paramValues,
                                                     boolean printSqlLog) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(sql);
         statement.setQueryTimeout(QUERY_TIMEOUT);
         statement.setFetchSize(isMySqlConnection(connection) ? Integer.MIN_VALUE : (appendPagination ? size : 0));
-        LambdaUtils.ifDo(appendPagination, () -> productType.getPageConsumer().accept(page, size, paramValues));
+        LambdaUtils.ifDo(appendPagination, () -> pagingDialect.getPageConsumer().accept(page, size, paramValues));
         for (int i = 1; i <= paramValues.size(); i++) {
             statement.setObject(i, paramValues.get(i - 1));
         }

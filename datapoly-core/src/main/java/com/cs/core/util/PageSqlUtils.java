@@ -17,14 +17,19 @@ public class PageSqlUtils {
 
     public static String getPageSql(ProductTypeEnum productType, Connection conn, String sql, Integer page,
                                     Integer size) {
-        if (ProductTypeEnum.OCEANBASE == productType) {
-            if (PageSqlUtils.isInMysqlMode(conn)) {
-                return ProductTypeEnum.MYSQL.getPageSql(sql, page, size);
-            } else {
-                return ProductTypeEnum.ORACLE.getPageSql(sql, page, size);
-            }
+        return pagingDialect(productType, conn).getPageSql(sql, page, size);
+    }
+
+    /**
+     * The dialect that decides both the paging SQL and the order of its bound values. OceanBase speaks
+     * Oracle when its tenant runs in Oracle mode; taking the SQL from one dialect and the values from
+     * the other swaps the bounds (ROWNUM needs the upper bound first, LIMIT the page size).
+     */
+    public static ProductTypeEnum pagingDialect(ProductTypeEnum productType, Connection connection) {
+        if (ProductTypeEnum.OCEANBASE == productType && !PageSqlUtils.isInMysqlMode(connection)) {
+            return ProductTypeEnum.ORACLE;
         }
-        return productType.getPageSql(sql, page, size);
+        return productType;
     }
 
     public static boolean isInMysqlMode(Connection connection) {

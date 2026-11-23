@@ -6,6 +6,7 @@ import com.cs.common.enums.ProductTypeEnum;
 import com.cs.template.SqlMeta;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.*;
@@ -477,6 +478,82 @@ public class SqlJdbcUtilsTest {
             assertEquals(type.name(), Collections.singletonList("x"), jdbc.boundParams);
             assertEquals(type.name(), 7, result.get(0).get("ID"));
         }
+    }
+
+    @Test
+    public void testOceanBaseOracleModeBindsTheBoundsInOracleOrder() throws SQLException {
+        // Regression: an Oracle-mode OceanBase takes the ROWNUM template but was handed the LIMIT-style
+        // parameters, so every page after the first read ROWNUM <= size AND ROW_ID > size: always empty
+        FakeJdbc jdbc = new FakeJdbc("OceanBase");
+        jdbc.columns = Collections.singletonList("ID");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("ID", 1);
+        jdbc.rows = Collections.singletonList(row);
+        Connection connection = oceanBaseConnection(jdbc.connection(), "Oracle");
+
+        SqlMeta meta = new SqlMeta("SELECT ID FROM t", new ArrayList<Object>());
+        SqlJdbcUtils.execute(ProductTypeEnum.OCEANBASE, connection, meta, null, 2, 10, true, false);
+
+        assertEquals(1, jdbc.preparedSqls.size());
+        assertTrue(jdbc.preparedSqls.get(0), jdbc.preparedSqls.get(0).contains("ROWNUM <= ?"));
+        // page 2 of size 10: ROWNUM <= 20 … ROW_ID > 10
+        assertEquals(Arrays.asList(20, 10), jdbc.boundParams);
+    }
+
+    @Test
+    public void testOceanBaseMysqlModeKeepsTheLimitOrder() throws SQLException {
+        FakeJdbc jdbc = new FakeJdbc("OceanBase");
+        jdbc.columns = Collections.singletonList("ID");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("ID", 1);
+        jdbc.rows = Collections.singletonList(row);
+        Connection connection = oceanBaseConnection(jdbc.connection(), "MySQL");
+
+        SqlMeta meta = new SqlMeta("SELECT ID FROM t", new ArrayList<Object>());
+        SqlJdbcUtils.execute(ProductTypeEnum.OCEANBASE, connection, meta, null, 2, 10, true, false);
+
+        assertEquals(1, jdbc.preparedSqls.size());
+        assertTrue(jdbc.preparedSqls.get(0), jdbc.preparedSqls.get(0).contains("LIMIT ? OFFSET ?"));
+        assertEquals(Arrays.asList(10, 10), jdbc.boundParams);
+    }
+
+    /** Wraps a connection so that OceanBase's compatibility-mode probe answers with {@code mode}. */
+    private static Connection oceanBaseConnection(final Connection inner, String mode) {
+        final boolean[] probePending = {true};
+        final boolean[] rowPending = {true};
+        ResultSet modeRow = (ResultSet) Proxy.newProxyInstance(SqlJdbcUtilsTest.class.getClassLoader(),
+                new Class<?>[]{ResultSet.class}, (p, m, a) -> {
+                    switch (m.getName()) {
+                        case "next": {
+                            boolean more = rowPending[0];
+                            rowPending[0] = false;
+                            return more;
+                        }
+                        case "getString":
+                            return mode;
+                        case "hashCode":
+                            return System.identityHashCode(p);
+                        case "equals":
+                            return p == a[0];
+                        default:
+                            return null;
+                    }
+                });
+        PreparedStatement probe = (PreparedStatement) Proxy.newProxyInstance(SqlJdbcUtilsTest.class.getClassLoader(),
+                new Class<?>[]{PreparedStatement.class}, (p, m, a) ->
+                        "executeQuery".equals(m.getName()) ? modeRow : null);
+        return (Connection) Proxy.newProxyInstance(SqlJdbcUtilsTest.class.getClassLoader(),
+                new Class<?>[]{Connection.class}, (p, m, a) -> {
+                    if ("prepareStatement".equals(m.getName()) && probePending[0]) {
+                        probePending[0] = false;
+                        return probe;
+                    }
+                    try {
+                        return m.invoke(inner, a);
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
     }
 
     @Test
