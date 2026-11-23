@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
+import java.sql.Timestamp;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -85,14 +86,13 @@ public class AppClientDao {
     }
 
     public void updateTokenByAppKey(String appKey, String token) {
-        AppClientEntity updateEntity = new AppClientEntity();
-        updateEntity.setAppKey(appKey);
-        updateEntity.setAccessToken(token);
-
-        QueryWrapper<AppClientEntity> queryWrapper = new QueryWrapper<>();
-        queryWrapper.lambda().eq(AppClientEntity::getAppKey, appKey);
-
-        appClientMapper.update(updateEntity, queryWrapper);
+        // update_time is touched here on purpose: MySQL refreshes it by itself (ON UPDATE CURRENT_TIMESTAMP),
+        // the PostgreSQL schema never does, and the ONLY_ONCE issuance check reads it
+        appClientMapper.update(null,
+                Wrappers.<AppClientEntity>lambdaUpdate()
+                        .eq(AppClientEntity::getAppKey, appKey)
+                        .set(AppClientEntity::getAccessToken, token)
+                        .set(AppClientEntity::getUpdateTime, new Timestamp(System.currentTimeMillis())));
     }
 
     public void clearTokenByAppKey(String appKey) {

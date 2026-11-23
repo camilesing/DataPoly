@@ -283,6 +283,21 @@ public class ClientTokenServiceTest {
     }
 
     @Test
+    public void onlyOnceClientWithOutstandingTokenIsRejectedWhileTimestampsStillMatch() {
+        // create_time == update_time is what PostgreSQL reports forever (its schema never refreshes
+        // update_time), and what MySQL reports for a second call within the same second
+        AppClientEntity entity = entity("app-outstanding", DurationTimeEnum.ONLY_ONCE);
+        entity.setAccessToken(buildToken("issued"));
+        appClientDao.byAppKey.put("app-outstanding", entity);
+        try {
+            service.generateToken("app-outstanding", "sec-app-outstanding");
+            Assert.fail("expected one-shot rejection while the first token is still outstanding");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_CLIENT_FORBIDDEN, e.getCode());
+        }
+    }
+
+    @Test
     public void longevityClientReusesPersistedTokenWithoutRotation() {
         String existing = buildToken("kept");
         AppClientEntity entity = entity("app-keep", DurationTimeEnum.FOR_EVER);
