@@ -123,6 +123,34 @@ public class SystemUserManageServiceTest {
     }
 
     @Test
+    public void updateCanUnlockAnotherAdminWhileYouAreTheOnlyUsableOne() {
+        // Regression: unlocking a locked ADMIN counted as "removing a usable admin", so with a single
+        // unlocked admin nobody could ever unlock a colleague — and the error blamed "last admin"
+        SystemUserEntity peer = user("peer", "ADMIN");
+        peer.setLocked(true);
+        userDao.users.put("peer", peer);
+        userDao.users.put("solo", user("solo", "ADMIN"));
+
+        service.update(updateRequest("peer", null, Boolean.FALSE), "solo");
+
+        Assert.assertEquals(Boolean.FALSE,
+                userDao.updated.get(String.valueOf(peer.getId())).getLocked());
+    }
+
+    @Test
+    public void updateCanDemoteALockedAdminWhileYouAreTheOnlyUsableOne() {
+        SystemUserEntity peer = user("peer", "ADMIN");
+        peer.setLocked(true);
+        userDao.users.put("peer", peer);
+        userDao.users.put("solo", user("solo", "ADMIN"));
+
+        service.update(updateRequest("peer", "USER", null), "solo");
+
+        Assert.assertEquals(UserRole.USER.name(),
+                userDao.updated.get(String.valueOf(peer.getId())).getRole());
+    }
+
+    @Test
     public void updateOfAPlainUserNeedsNoAdminQuorum() {
         userDao.users.put("test", user("test", "USER"));
         service.update(updateRequest("test", "USER", Boolean.TRUE), "admin");

@@ -188,11 +188,15 @@ public class SystemUserManageService {
     }
 
     /**
-     * Whether this update removes a usable administrator: the target is an ADMIN and the update
-     * moves the role off ADMIN or locks the account (any differing role value moves off ADMIN).
+     * Whether this update removes a usable administrator: the target is an ADMIN that is usable now —
+     * not locked — and the update moves the role off ADMIN or changes its lock state (for an unlocked
+     * account that can only mean locking it; any differing role value moves off ADMIN). Unlocking or
+     * demoting an already locked ADMIN removes nothing.
      */
     private static boolean removesUsableAdmin(SystemUserEntity target, boolean changesRole, boolean changesLocked) {
-        return UserRole.ADMIN == UserRole.of(target.getRole()) && (changesRole || changesLocked);
+        return UserRole.ADMIN == UserRole.of(target.getRole())
+                && !Boolean.TRUE.equals(target.getLocked())
+                && (changesRole || changesLocked);
     }
 
     private static PermissionModule parseModule(String name) {
