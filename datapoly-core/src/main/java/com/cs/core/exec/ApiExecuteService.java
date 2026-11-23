@@ -138,7 +138,7 @@ public class ApiExecuteService {
                 .map(
                         p ->
                                 (Boolean.TRUE.equals(p.getIsArray()) ? I18nUtils.getMessage("api.param.array") : "")
-                                        + I18nUtils.getMessage("api.param.name", p.getName())
+                                        + I18nUtils.getMessage("api.param.name", new Object[]{p.getName()})
                                         + p.getLocation().getIn())
                 .collect(Collectors.joining(";"));
     }

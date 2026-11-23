@@ -132,7 +132,8 @@ public class AuthenticationFilter implements Filter {
                         log.error("Failed verify group from token [{}] , app key [{}].",
                                 ParamMaskUtils.maskValue(tokenStr), appKey);
                         String message = String.format("/%s/%s[%s]", Constants.API_PATH_PREFIX, path, method.name());
-                        throw new UnPermissionException(I18nUtils.getMessage("auth.no.permission", message));
+                        // NOTE the explicit Object[]: a bare String binds to the defaultMessage overload and {0} stays
+                        throw new UnPermissionException(I18nUtils.getMessage("auth.no.permission", new Object[]{message}));
                     }
                 }
             }
