@@ -336,6 +336,53 @@ public class AuthenticationFilterTest {
     }
 
     @Test
+    public void testOverlongCallerControlledHeadersAreFittedToTheRecordColumns() throws Exception {
+        // user-agent (255) and the forwarded-for chain (64) go into narrow columns as the caller sent
+        // them: a longer value failed the INSERT, and the access record — plus the alarm behind it — vanished
+        StringBuilder userAgent = new StringBuilder();
+        for (int i = 0; i < 60; i++) {
+            userAgent.append("Mozilla/5.0 ");
+        }
+        StringBuilder forwardedFor = new StringBuilder("10.0.0.1");
+        for (int i = 0; i < 30; i++) {
+            forwardedFor.append(", 10.0.0.").append(i);
+        }
+        Map<String, String> headers = new HashMap<>();
+        headers.put("user-agent", userAgent.toString());
+        headers.put("x-forwarded-for", forwardedFor.toString());
+        onlineRecorder.stub("selectOne", entity(true, false, false));
+
+        filter.doFilter(request("/api/ping", "GET", headers), response, chain());
+
+        accessRecorder.awaitInserts(1, 5000);
+        AccessRecordEntity record = (AccessRecordEntity) accessRecorder.inserts.get(0)[0];
+        assertEquals(255, record.getUserAgent().length());
+        assertTrue(record.getUserAgent().startsWith("Mozilla/5.0 Mozilla"));
+        assertEquals(64, record.getIpAddr().length());
+        assertTrue(record.getIpAddr().startsWith("10.0.0.1, 10.0.0.0"));
+    }
+
+    @Test
+    public void testOverlongExceptionMessageIsFittedToTheRecordColumn() throws Exception {
+        // the PostgreSQL migration sizes the exception column at 1024 characters
+        StringBuilder message = new StringBuilder("boom ");
+        for (int i = 0; i < 600; i++) {
+            message.append("detail ");
+        }
+        chainFailure = new RuntimeException(message.toString());
+        onlineRecorder.stub("selectOne", entity(true, false, false));
+
+        filter.doFilter(request("/api/ping", "GET", new HashMap<String, String>()), response, chain());
+
+        assertEquals(500, statusRef[0].intValue());
+        accessRecorder.awaitInserts(1, 5000);
+        AccessRecordEntity record = (AccessRecordEntity) accessRecorder.inserts.get(0)[0];
+        assertEquals(Integer.valueOf(500), record.getStatus());
+        assertEquals(1024, record.getException().length());
+        assertTrue(record.getException().startsWith("boom detail"));
+    }
+
+    @Test
     public void testUnknownHttpMethodFallsBackToGet() throws Exception {
         onlineRecorder.stub("selectOne", (Object) null, entity(true, false, false));
         filter.doFilter(request("/api/missing", "PROPFIND", new HashMap<String, String>()), response, chain());

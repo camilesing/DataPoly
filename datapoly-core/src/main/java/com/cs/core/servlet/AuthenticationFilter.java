@@ -101,14 +101,14 @@ public class AuthenticationFilter implements Filter {
     private void doAuthenticationFilter(FilterChain chain, HttpServletRequest request, HttpServletResponse response,
                                         ApiAssignmentEntity apiConfigEntity) throws IOException {
         AccessRecordEntity accessRecordEntity = AccessRecordEntity.builder()
-                .path(request.getRequestURI())
+                .path(fit(request.getRequestURI(), COLUMN_PATH))
                 .status(HttpStatus.OK.value())
                 .duration(System.currentTimeMillis())
-                .ipAddr(ServletUtils.getIpAddr())
-                .userAgent(ServletUtils.getUserAgent())
+                .ipAddr(fit(ServletUtils.getIpAddr(), COLUMN_IP))
+                .userAgent(fit(ServletUtils.getUserAgent(), COLUMN_USER_AGENT))
                 .apiId(apiConfigEntity.getId())
                 .executorAddr(InetUtils.getLocalIpStr())
-                .gatewayAddr(request.getHeader(Constants.REQUEST_HEADER_GATEWAY_IP))
+                .gatewayAddr(fit(request.getHeader(Constants.REQUEST_HEADER_GATEWAY_IP), COLUMN_ADDR))
                 .build();
 
         String path = apiConfigEntity.getPath();
@@ -168,12 +168,20 @@ public class AuthenticationFilter implements Filter {
             accessRecordEntity.setDuration(System.currentTimeMillis() - accessRecordEntity.getDuration());
             // Mask sensitive values before persisting to audit (execution path unaffected)
             accessRecordEntity.setParameters(ParamMaskUtils.mask(RequestParamLogger.getAndClear()));
+            accessRecordEntity.setClientKey(fit(accessRecordEntity.getClientKey(), COLUMN_CLIENT_KEY));
+            accessRecordEntity.setException(fit(accessRecordEntity.getException(), COLUMN_EXCEPTION));
             alarmExecutor.submit(() -> doRecord(apiConfigEntity, accessRecordEntity, httpStatus, accessTime));
         }
     }
 
     private void doRecord(ApiAssignmentEntity config, AccessRecordEntity record, int status, long timestamp) {
-        accessRecordMapper.insert(record);
+        try {
+            accessRecordMapper.insert(record);
+        } catch (Exception e) {
+            // The audit write runs on its own thread, so nothing would ever surface: say it out loud
+            log.error("Failed to persist access record for api [{}], status [{}]: {}", config.getId(), status,
+                    e.getMessage(), e);
+        }
         if (status == HttpServletResponse.SC_OK) {
             return;
         }
@@ -183,6 +191,25 @@ public class AuthenticationFilter implements Filter {
 
         Map<String, String> dataModel = AlarmModelUtils.getBusinessModel(config, record, timestamp);
         unifyAlarmOpsService.triggerAlarm(dataModel);
+    }
+
+    /**
+     * DATAPOLY_ACCESS_RECORD column widths, taking the narrower of the MySQL and PostgreSQL migrations.
+     */
+    private static final int COLUMN_PATH = 255;
+    private static final int COLUMN_IP = 64;
+    private static final int COLUMN_USER_AGENT = 255;
+    private static final int COLUMN_CLIENT_KEY = 64;
+    private static final int COLUMN_ADDR = 128;
+    private static final int COLUMN_EXCEPTION = 1024;
+
+    /**
+     * Fits a value into its column. Several of them carry request headers as the caller sent them, and a
+     * longer value fails the INSERT on both databases — which silently cost the access record and, behind
+     * it, the failure alarm.
+     */
+    private static String fit(String value, int max) {
+        return null == value || value.length() <= max ? value : value.substring(0, max);
     }
 
     @Override
