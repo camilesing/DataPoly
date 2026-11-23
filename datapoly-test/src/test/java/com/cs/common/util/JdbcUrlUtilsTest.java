@@ -4,8 +4,13 @@ package com.cs.common.util;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 
@@ -132,6 +137,24 @@ public class JdbcUrlUtilsTest {
     @Test(expected = NumberFormatException.class)
     public void testReachableRejectsNonNumericPort() {
         JdbcUrlUtils.reachable("127.0.0.1", "not-a-port");
+    }
+
+    @Test
+    public void testReachableUnresolvableHostReturnsFalseBehindAnAcceptingSocksProxy() throws Exception {
+        // With a SOCKS proxy in effect the JDK forwards an unresolved host as a domain name instead of failing,
+        // and a proxy that answers CONNECT before dialling makes Socket.connect() return normally
+        try (AcceptingSocks5Proxy proxy = new AcceptingSocks5Proxy()) {
+            String previousHost = System.getProperty("socksProxyHost");
+            String previousPort = System.getProperty("socksProxyPort");
+            System.setProperty("socksProxyHost", proxy.host());
+            System.setProperty("socksProxyPort", proxy.port());
+            try {
+                assertFalse(JdbcUrlUtils.reachable("no-such-host.invalid", "80"));
+            } finally {
+                restoreSystemProperty("socksProxyHost", previousHost);
+                restoreSystemProperty("socksProxyPort", previousPort);
+            }
+        }
     }
 
     @Test
@@ -355,5 +378,63 @@ public class JdbcUrlUtilsTest {
         assertTrue(out.contains("sqlite file:D:\\Project\\Test\\phone.db"));
         assertTrue(out.contains("mongodb database:admin"));
         assertTrue(out.contains("clickhouse database:default"));
+    }
+
+    private static void restoreSystemProperty(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, value);
+        }
+    }
+
+    /**
+     * Loopback SOCKS5 server that completes the handshake and answers SUCCESS to every CONNECT request
+     * without dialling the target, the way a proxy that acknowledges first does
+     */
+    private static final class AcceptingSocks5Proxy implements AutoCloseable {
+
+        private final ServerSocket serverSocket;
+
+        AcceptingSocks5Proxy() throws IOException {
+            serverSocket = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"));
+            Thread thread = new Thread(this::serve, "accepting-socks5-proxy");
+            thread.setDaemon(true);
+            thread.start();
+        }
+
+        String host() {
+            return serverSocket.getInetAddress().getHostAddress();
+        }
+
+        String port() {
+            return String.valueOf(serverSocket.getLocalPort());
+        }
+
+        @Override
+        public void close() throws IOException {
+            serverSocket.close();
+        }
+
+        private void serve() {
+            while (!serverSocket.isClosed()) {
+                try (Socket socket = serverSocket.accept()) {
+                    InputStream in = socket.getInputStream();
+                    OutputStream out = socket.getOutputStream();
+                    in.read();                                // VER
+                    in.readNBytes(in.read());                // NMETHODS, then METHODS
+                    out.write(new byte[]{5, 0});             // version 5, no authentication
+                    out.flush();
+                    byte[] request = in.readNBytes(4);       // VER CMD RSV ATYP
+                    int addressLength = request[3] == 3 ? in.read() : request[3] == 4 ? 16 : 4;
+                    in.readNBytes(addressLength);
+                    in.readNBytes(2);                        // DST.PORT
+                    out.write(new byte[]{5, 0, 0, 1, 0, 0, 0, 0, 0, 0});   // succeeded, 0.0.0.0:0
+                    out.flush();
+                } catch (IOException | IndexOutOfBoundsException e) {
+                    // the client hung up mid-handshake or the server socket was closed; nothing left to serve
+                }
+            }
+        }
     }
 }

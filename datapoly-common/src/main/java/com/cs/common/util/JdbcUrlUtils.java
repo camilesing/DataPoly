@@ -65,10 +65,17 @@ public final class JdbcUrlUtils {
      * @return true if reachable, false otherwise
      */
     public static boolean reachable(String host, String port) {
+        final int portNumber = Integer.parseInt(port);
+        final InetAddress address;
         try {
-            try (Socket socket = new Socket()) {
-                socket.connect(new InetSocketAddress(host, Integer.parseInt(port)), 1500);
-            }
+            address = InetAddress.getByName(host);
+        } catch (UnknownHostException e) {
+            // An unresolved InetSocketAddress is handed to a configured SOCKS proxy as a domain name, and a
+            // proxy that acknowledges CONNECT before dialling makes Socket.connect() return normally
+            return false;
+        }
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(address, portNumber), 1500);
         } catch (IOException e) {
             return false;
         }
