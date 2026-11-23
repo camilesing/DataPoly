@@ -1904,13 +1904,23 @@ public class DataTaskJobEngineTest {
                     throw new SQLException("blob broken");
                 }));
         Object blobNegative = scriptedProxy(java.sql.Blob.class, script("length", -1L));
-        final Object arrayJson = scriptedProxy(java.sql.Array.class, script("toString", "[1,2]"));
-        final Object arrayRaw = scriptedProxy(java.sql.Array.class, script("toString", "no-json"));
+        final Object arrayJson = scriptedProxy(java.sql.Array.class,
+                script("toString", "[1,2]", "getArray", new Object[]{1, 2}));
+        // what a real driver hands out: PostgreSQL's PgArray prints the {1,2} literal from toString()
+        final Object arrayPg = scriptedProxy(java.sql.Array.class,
+                script("toString", "{1,2}", "getArray", new Integer[]{1, 2}));
+        final Object arrayPrimitive = scriptedProxy(java.sql.Array.class,
+                script("getArray", new int[]{3, 4}));
+        final Object arrayBroken = scriptedProxy(java.sql.Array.class, script("getArray", (Callable<Object>) () -> {
+            throw new SQLException("array broken");
+        }));
         final Object structMap = scriptedProxy(java.sql.Struct.class, script("toString", "{\"k\":1}"));
+        final Object structPg = scriptedProxy(java.sql.Struct.class,
+                script("toString", "(1,abc)", "getAttributes", new Object[]{1, "abc"}));
         final Object structRaw = scriptedProxy(java.sql.Struct.class, script("toString", "no-json"));
 
-        final Object[] cells = {clobOk, clobNegative, blobOk, blobBroken, arrayJson, arrayRaw,
-                structMap, structRaw, clobBroken, READ_FAILURE, blobNegative};
+        final Object[] cells = {clobOk, clobNegative, blobOk, blobBroken, arrayJson, arrayPg, arrayPrimitive,
+                arrayBroken, structMap, structPg, structRaw, clobBroken, READ_FAILURE, blobNegative};
         final String[] labels = new String[cells.length];
         for (int i = 0; i < labels.length; i++) {
             labels[i] = "c" + (i + 1);
@@ -1935,13 +1945,17 @@ public class DataTaskJobEngineTest {
         Assert.assertNull(row[1]);                                 // negative Clob length → null
         Assert.assertArrayEquals(new byte[]{1, 2, 3}, (byte[]) row[2]); // Blob → byte[]
         Assert.assertNull(row[3]);                                 // broken Blob → null
-        Assert.assertEquals(Arrays.asList(1, 2), row[4]);          // Array → parsed JSON list
-        Assert.assertSame("unparsable Array stays the JDBC object", arrayRaw, row[5]);
-        Assert.assertEquals(Collections.singletonMap("k", 1), row[6]); // Struct → parsed JSON map
-        Assert.assertSame("unparsable Struct stays the JDBC object", structRaw, row[7]);
-        Assert.assertNull(row[8]);                                 // broken Clob → null
-        Assert.assertNull("a failing getObject leaves the cell null", row[9]);
-        Assert.assertNull("negative Blob length → null", row[10]);
+        Assert.assertEquals(Arrays.asList(1, 2), row[4]);          // Array → its elements
+        Assert.assertEquals("a driver whose toString() is the {1,2} literal still yields the elements",
+                Arrays.asList(1, 2), row[5]);
+        Assert.assertEquals(Arrays.asList(3, 4), row[6]);          // primitive arrays box
+        Assert.assertSame("an Array whose elements cannot be read stays the JDBC object", arrayBroken, row[7]);
+        Assert.assertEquals(Collections.singletonMap("k", 1), row[8]); // Struct → parsed JSON map
+        Assert.assertEquals(Arrays.asList(1, "abc"), row[9]);      // Struct → its attribute values
+        Assert.assertSame("a Struct that yields nothing stays the JDBC object", structRaw, row[10]);
+        Assert.assertNull(row[11]);                                // broken Clob → null
+        Assert.assertNull("a failing getObject leaves the cell null", row[12]);
+        Assert.assertNull("negative Blob length → null", row[13]);
 
         Assert.assertNull("failing getColumnType leaves jdbcType null",
                 channel.metadata.get(0).getJdbcType());

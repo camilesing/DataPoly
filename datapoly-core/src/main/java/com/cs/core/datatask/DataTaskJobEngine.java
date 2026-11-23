@@ -875,13 +875,47 @@ public class DataTaskJobEngine {
 
     private static Object convertArray(java.sql.Array array) {
         try {
-            return JsonUtils.toBeanList(array.toString(), Object.class);
+            // JDBC's own contract carries the elements; toString() is whatever the driver prints
+            // (PostgreSQL: the {1,2,3} literal, which is not JSON and never parses)
+            return toList(array.getArray());
         } catch (Exception e) {
-            return array;
+            Object parsed = null;
+            try {
+                // a driver that hands out no elements may at least print them
+                String printed = array.toString();
+                if (null != printed && !printed.trim().isEmpty()) {
+                    parsed = JsonUtils.toBeanList(printed, Object.class);
+                }
+            } catch (Exception notJsonEither) {
+                parsed = null;
+            }
+            return null != parsed ? parsed : array;
         }
     }
 
+    /** Any Java array — object or primitive, nested included — as a plain list of its elements. */
+    private static Object toList(Object elements) {
+        if (null == elements || !elements.getClass().isArray()) {
+            return elements;
+        }
+        int length = java.lang.reflect.Array.getLength(elements);
+        List<Object> values = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            Object element = java.lang.reflect.Array.get(elements, i);
+            values.add(null != element && element.getClass().isArray() ? toList(element) : element);
+        }
+        return values;
+    }
+
     private static Object convertStruct(java.sql.Struct struct) {
+        try {
+            Object[] attributes = struct.getAttributes();
+            if (null != attributes) {
+                return toList(attributes);
+            }
+        } catch (Exception e) {
+            // a driver that hands out nothing usable: read the text below instead
+        }
         try {
             return JsonUtils.toBeanObject(struct.toString(), Map.class);
         } catch (Exception e) {
