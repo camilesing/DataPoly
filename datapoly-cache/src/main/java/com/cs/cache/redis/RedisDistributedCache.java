@@ -32,11 +32,22 @@ public class RedisDistributedCache implements DistributedCache {
         if (null == redisVal) {
             return null;
         }
+        // hutool writes a CharSequence as itself, not as a JSON string literal, so it reads back as itself;
+        // through toBean() every ordinary string died with "A JSONObject text must begin with '{'"
+        if (String.class.equals(type)) {
+            return type.cast(redisVal);
+        }
         return JSONUtil.toBean(redisVal, type, true);
     }
 
     @Override
     public void put(String key, Object value, long expire, TimeUnit unit) {
+        if (null == value) {
+            // nothing to store — toJsonStr(null) is null, and Jedis refuses it; the Hazelcast backend
+            // reads a null value back as a miss too
+            evict(key);
+            return;
+        }
         String redisKey = String.format(FORMAT, name, key);
         String redisVal = JSONUtil.toJsonStr(value);
         client.doConsume(jedis -> {

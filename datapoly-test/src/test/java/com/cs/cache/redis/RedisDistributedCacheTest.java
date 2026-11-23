@@ -72,6 +72,28 @@ public class RedisDistributedCacheTest {
     }
 
     @Test
+    public void testStringValuesReadBackAsStored() {
+        // hutool writes a CharSequence as itself, not as a JSON string literal — reading it back as a
+        // bean then threw "A JSONObject text must begin with '{'" for every ordinary string
+        RedisDistributedCache cache = new RedisDistributedCache("demo", new JedisClient(pool));
+        for (String value : new String[]{"hello", "123", "true", ""}) {
+            cache.put("k", value, 0, TimeUnit.SECONDS);
+            assertEquals(value, cache.get("k", String.class));
+        }
+    }
+
+    @Test
+    public void testPuttingNullClearsTheEntry() {
+        // a null value has nothing to store (it used to reach Jedis as a null value); like on Hazelcast
+        // it reads back as a miss
+        RedisDistributedCache cache = new RedisDistributedCache("demo", new JedisClient(pool));
+        cache.put("k", "v", 0, TimeUnit.SECONDS);
+        cache.put("k", null, 0, TimeUnit.SECONDS);
+        assertNull(cache.get("k", String.class));
+        assertFalse(pool.jedis.strings.containsKey("demo#k"));
+    }
+
+    @Test
     public void testEvictDeletesKey() {
         RedisDistributedCache cache = new RedisDistributedCache("demo", new JedisClient(pool));
         cache.put("k", "v", 0, TimeUnit.SECONDS);
