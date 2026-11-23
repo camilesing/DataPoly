@@ -24,6 +24,7 @@
  *    other message within the window.
  */
 const DEDUPE_WINDOW_MS = 3000
+const TYPED_TOASTS = ['success', 'warning', 'info', 'error']
 
 const openKeys = new Set()
 const closedAt = new Map()
@@ -151,7 +152,17 @@ export function installPopupGate (Vue) {
       Vue.prototype.$alert = wrapMessageBoxAlert(Vue.prototype.$alert)
     }
     if (typeof Vue.prototype.$message === 'function') {
-      Vue.prototype.$message = wrapToast(Vue.prototype.$message)
+      // element-ui hangs the typed shortcuts and closeAll on the Message function itself; a
+      // bare wrapper drops them, and every this.$message.error(...) in the pages then throws
+      const message = Vue.prototype.$message
+      const gated = wrapToast(message)
+      TYPED_TOASTS.forEach(type => {
+        if (typeof message[type] === 'function') {
+          gated[type] = wrapToast(message[type])
+        }
+      })
+      gated.closeAll = message.closeAll
+      Vue.prototype.$message = gated
     }
   }
 }
