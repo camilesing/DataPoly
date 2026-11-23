@@ -447,13 +447,36 @@ public class SqlJdbcUtilsTest {
         jdbc.rows = Collections.singletonList(row);
 
         SqlMeta meta = new SqlMeta("SELECT ARR, STRUCT FROM t", new ArrayList<Object>());
-        // isPaging must stay off: the HTTP type defines no page consumer (latent NPE, recorded in the run report)
         List<Map<String, Object>> result = (List<Map<String, Object>>) SqlJdbcUtils.execute(
                 ProductTypeEnum.HTTP, jdbc.connection(), meta, null, 1, 10, false, false);
 
         assertEquals(Arrays.asList(1, 2, 3), result.get(0).get("ARR"));
         Map<String, Object> structValue = (Map<String, Object>) result.get(0).get("STRUCT");
         assertEquals(1, structValue.get("a"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testPagingOnTypesWithoutPageSqlRunsTheQueryAsWritten() throws SQLException {
+        // A paging request (declared paging params, or implicit pagination switched on) on a type that
+        // has no LIMIT/OFFSET template used to die with an NPE on the missing page consumer
+        for (ProductTypeEnum type : Arrays.asList(ProductTypeEnum.HTTP, ProductTypeEnum.MONGODB,
+                ProductTypeEnum.ELASTICSEARCH)) {
+            FakeJdbc jdbc = new FakeJdbc("FakeDB");
+            jdbc.columns = Collections.singletonList("ID");
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("ID", 7);
+            jdbc.rows = Collections.singletonList(row);
+
+            SqlMeta meta = new SqlMeta("SELECT ID FROM t WHERE k = ?",
+                    new ArrayList<Object>(Arrays.asList("x")));
+            List<Map<String, Object>> result = (List<Map<String, Object>>) SqlJdbcUtils.execute(
+                    type, jdbc.connection(), meta, null, 2, 10, true, false);
+
+            assertEquals(type.name(), Collections.singletonList("SELECT ID FROM t WHERE k = ?"), jdbc.preparedSqls);
+            assertEquals(type.name(), Collections.singletonList("x"), jdbc.boundParams);
+            assertEquals(type.name(), 7, result.get(0).get("ID"));
+        }
     }
 
     @Test

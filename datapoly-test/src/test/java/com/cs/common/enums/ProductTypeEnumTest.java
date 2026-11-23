@@ -279,18 +279,24 @@ public class ProductTypeEnumTest {
         // every other dialect shares the plain LIMIT size OFFSET (page-1)*size family
         Set<ProductTypeEnum> special = new HashSet<>(Arrays.asList(
                 ProductTypeEnum.ORACLE, ProductTypeEnum.SQLSERVER, ProductTypeEnum.DB2,
-                ProductTypeEnum.SYBASE, ProductTypeEnum.ODPS));
+                ProductTypeEnum.SYBASE, ProductTypeEnum.ODPS, ProductTypeEnum.MONGODB,
+                ProductTypeEnum.ELASTICSEARCH, ProductTypeEnum.HTTP));
         for (ProductTypeEnum type : ProductTypeEnum.values()) {
-            if (type.getContext().getPageConsumer() == null || special.contains(type)) {
+            if (special.contains(type)) {
                 continue;
             }
             assertPageConsumer(type, 3, 7, 7, 14);
         }
-        // consumers exist for every type that defines a pageSql template
+        // pagination is a no-op on the types that define no pageSql template
+        for (ProductTypeEnum type : Arrays.asList(ProductTypeEnum.MONGODB, ProductTypeEnum.ELASTICSEARCH,
+                ProductTypeEnum.HTTP)) {
+            List<Object> untouched = new ArrayList<>();
+            type.getPageConsumer().accept(2, 10, untouched);
+            assertTrue(type.name(), untouched.isEmpty());
+        }
+        // every type answers with a consumer: the paging call paths dereference it without a null check
         for (ProductTypeEnum type : ProductTypeEnum.values()) {
-            if (null != type.getContext().getPageSql()) {
-                assertNotNull("page consumer missing for " + type, type.getPageConsumer());
-            }
+            assertNotNull("page consumer missing for " + type, type.getPageConsumer());
         }
     }
 
