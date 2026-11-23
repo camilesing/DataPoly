@@ -118,6 +118,10 @@ public class XmlScriptBuilder extends BaseBuilder {
         for (String openToken : openTokens) {
             new GenericTokenParser(openToken, closeToken,
                     (name) -> {
+                        // the content of a ${} token is an OGNL expression too
+                        if ("${".equals(openToken)) {
+                            TemplateExpressions.check("${}", name);
+                        }
                         inputParams.putIfAbsent(name, false);
                         return name;
                     })
@@ -140,6 +144,7 @@ public class XmlScriptBuilder extends BaseBuilder {
         public void handleNode(XNode nodeToHandle, List<SqlNode> targetContents, Map<String, Boolean> inputParams) {
             final String name = nodeToHandle.getStringAttribute("name");
             final String expression = nodeToHandle.getStringAttribute("value");
+            TemplateExpressions.check("bind value", expression);
             final VarDeclSqlNode node = new VarDeclSqlNode(name, expression);
             targetContents.add(node);
         }
@@ -202,6 +207,7 @@ public class XmlScriptBuilder extends BaseBuilder {
         public void handleNode(XNode nodeToHandle, List<SqlNode> targetContents, Map<String, Boolean> inputParams) {
             MixedSqlNode mixedSqlNode = parseDynamicTags(nodeToHandle, inputParams);
             String collection = nodeToHandle.getStringAttribute("collection");
+            TemplateExpressions.check("foreach collection", collection);
             Boolean nullable = nodeToHandle.getBooleanAttribute("nullable");
             String item = nodeToHandle.getStringAttribute("item");
             String index = nodeToHandle.getStringAttribute("index");
@@ -240,6 +246,7 @@ public class XmlScriptBuilder extends BaseBuilder {
         public void handleNode(XNode nodeToHandle, List<SqlNode> targetContents, Map<String, Boolean> inputParams) {
             MixedSqlNode mixedSqlNode = parseDynamicTags(nodeToHandle, inputParams);
             String test = nodeToHandle.getStringAttribute("test");
+            TemplateExpressions.check("test", test);
             IfSqlNode ifSqlNode = new IfSqlNode(mixedSqlNode, test);
             targetContents.add(ifSqlNode);
         }
