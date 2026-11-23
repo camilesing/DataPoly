@@ -11,6 +11,8 @@ import org.apache.ibatis.session.Configuration;
 import org.w3c.dom.*;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class XmlScriptBuilder extends BaseBuilder {
 
@@ -208,8 +210,12 @@ public class XmlScriptBuilder extends BaseBuilder {
             MixedSqlNode mixedSqlNode = parseDynamicTags(nodeToHandle, inputParams);
             String collection = nodeToHandle.getStringAttribute("collection");
             TemplateExpressions.check("foreach collection", collection);
-            Boolean nullable = nodeToHandle.getBooleanAttribute("nullable");
             String item = nodeToHandle.getStringAttribute("item");
+            if (null == collection || collection.isEmpty() || null == item || item.isEmpty()) {
+                // MyBatis needs both; without them the template only failed later, as a bare NPE
+                throw new BuilderException("<foreach> needs both the collection and the item attribute");
+            }
+            Boolean nullable = nodeToHandle.getBooleanAttribute("nullable");
             String index = nodeToHandle.getStringAttribute("index");
             String open = nodeToHandle.getStringAttribute("open");
             String close = nodeToHandle.getStringAttribute("close");
@@ -220,10 +226,12 @@ public class XmlScriptBuilder extends BaseBuilder {
             // extract object item
             Map<String, Boolean> objectItems = new LinkedHashMap<>();
             storeParameter(nodeToHandle.getStringBody(), objectItems);
+            // the item name is matched literally; as a regular expression "id[" was a syntax error
+            Pattern itemLiteral = Pattern.compile(Pattern.quote(item));
             for (Map.Entry<String, Boolean> entry : objectItems.entrySet()) {
                 String param = entry.getKey();
                 if (null != param && param.length() > 0) {
-                    String name = param.replaceFirst(item, collection);
+                    String name = itemLiteral.matcher(param).replaceFirst(Matcher.quoteReplacement(collection));
                     if (!collection.equals(name)) {
                         inputParams.put(name, false);
                     }

@@ -162,6 +162,28 @@ public class TemplateTest {
     }
 
     @Test
+    public void foreachWithoutCollectionOrItemIsRejectedAsABuilderException() {
+        // Regression: a missing attribute surfaced as an NPE — not as the sql.template.invalid error the
+        // save path maps — and an item name was used as a regular expression
+        assertInvalidTemplate("<foreach open='(' close=')'>#{id}</foreach>");
+        assertInvalidTemplate("<foreach collection='ids' open='(' close=')'>#{id}</foreach>");
+
+        // the item name is matched literally: a regex metacharacter in it is no longer a syntax error
+        Map<String, Boolean> names = new XmlSqlTemplate(
+                "<foreach collection='ids' item='id[' open='(' close=')'>#{id[.x}</foreach>").getParameterNames();
+        Assert.assertTrue(String.valueOf(names), names.containsKey("ids.x"));
+    }
+
+    private static void assertInvalidTemplate(String template) {
+        try {
+            new XmlSqlTemplate(template).getParameterNames();
+            Assert.fail("expected the template to be rejected: " + template);
+        } catch (BuilderException expected) {
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("foreach"));
+        }
+    }
+
+    @Test
     public void testObject() {
         String xmlSql = " insert into `employees` "
                 + " (emp_no,birth_date,first_name,last_name,gender,hire_date)"
