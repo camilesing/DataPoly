@@ -46,19 +46,23 @@ public class SentinelFlowControlManager implements FlowControlManger {
     private void doLoadFlowRules() {
         List<FlowRule> rules = new ArrayList<>();
         for (ApiAssignmentEntity assignmentEntity : apiOnlineDao.listFlowControlAll()) {
-            if (assignmentEntity.getFlowCount() <= 0) {
+            Integer flowCount = assignmentEntity.getFlowCount();
+            Integer flowGrade = assignmentEntity.getFlowGrade();
+            // either column may be null (the MySQL schema allows it): an unboxing NPE here would abort
+            // the whole reload, leaving every interface on its previous rules
+            if (null == flowCount || flowCount <= 0) {
                 continue;
             }
             HttpMethodEnum method = assignmentEntity.getMethod();
             String path = assignmentEntity.getPath();
             String resourceName = Constants.getResourceName(method.name(), path);
             FlowRule rule = new FlowRule(resourceName);
-            if (RuleConstant.FLOW_GRADE_THREAD == assignmentEntity.getFlowGrade()) {
+            if (null != flowGrade && RuleConstant.FLOW_GRADE_THREAD == flowGrade) {
                 rule.setGrade(RuleConstant.FLOW_GRADE_THREAD);
             } else {
                 rule.setGrade(RuleConstant.FLOW_GRADE_QPS);
             }
-            rule.setCount(assignmentEntity.getFlowCount());
+            rule.setCount(flowCount);
             rules.add(rule);
         }
         // loadRules with the full list also clears rules that were deleted since the last refresh

@@ -74,6 +74,37 @@ public class SentinelFlowControlManagerTest {
     }
 
     @Test
+    public void loadFlowRulesSurvivesRowsWithoutAGradeOrACount() {
+        // Regression: a null flowGrade / flowCount unboxed to an NPE that aborted the whole reload, so
+        // one such row froze every interface's rules at their previous state
+        apiOnlineDao.rows.add(row(HttpMethodEnum.GET, "first", RuleConstant.FLOW_GRADE_QPS, 5));
+        apiOnlineDao.rows.add(row(HttpMethodEnum.PUT, "no-grade", null, 7));
+        apiOnlineDao.rows.add(row(HttpMethodEnum.POST, "no-count", RuleConstant.FLOW_GRADE_QPS, null));
+        apiOnlineDao.rows.add(row(HttpMethodEnum.DELETE, "last", RuleConstant.FLOW_GRADE_THREAD, 3));
+
+        manager.loadFlowRules();
+
+        List<FlowRule> rules = new ArrayList<>(FlowRuleManager.getRules());
+        // the rows after the incomplete ones are still loaded
+        assertNotNull(ruleForResource(rules, "/api/first[GET]"));
+        assertNotNull(ruleForResource(rules, "/api/last[DELETE]"));
+        // a missing grade means the default (QPS); a missing threshold means "not configured"
+        FlowRule defaulted = ruleForResource(rules, "/api/no-grade[PUT]");
+        assertNotNull(defaulted);
+        assertEquals(RuleConstant.FLOW_GRADE_QPS, defaulted.getGrade());
+        assertNull(ruleForResource(rules, "/api/no-count[POST]"));
+    }
+
+    private ApiAssignmentEntity row(HttpMethodEnum method, String path, Integer grade, Integer count) {
+        ApiAssignmentEntity entity = new ApiAssignmentEntity();
+        entity.setMethod(method);
+        entity.setPath(path);
+        entity.setFlowGrade(grade);
+        entity.setFlowCount(count);
+        return entity;
+    }
+
+    @Test
     public void loadFlowRulesReloadClearsDeletedRules() {
         apiOnlineDao.rows.add(assignment(HttpMethodEnum.GET, "orders", RuleConstant.FLOW_GRADE_QPS, 50));
         manager.loadFlowRules();
