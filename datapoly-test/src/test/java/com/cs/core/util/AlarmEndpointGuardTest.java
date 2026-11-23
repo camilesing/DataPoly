@@ -58,6 +58,23 @@ public class AlarmEndpointGuardTest {
         assertFalse(endpointAllowed("http://169.254.0.9/hook"));
     }
 
+    /**
+     * Regression: an absolute name carries a trailing dot and resolves to the very same host, but
+     * "localhost." matched neither the loopback names nor the address-literal patterns.
+     */
+    @Test
+    public void trailingDotHostsAreJudgedAsTheHostTheyName() {
+        assertFalse(endpointAllowed("http://localhost./hook"));
+        assertFalse(endpointAllowed("http://api.localhost./hook"));
+        assertFalse(endpointAllowed("http://127.0.0.1./hook"));
+        assertFalse(endpointAllowed("http://10.0.0.1./hook"));
+        assertFalse(endpointAllowed("http://169.254.169.254./latest/meta-data"));
+        // a public name is still a public name, trailing dot or not
+        assertTrue(endpointAllowed("https://hooks.example.com./path"));
+        assertTrue(AlarmEndpointGuard.isEndpointHostAllowed("hooks.example.com."));
+        assertFalse(AlarmEndpointGuard.isEndpointHostAllowed("localhost."));
+    }
+
     @Test
     public void ipv6SpecialFormsAreRejected() {
         assertFalse(endpointAllowed("http://[fd00::1]/hook"));
