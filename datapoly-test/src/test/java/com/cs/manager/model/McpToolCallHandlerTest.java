@@ -322,6 +322,21 @@ public class McpToolCallHandlerTest {
         assertTrue(textOf(result).contains("NullPointerException"));
     }
 
+    @Test
+    public void executeToolRunsWithoutArguments() throws Exception {
+        // the spec makes tools/call params.arguments optional, and the transport then hands over null
+        FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
+        ApiAssignmentEntity config = configWithParams(
+                Collections.singletonList(param("keyword", ParamTypeEnum.STRING, false, "abc")));
+        McpToolCallHandler handler = new McpToolCallHandler("t", "d", config, serving(config));
+
+        CallToolResult result = handler.executeTool(null, null);
+
+        assertFalse(result.getIsError());
+        assertEquals("abc", executeService.capturedArgs.get("keyword"));
+        assertEquals(777, executeService.capturedArgs.get(Constants.PARAM_PAGE_SIZE));
+    }
+
     /**
      * Regression: the handler used to execute the assignment captured at registration forever, so
      * an API taken offline (or deleted) stayed callable through the data MCP endpoint.

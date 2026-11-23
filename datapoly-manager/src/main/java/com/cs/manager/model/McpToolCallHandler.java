@@ -121,9 +121,11 @@ public class McpToolCallHandler {
         if (null == online) {
             return failure("接口已下线, apiId=" + config.getId());
         }
-        prepareArgumentsPageSizeParameter(online, arguments);
+        // tools/call may omit `arguments` altogether; the tool then simply runs with none
+        Map<String, Object> callArguments = null == arguments ? new HashMap<>() : arguments;
+        prepareArgumentsPageSizeParameter(online, callArguments);
         try {
-            ResultEntity<Object> resultEntity = apiExecuteService.execute(online, arguments, true);
+            ResultEntity<Object> resultEntity = apiExecuteService.execute(online, callArguments, true);
             String json = JacksonUtils.toJsonStr(resultEntity.getData(), online.getResponseFormat());
             McpSchema.TextContent content = new McpSchema.TextContent("操作成功，JSON格式的响应数据为:\n " + json);
             return new McpSchema.CallToolResult(Lists.newArrayList(content), false);
