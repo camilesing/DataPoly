@@ -1,6 +1,7 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.persistence.dao;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cs.common.dto.IdWithName;
 import com.cs.core.datatask.DataTaskTestSupport;
 import com.cs.persistence.PersistenceTestSupport;
@@ -151,9 +152,18 @@ public class AppClientDaoTest {
     @Test
     public void testTokenUpdateAndClear() {
         dao.updateTokenByAppKey("key", "new-token");
-        AppClientEntity patch = (AppClientEntity) appClientRecorder.argsOf("update")[0];
-        assertEquals("key", patch.getAppKey());
-        assertEquals("new-token", patch.getAccessToken());
+        Object[] update = appClientRecorder.argsOf("update");
+        LambdaUpdateWrapper<?> wrapper = (LambdaUpdateWrapper<?>) update[1];
+        String setClause = wrapper.getSqlSet();
+        assertTrue(setClause.contains("access_token="));
+        // the PostgreSQL schema never refreshes update_time on UPDATE and the ONLY_ONCE issuance
+        // check reads it, so the token write has to touch it itself
+        assertTrue(setClause.contains("update_time="));
+        String where = wrapper.getSqlSegment();
+        assertTrue(where, where.contains("app_key ="));
+        Collection<Object> bound = wrapper.getParamNameValuePairs().values();
+        assertTrue(bound.toString(), bound.contains("key"));
+        assertTrue(bound.toString(), bound.contains("new-token"));
 
         dao.clearTokenByAppKey("key");
         assertNull(appClientRecorder.calls.get("update").get(1)[0]);

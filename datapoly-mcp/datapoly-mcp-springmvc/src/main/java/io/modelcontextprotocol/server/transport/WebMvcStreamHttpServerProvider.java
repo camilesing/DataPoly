@@ -149,7 +149,7 @@ public class WebMvcStreamHttpServerProvider {
         String methodVersion = metaProtocolVersion(root);
         String headerVersion = trimToNull(request.headers().asHttpHeaders().getFirst(HEADER_PROTOCOL_VERSION));
         boolean modern = !McpSchema.METHOD_INITIALIZE.equals(method)
-                && (headerVersion != null || methodVersion != null);
+                && (pointsAtModernEra(headerVersion) || pointsAtModernEra(methodVersion));
 
         try {
             if (modern) {
@@ -394,6 +394,17 @@ public class WebMvcStreamHttpServerProvider {
     private static String metaProtocolVersion(JsonNode root) {
         JsonNode version = root.path("params").path("_meta").path(META_PROTOCOL_VERSION);
         return version.isTextual() ? version.asText() : null;
+    }
+
+    /**
+     * Whether a version marker leads to the modern branch: the modern version itself, or a version
+     * this transport does not serve at all (answered there with the supported list). A legacy
+     * version is no such marker — legacy clients from 2025-03-26 on send MCP-Protocol-Version on
+     * every request after initialize, and never send the modern Mcp-Method/Mcp-Name headers.
+     */
+    private static boolean pointsAtModernEra(String version) {
+        return version != null
+                && (MODERN_PROTOCOL_VERSION.equals(version) || !SUPPORTED_PROTOCOL_VERSIONS.contains(version));
     }
 
     private Object requestId(JsonNode idNode) {

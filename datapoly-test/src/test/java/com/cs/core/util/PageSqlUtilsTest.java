@@ -10,6 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -92,6 +93,22 @@ public class PageSqlUtilsTest {
         Connection conn = buildObConnection("Oracle", true, false, new ArrayList<String>());
         String pageSql = PageSqlUtils.getPageSql(ProductTypeEnum.OCEANBASE, conn, "SELECT 1", 2, 10);
         assertTrue(pageSql.contains("ROWNUM"));
+
+        // the SQL and the bound values come from the same dialect: ROWNUM takes the upper bound first
+        ProductTypeEnum dialect = PageSqlUtils.pagingDialect(ProductTypeEnum.OCEANBASE, conn);
+        assertEquals(ProductTypeEnum.ORACLE, dialect);
+        List<Object> parameters = new ArrayList<>();
+        dialect.getPageConsumer().accept(2, 10, parameters);
+        assertEquals(Arrays.asList(20, 10), parameters);
+
+        Connection mysqlMode = buildObConnection("MySQL", true, false, new ArrayList<String>());
+        assertEquals(ProductTypeEnum.OCEANBASE, PageSqlUtils.pagingDialect(ProductTypeEnum.OCEANBASE, mysqlMode));
+        List<Object> limitParameters = new ArrayList<>();
+        ProductTypeEnum.OCEANBASE.getPageConsumer().accept(2, 10, limitParameters);
+        assertEquals(Arrays.asList(10, 10), limitParameters);
+
+        // any other type is its own dialect
+        assertEquals(ProductTypeEnum.MYSQL, PageSqlUtils.pagingDialect(ProductTypeEnum.MYSQL, mysqlMode));
     }
 
     @Test

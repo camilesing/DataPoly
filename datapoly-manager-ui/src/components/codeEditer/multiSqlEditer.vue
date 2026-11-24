@@ -29,7 +29,8 @@
                     :ref="editableTabs[index].name"
                     :value="editableTabs[index].content"
                     :options="cmOptions"
-                    @ready="onCmReady"
+                    @ready="onCmReady($event, item.name)"
+                    @hook:destroyed="onCmDestroyed(item.name)"
                     @focus="onCmFocus"
                     @inputRead="onCmCodeChange">
         </codemirror>
@@ -115,9 +116,17 @@ export default {
     }
   },
   methods: {
-    onCmReady (cm) {
-      this.cmMapper.set(this.currentTabName, cm)
+    onCmReady (cm, tabName) {
+      // Panes rendered in one go (loadTabSqls) all become ready while currentTabName
+      // already names the last one, so each editor registers under its own pane name:
+      // queryContent() submits whatever this registry holds
+      this.cmMapper.set(tabName, cm)
       cm.setSize('100%', '300px')
+    },
+    onCmDestroyed (tabName) {
+      // A pane closed by the user or dropped when another version is loaded must not
+      // leave its editor behind here, or its SQL goes on being submitted
+      this.cmMapper.delete(tabName)
     },
     onCmFocus (cm) {
     },

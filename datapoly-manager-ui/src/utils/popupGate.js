@@ -24,6 +24,8 @@
  *    other message within the window.
  */
 const DEDUPE_WINDOW_MS = 3000
+const TYPED_TOASTS = ['success', 'warning', 'info', 'error']
+const AUTH_PREFIX = 'auth\u0000'
 
 const openKeys = new Set()
 const closedAt = new Map()
@@ -48,13 +50,8 @@ export function noteAuthMessage (message) {
 
 function keyFor (text) {
   const now = Date.now()
-  for (let i = 0; i < authMessages.length; i++) {
-    const entry = authMessages[i]
-    if (now - entry.at < DEDUPE_WINDOW_MS && text.indexOf(entry.text) !== -1) {
-      return 'auth\u0000' + entry.text
-    }
-  }
-  return 'text\u0000' + text
+  const entry = authMessageFor(text, now)
+  return null === entry ? 'text\u0000' + text : 'auth\u0000' + entry.text
 }
 
 function isSuppressed (key) {
@@ -72,6 +69,30 @@ function markShown (key) {
 function markClosed (key) {
   openKeys.delete(key)
   closedAt.set(key, Date.now())
+  if (key.startsWith(AUTH_PREFIX)) {
+    // A native alert blocks the JS thread, so the burst's remaining callbacks only run once this one
+    // returns — possibly long after the message was registered. Keep mapping them to this key for
+    // another window counted from the close, or each of them pops up in turn.
+    touch(key.slice(AUTH_PREFIX.length))
+  }
+}
+
+function authMessageFor (text, now) {
+  for (let i = 0; i < authMessages.length; i++) {
+    const entry = authMessages[i]
+    if (now - entry.at < DEDUPE_WINDOW_MS && text.indexOf(entry.text) !== -1) {
+      return entry
+    }
+  }
+  return null
+}
+
+function touch (message) {
+  for (let i = 0; i < authMessages.length; i++) {
+    if (authMessages[i].text === message) {
+      authMessages[i].at = Date.now()
+    }
+  }
 }
 
 // Native alert: the call itself returns only after the user dismisses it, so the
@@ -151,7 +172,17 @@ export function installPopupGate (Vue) {
       Vue.prototype.$alert = wrapMessageBoxAlert(Vue.prototype.$alert)
     }
     if (typeof Vue.prototype.$message === 'function') {
-      Vue.prototype.$message = wrapToast(Vue.prototype.$message)
+      // element-ui hangs the typed shortcuts and closeAll on the Message function itself; a
+      // bare wrapper drops them, and every this.$message.error(...) in the pages then throws
+      const message = Vue.prototype.$message
+      const gated = wrapToast(message)
+      TYPED_TOASTS.forEach(type => {
+        if (typeof message[type] === 'function') {
+          gated[type] = wrapToast(message[type])
+        }
+      })
+      gated.closeAll = message.closeAll
+      Vue.prototype.$message = gated
     }
   }
 }

@@ -271,7 +271,8 @@ public class McpManageService {
         McpToolCallHandler toolCallHandler = new McpToolCallHandler(
                 toolEntity.getName(),
                 toolEntity.getDescription(),
-                config);
+                config,
+                apiOnlineDao);
         mcpSyncServer.addTool(
                 new McpServerFeatures.SyncToolSpecification(
                         toolCallHandler.getMcpToolSchema(),

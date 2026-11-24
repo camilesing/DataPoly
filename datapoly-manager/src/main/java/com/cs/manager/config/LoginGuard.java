@@ -8,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -88,8 +89,21 @@ public class LoginGuard {
 
     private String buildKey(String username, String remoteAddr) {
         return String.format("%s@%s",
-                StringUtils.isBlank(username) ? "-" : username,
+                StringUtils.isBlank(username) ? "-" : fold(username),
                 StringUtils.isBlank(remoteAddr) ? "-" : remoteAddr);
+    }
+
+    /**
+     * Folds a username the way the account lookup compares it. That lookup is a plain
+     * {@code username = ?}, and MySQL's default collation matches it case-insensitively,
+     * accent-insensitively and ignores trailing spaces: Admin, aDmin, "admin " and "admín"
+     * are one account, so they have to be one bucket — otherwise every spelling of a
+     * name gets a lockout budget of its own.
+     */
+    private static String fold(String username) {
+        return Normalizer.normalize(username.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     private void pruneStale(long now) {

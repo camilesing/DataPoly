@@ -55,19 +55,26 @@ export JSON_TIMEZONE=$(get_config_value "JSON_TIMEZONE" "${APP_CONF_PATH}/config
 export DATAPOLY_MANAGER_URL=$(get_config_value "DATAPOLY_MANAGER_URL" "${APP_CONF_PATH}/config.ini")
 export DATAPOLY_GATEWAY_URL=$(get_config_value "DATAPOLY_GATEWAY_URL" "${APP_CONF_PATH}/config.ini")
 
-# 飞书登录（datapoly-extension-feishu 扩展模块）：config.ini 里留空即关闭。仅在确实
-# 配置了值时才导出——否则会把 enabled 这类布尔属性导出成空串，宽松绑定会因无法转换而启动失败
-export_feishu_config() {
+# 仅在 config.ini 里确实配置了值时才导出——否则会把布尔/数值属性（加密开关、enabled、
+# TTL）导出成空串，宽松绑定会因无法转换而启动失败。上面那些键缺省即空，所以无条件导出。
+export_if_set() {
     local key=$1
     local value=$(get_config_value "$key" "${APP_CONF_PATH}/config.ini")
     if [ -n "$value" ]; then
         export "$key=$value"
     fi
 }
-export_feishu_config "DATAPOLY_FEISHU_ENABLED"
-export_feishu_config "DATAPOLY_FEISHU_APP_ID"
-export_feishu_config "DATAPOLY_FEISHU_APP_SECRET"
-export_feishu_config "DATAPOLY_FEISHU_REDIRECT_URI"
+
+# 数据源账号密码加密开关与登录会话有效期：三个服务的 application.yaml 都从这两个环境变量读，
+# Windows 启动脚本逐行读入整个 config.ini；这里不导出，改成 true / 改短 TTL 都不会生效
+export_if_set "DATAPOLY_DS_ENCRYPT"
+export_if_set "DATAPOLY_SECURITY_LOGIN_TOKEN_TTL_SECONDS"
+
+# 飞书登录（datapoly-extension-feishu 扩展模块）：config.ini 里留空即关闭
+export_if_set "DATAPOLY_FEISHU_ENABLED"
+export_if_set "DATAPOLY_FEISHU_APP_ID"
+export_if_set "DATAPOLY_FEISHU_APP_SECRET"
+export_if_set "DATAPOLY_FEISHU_REDIRECT_URI"
 
 # JVM参数可以在这里设置
 # 堆 4G、年轻代/老年代 1:3：长驻对象（Hazelcast token/API 响应缓存、Eureka、Spring 框架
@@ -82,15 +89,16 @@ else
 fi
 
 # 配置classpath和启动类
+# 文档用 sh 调用本脚本：Debian/Ubuntu 的 sh 是 dash，比较只能用 POSIX 的 = 与 [ ]
 CLASSPATH=$APP_CONF_PATH
 APP_MAIN_CLASS='com.cs.manager.ManagerApplication'
-if [ "$module" == "manager" ]; then
+if [ "$module" = "manager" ]; then
   CLASSPATH="$APP_CONF_PATH/manager:$APP_LIB_COMMON_PATH/*:$APP_HOME/lib/webmvc/*:$APP_HOME/lib/manager/*"
   APP_MAIN_CLASS='com.cs.manager.ManagerApplication'
-elif [ "$module" == "executor" ]; then
+elif [ "$module" = "executor" ]; then
   CLASSPATH="$APP_CONF_PATH/executor:$APP_LIB_COMMON_PATH/*:$APP_HOME/lib/webmvc/*:$APP_HOME/lib/executor/*"
   APP_MAIN_CLASS='com.cs.executor.ExecutorApplication'
-elif [ "$module" == "gateway" ]; then
+elif [ "$module" = "gateway" ]; then
   CLASSPATH="$APP_CONF_PATH/gateway:$APP_LIB_COMMON_PATH/*:$APP_HOME/lib/webflux/*:$APP_HOME/lib/gateway/*"
   APP_MAIN_CLASS='com.cs.gateway.GatewayApplication'
 else
@@ -155,7 +163,7 @@ case $operator in
     state="STOP"
     #  font color - red
     state="[ \033[1;31m $state \033[0m ]"
-    if [[ $serverCount -gt 0 ]];then
+    if [ "$serverCount" -gt 0 ];then
       state="RUNNING"
       # font color - green
       state="[ \033[1;32m $state \033[0m ]"

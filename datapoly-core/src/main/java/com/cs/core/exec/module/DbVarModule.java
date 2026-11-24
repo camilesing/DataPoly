@@ -65,17 +65,6 @@ public class DbVarModule implements VarModuleInterface {
         }
     }
 
-    private String getPageSql(String sql, int page, int size) {
-        if (!productType.isMultiDialect()) {
-            return productType.getPageSql(sql, page, size);
-        }
-        try (Connection connection = dataSource.getConnection()) {
-            return PageSqlUtils.getPageSql(productType, connection, sql, page, size);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private Map<String, Object> build(Map<String, Object> row) {
         return Optional.ofNullable(row).map(r -> ConvertUtils.to(r, converter)).orElse(null);
     }
@@ -149,9 +138,18 @@ public class DbVarModule implements VarModuleInterface {
         int size = PageSizeUtils.getSizeFromParams(params);
         XmlSqlTemplate template = new XmlSqlTemplate(sqlOrXml);
         SqlMeta sqlMeta = processTemplate(template);
-        String pageSql = getPageSql(sqlMeta.getSql(), page, size);
         List<Object> parameters = sqlMeta.getParameter();
-        this.productType.getPageConsumer().accept(page, size, parameters);
+        // one dialect answers for both the paging SQL and the order of its bound values
+        ProductTypeEnum dialect = productType;
+        if (productType.isMultiDialect()) {
+            try (Connection connection = dataSource.getConnection()) {
+                dialect = PageSqlUtils.pagingDialect(productType, connection);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        String pageSql = dialect.getPageSql(sqlMeta.getSql(), page, size);
+        dialect.getPageConsumer().accept(page, size, parameters);
         if (printSqlLog) {
             log.info("ExecuteSQL [db.page]:{}\n{}", pageSql, parameters);
         }

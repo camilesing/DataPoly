@@ -34,12 +34,23 @@ public final class ScriptSandboxConfiguration {
     /**
      * Runtime command-execution backstop (S1): at compile time {@code def l=['sh']; l.execute()} cannot be distinguished from the legitimate
      * {@code http.execute()} (both receivers have compile-time type Object), so execute/exec is disabled directly on the concrete classes of
-     * common command-execution receivers (Groovy dispatches by concrete class, not interface). Module objects (e.g. http) are not in the list
-     * and are unaffected. Residual surface (exotic List implementations etc.) is documented in AGENTS.md.
+     * command-execution receivers (Groovy dispatches by concrete class, not interface): String/GString/StringBuffer/StringBuilder and every
+     * List implementation the JDK hands out. Module objects (e.g. http) are not in the list and are unaffected.
+     *
+     * <p>Residual surface, documented in AGENTS.md: a metaclass cannot be patched on an array class, so a {@code String[]} hidden behind
+     * a {@code def}/{@code Object} receiver is only caught when it is statically typed; and List implementations coming from third-party
+     * libraries or written by hand are not listed here.
      */
     private static final String RUNTIME_COMMAND_GUARD_SCRIPT =
-            "['java.lang.String','groovy.lang.GString','java.util.ArrayList','java.util.LinkedList',\n"
-                    + " 'java.util.Vector','java.util.Stack','java.util.Arrays$ArrayList'].each { className ->\n"
+            "['java.lang.String','groovy.lang.GString','java.lang.StringBuffer','java.lang.StringBuilder',\n"
+                    + " 'java.util.ArrayList','java.util.ArrayList$SubList','java.util.LinkedList','java.util.Vector','java.util.Stack',\n"
+                    + " 'java.util.Arrays$ArrayList','java.util.AbstractList$SubList',\n"
+                    + " 'java.util.Collections$UnmodifiableList','java.util.Collections$UnmodifiableRandomAccessList',\n"
+                    + " 'java.util.Collections$SingletonList','java.util.Collections$EmptyList','java.util.Collections$CopiesList',\n"
+                    + " 'java.util.Collections$CheckedList','java.util.Collections$CheckedRandomAccessList',\n"
+                    + " 'java.util.Collections$SynchronizedList','java.util.Collections$SynchronizedRandomAccessList',\n"
+                    + " 'java.util.ImmutableCollections$List12','java.util.ImmutableCollections$ListN','java.util.ImmutableCollections$SubList',\n"
+                    + " 'java.util.concurrent.CopyOnWriteArrayList','java.util.concurrent.CopyOnWriteArrayList$COWSubList'].each { className ->\n"
                     + "  def clazz = Class.forName(className)\n"
                     + "  def mc = new groovy.lang.ExpandoMetaClass(clazz, false, true)\n"
                     + "  // 按参数元数注册（Groovy 方法选择按元数匹配，需覆盖 DGM 的各档签名）\n"

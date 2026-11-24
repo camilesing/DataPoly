@@ -105,6 +105,49 @@ describe('popupGate', () => {
     expect(raw).toHaveBeenCalledTimes(2)
   })
 
+  it('$message 的类型化方法（success/error 等）保留且各自过闸门', async () => {
+    const { installPopupGate } = await loadGate()
+    const vue = fakeVue()
+    // element-ui 把 success/warning/info/error 与 closeAll 挂在 Message 函数对象上
+    const raw = vue.prototype.$message
+    ;['success', 'warning', 'info', 'error'].forEach(type => { raw[type] = vi.fn() })
+    raw.closeAll = vi.fn()
+    installPopupGate(vue)
+    const gated = vue.prototype.$message
+
+    // 包装之后仍是可调用的方法；页面上十来处 this.$message.error(...) 靠它们
+    ;['success', 'warning', 'info', 'error'].forEach(type => {
+      expect(typeof gated[type]).toBe('function')
+    })
+    expect(gated.closeAll).toBe(raw.closeAll)
+
+    gated.success('导入成功')
+    gated.success('导入成功')
+    expect(raw.success).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(3001)
+    gated.success('导入成功')
+    expect(raw.success).toHaveBeenCalledTimes(2)
+
+    // 各类型各自透传，不会被别的类型吞掉
+    gated.error('加载失败')
+    expect(raw.error).toHaveBeenCalledTimes(1)
+  })
+
+  it('$message 的类型化方法与普通调用共用同一把闸门', async () => {
+    const { installPopupGate } = await loadGate()
+    const vue = fakeVue()
+    const raw = vue.prototype.$message
+    raw.success = vi.fn()
+    installPopupGate(vue)
+    const gated = vue.prototype.$message
+
+    gated.success('保存成功')
+    gated({type: 'success', message: '保存成功'})
+    expect(raw.success).toHaveBeenCalledTimes(1)
+    expect(raw).not.toHaveBeenCalled()
+  })
+
   it('登记的登录态 message 合并不同页面前缀的同一次失败', async () => {
     const { installPopupGate, noteAuthMessage } = await loadGate()
     const native = installNativeAlert()
@@ -114,6 +157,33 @@ describe('popupGate', () => {
     window.alert('加载失败：Token已过期，请重新登录')
     window.alert('加载列表失败:Token已过期，请重新登录')
     expect(native).toHaveBeenCalledTimes(1)
+  })
+
+  it('登记的登录态 message：首个弹窗停留超过 3 秒，关闭后排队的重复弹窗仍被压住', async () => {
+    const { installPopupGate, noteAuthMessage } = await loadGate()
+    const native = vi.fn(() => {
+      // 原生 alert 阻塞 JS：用户 5 秒后才点掉，期间到达的重复回调都排在后面
+      vi.advanceTimersByTime(5000)
+    })
+    window.alert = native
+    installPopupGate(fakeVue())
+
+    noteAuthMessage('Token已过期，请重新登录')
+    window.alert('加载失败：Token已过期，请重新登录')
+    window.alert('加载列表失败:Token已过期，请重新登录')
+    expect(native).toHaveBeenCalledTimes(1)
+  })
+
+  it('关闭 3 秒之后到达的登录态弹窗照常弹出（新的一次事件）', async () => {
+    const { installPopupGate, noteAuthMessage } = await loadGate()
+    const native = installNativeAlert()
+    installPopupGate(fakeVue())
+
+    noteAuthMessage('Token已过期，请重新登录')
+    window.alert('加载失败：Token已过期，请重新登录')
+    vi.advanceTimersByTime(3001)
+    window.alert('加载列表失败:Token已过期，请重新登录')
+    expect(native).toHaveBeenCalledTimes(2)
   })
 
   it('$confirm/$prompt 不包装（提问必须每次都出）', async () => {

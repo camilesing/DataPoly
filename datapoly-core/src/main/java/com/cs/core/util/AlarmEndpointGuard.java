@@ -65,8 +65,14 @@ public final class AlarmEndpointGuard {
         }
     }
 
+    /** The same verdict as {@link #checkEndpointAllowed}, without the exception — for hosts met later, e.g. on a redirect. */
+    public static boolean isEndpointHostAllowed(String host) {
+        return null != host && isHostAllowed(StringUtils.strip(host, "[]"));
+    }
+
     static boolean isHostAllowed(String host) {
-        String normalized = host.toLowerCase(Locale.ROOT);
+        // An absolute name carries a trailing dot and resolves to the very same host: judge it as that
+        String normalized = StringUtils.stripEnd(host.toLowerCase(Locale.ROOT), ".");
         if (isLoopbackName(normalized)) {
             return false;
         }

@@ -116,6 +116,49 @@ public class LoginGuardTest {
     }
 
     /**
+     * Regression: the account lookup is `username = ?`, which under MySQL's default collation matches
+     * case- and accent-insensitively and ignores trailing spaces — Admin, aDmin, "admin " and "admín"
+     * are one account. Each spelling used to get a bucket of its own, i.e. its own lockout budget.
+     */
+    @Test
+    public void lockoutIsSharedAcrossSpellingsOfOneAccount() {
+        guard.failLockThreshold = 3;
+        guard.recordFailure("Admin", "10.0.0.1");
+        guard.recordFailure("aDmin", "10.0.0.1");
+        guard.recordFailure("admin ", "10.0.0.1");
+
+        for (String spelling : new String[]{"admin", "ADMIN", "Admín", "admin  "}) {
+            try {
+                guard.checkAllowed(spelling, "10.0.0.1");
+                Assert.fail("expected the shared bucket to stay locked for '" + spelling + "'");
+            } catch (CommonException e) {
+                Assert.assertEquals(ResponseErrorCode.ERROR_TOO_MANY_REQUESTS, e.getCode());
+            }
+        }
+    }
+
+    @Test
+    public void rateLimitCountsSpellingsOfOneAccountTogether() {
+        guard.rateLimitPerMinute = 2;
+        guard.checkAllowed("admin", "10.0.0.1");
+        guard.checkAllowed("Admín", "10.0.0.1");
+        try {
+            guard.checkAllowed("ADMIN", "10.0.0.1");
+            Assert.fail("expected rate limited exception");
+        } catch (CommonException e) {
+            Assert.assertEquals(ResponseErrorCode.ERROR_TOO_MANY_REQUESTS, e.getCode());
+        }
+    }
+
+    @Test
+    public void successUnderAnySpellingClearsTheSharedBucket() {
+        guard.failLockThreshold = 1;
+        guard.recordFailure("Admin", "10.0.0.1");
+        guard.recordSuccess("ADMIN ", "10.0.0.1");
+        guard.checkAllowed("admin", "10.0.0.1");
+    }
+
+    /**
      * The prune pass sweeps rate windows too: windows older than the 60s window go, fresh ones
      * stay; and when rateWindows itself is the map over the limit the sweep still runs.
      */

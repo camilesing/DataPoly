@@ -1,11 +1,13 @@
 // Use of this source code is governed by a BSD-style license
 package com.cs.core.servlet;
 
+import cn.hutool.extra.spring.SpringUtil;
 import com.cs.common.enums.HttpMethodEnum;
 import com.cs.common.exception.CommonException;
 import com.cs.common.exception.ResponseErrorCode;
 import com.cs.common.service.FlowControlLease;
 import com.cs.common.service.FlowControlManger;
+import com.cs.common.util.I18nUtils;
 import com.cs.core.datatask.DataTaskTestSupport;
 import com.cs.core.exec.ExecutorMetadataCache;
 import com.cs.core.executor.UnifyAlarmOpsService;
@@ -16,6 +18,9 @@ import com.cs.persistence.mapper.AccessRecordMapper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.context.support.StaticMessageSource;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -333,6 +338,99 @@ public class AuthenticationFilterTest {
         assertEquals(1, alarmService.alarms.size());
         assertEquals("GET", alarmService.alarms.get(0).get("method"));
         assertEquals("/api/ping", alarmService.alarms.get(0).get("path"));
+    }
+
+    @Test
+    public void testForbiddenMessageNamesTheApi() throws Exception {
+        // Regression: the path was handed over as the defaultMessage (a bare String binds to that
+        // overload), so callers saw "No Permission to access: {0}" with the placeholder untouched
+        java.lang.reflect.Field factoryField = SpringUtil.class.getDeclaredField("beanFactory");
+        factoryField.setAccessible(true);
+        Object previousFactory = factoryField.get(null);
+        java.lang.reflect.Field cachedField = I18nUtils.class.getDeclaredField("messageSource");
+        cachedField.setAccessible(true);
+        Object previousSource = cachedField.get(null);
+        StaticMessageSource source = new StaticMessageSource();
+        source.addMessage("auth.no.permission", Locale.ENGLISH, "No Permission to access: {0}");
+        Object beanFactory = Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[]{ConfigurableListableBeanFactory.class}, (p, m, a) -> {
+                    if ("getBean".equals(m.getName()) && null != a && 1 == a.length && a[0] instanceof Class) {
+                        return source;
+                    }
+                    if ("hashCode".equals(m.getName())) {
+                        return System.identityHashCode(p);
+                    }
+                    if ("equals".equals(m.getName())) {
+                        return p == a[0];
+                    }
+                    return null;
+                });
+        try {
+            factoryField.set(null, beanFactory);
+            cachedField.set(null, null);
+            LocaleContextHolder.setLocale(Locale.ENGLISH);
+            onlineRecorder.stub("selectOne", entity(false, false, false));
+            tokenService.groupAllowed = false;
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Authorization", "Bearer token-1");
+
+            filter.doFilter(request("/api/ping", "GET", headers), response, chain());
+
+            assertEquals(403, statusRef[0].intValue());
+            assertTrue(responseBody.toString(), responseBody.toString().contains("/api/ping[GET]"));
+            assertFalse(responseBody.toString(), responseBody.toString().contains("{0}"));
+        } finally {
+            factoryField.set(null, previousFactory);
+            cachedField.set(null, previousSource);
+            LocaleContextHolder.resetLocaleContext();
+        }
+    }
+
+    @Test
+    public void testOverlongCallerControlledHeadersAreFittedToTheRecordColumns() throws Exception {
+        // user-agent (255) and the forwarded-for chain (64) go into narrow columns as the caller sent
+        // them: a longer value failed the INSERT, and the access record — plus the alarm behind it — vanished
+        StringBuilder userAgent = new StringBuilder();
+        for (int i = 0; i < 60; i++) {
+            userAgent.append("Mozilla/5.0 ");
+        }
+        StringBuilder forwardedFor = new StringBuilder("10.0.0.1");
+        for (int i = 0; i < 30; i++) {
+            forwardedFor.append(", 10.0.0.").append(i);
+        }
+        Map<String, String> headers = new HashMap<>();
+        headers.put("user-agent", userAgent.toString());
+        headers.put("x-forwarded-for", forwardedFor.toString());
+        onlineRecorder.stub("selectOne", entity(true, false, false));
+
+        filter.doFilter(request("/api/ping", "GET", headers), response, chain());
+
+        accessRecorder.awaitInserts(1, 5000);
+        AccessRecordEntity record = (AccessRecordEntity) accessRecorder.inserts.get(0)[0];
+        assertEquals(255, record.getUserAgent().length());
+        assertTrue(record.getUserAgent().startsWith("Mozilla/5.0 Mozilla"));
+        assertEquals(64, record.getIpAddr().length());
+        assertTrue(record.getIpAddr().startsWith("10.0.0.1, 10.0.0.0"));
+    }
+
+    @Test
+    public void testOverlongExceptionMessageIsFittedToTheRecordColumn() throws Exception {
+        // the PostgreSQL migration sizes the exception column at 1024 characters
+        StringBuilder message = new StringBuilder("boom ");
+        for (int i = 0; i < 600; i++) {
+            message.append("detail ");
+        }
+        chainFailure = new RuntimeException(message.toString());
+        onlineRecorder.stub("selectOne", entity(true, false, false));
+
+        filter.doFilter(request("/api/ping", "GET", new HashMap<String, String>()), response, chain());
+
+        assertEquals(500, statusRef[0].intValue());
+        accessRecorder.awaitInserts(1, 5000);
+        AccessRecordEntity record = (AccessRecordEntity) accessRecorder.inserts.get(0)[0];
+        assertEquals(Integer.valueOf(500), record.getStatus());
+        assertEquals(1024, record.getException().length());
+        assertTrue(record.getException().startsWith("boom detail"));
     }
 
     @Test

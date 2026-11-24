@@ -85,7 +85,12 @@ public class ClientTokenService {
                 throw new CommonException(ResponseErrorCode.ERROR_CLIENT_FORBIDDEN, "client.id.expired");
             }
         } else if (DurationTimeEnum.ONLY_ONCE == appClient.getExpireDuration()) {
-            if (!Objects.equals(appClient.getCreateTime(), appClient.getUpdateTime())) {
+            // Already issued once while a token is still outstanding, or once the row was touched after
+            // creation. The timestamps alone were not enough: the comparison relied on the database
+            // refreshing update_time on UPDATE — which the PostgreSQL schema never does — and on a second
+            // call within the same second even MySQL keeps the two equal.
+            if (StringUtils.isNotBlank(appClient.getAccessToken())
+                    || !Objects.equals(appClient.getCreateTime(), appClient.getUpdateTime())) {
                 throw new CommonException(ResponseErrorCode.ERROR_CLIENT_FORBIDDEN, "client.id.expired");
             }
         }

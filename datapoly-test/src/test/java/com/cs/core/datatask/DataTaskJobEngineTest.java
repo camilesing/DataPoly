@@ -163,6 +163,8 @@ public class DataTaskJobEngineTest {
         String successInfoJson;
         String failureMessage;
         int heartbeats;
+        /** lease-only renewals of the row pipeline (they leave the row count alone) */
+        volatile int leaseRenewals;
         List<Long> claimPendingResult = Collections.emptyList();
         int reapExpiredResult;
         String reapedMessage;
@@ -195,6 +197,12 @@ public class DataTaskJobEngineTest {
         }
 
         @Override
+        public boolean renewLease(Long id, java.sql.Timestamp leaseExpireAt) {
+            leaseRenewals++;
+            return null != current && DataTaskStatus.RUNNING == current.getStatus();
+        }
+
+        @Override
         public List<Long> claimPending(int limit, String workerAddr, java.sql.Timestamp startTime,
                                         java.sql.Timestamp leaseExpireAt) {
             return claimPendingResult;
@@ -222,6 +230,16 @@ public class DataTaskJobEngineTest {
             this.failureMessage = errorMessage;
             if (null != current) {
                 current.setStatus(DataTaskStatus.FAILED);
+            }
+            return true;
+        }
+
+        @Override
+        public boolean finishCanceled(Long id, String errorMessage, long totalRows,
+                                      java.sql.Timestamp finishTime) {
+            this.failureMessage = errorMessage;
+            if (null != current) {
+                current.setStatus(DataTaskStatus.CANCELED);
             }
             return true;
         }
@@ -495,6 +513,8 @@ public class DataTaskJobEngineTest {
         Assert.assertTrue(String.valueOf(jobDao.failureMessage).toLowerCase().contains("cancel"));
         Assert.assertEquals(1, events.size());
         Assert.assertEquals(DataTaskStatus.CANCELED, events.get(0).getStatus());
+        // the record must tell the same story as the event (the state machine: RUNNING → CANCELED)
+        Assert.assertEquals(DataTaskStatus.CANCELED, jobDao.current.getStatus());
     }
 
     @Test
@@ -1606,6 +1626,8 @@ public class DataTaskJobEngineTest {
         Assert.assertFalse(sink.completed);
         Assert.assertTrue(String.valueOf(jobDao.failureMessage).toLowerCase().contains("cancel"));
         Assert.assertEquals(DataTaskStatus.CANCELED, events.get(0).getStatus());
+        Assert.assertEquals("a cooperatively cancelled job is recorded as CANCELED, not FAILED",
+                DataTaskStatus.CANCELED, jobDao.current.getStatus());
     }
 
     @Test
@@ -1890,13 +1912,23 @@ public class DataTaskJobEngineTest {
                     throw new SQLException("blob broken");
                 }));
         Object blobNegative = scriptedProxy(java.sql.Blob.class, script("length", -1L));
-        final Object arrayJson = scriptedProxy(java.sql.Array.class, script("toString", "[1,2]"));
-        final Object arrayRaw = scriptedProxy(java.sql.Array.class, script("toString", "no-json"));
+        final Object arrayJson = scriptedProxy(java.sql.Array.class,
+                script("toString", "[1,2]", "getArray", new Object[]{1, 2}));
+        // what a real driver hands out: PostgreSQL's PgArray prints the {1,2} literal from toString()
+        final Object arrayPg = scriptedProxy(java.sql.Array.class,
+                script("toString", "{1,2}", "getArray", new Integer[]{1, 2}));
+        final Object arrayPrimitive = scriptedProxy(java.sql.Array.class,
+                script("getArray", new int[]{3, 4}));
+        final Object arrayBroken = scriptedProxy(java.sql.Array.class, script("getArray", (Callable<Object>) () -> {
+            throw new SQLException("array broken");
+        }));
         final Object structMap = scriptedProxy(java.sql.Struct.class, script("toString", "{\"k\":1}"));
+        final Object structPg = scriptedProxy(java.sql.Struct.class,
+                script("toString", "(1,abc)", "getAttributes", new Object[]{1, "abc"}));
         final Object structRaw = scriptedProxy(java.sql.Struct.class, script("toString", "no-json"));
 
-        final Object[] cells = {clobOk, clobNegative, blobOk, blobBroken, arrayJson, arrayRaw,
-                structMap, structRaw, clobBroken, READ_FAILURE, blobNegative};
+        final Object[] cells = {clobOk, clobNegative, blobOk, blobBroken, arrayJson, arrayPg, arrayPrimitive,
+                arrayBroken, structMap, structPg, structRaw, clobBroken, READ_FAILURE, blobNegative};
         final String[] labels = new String[cells.length];
         for (int i = 0; i < labels.length; i++) {
             labels[i] = "c" + (i + 1);
@@ -1921,13 +1953,17 @@ public class DataTaskJobEngineTest {
         Assert.assertNull(row[1]);                                 // negative Clob length → null
         Assert.assertArrayEquals(new byte[]{1, 2, 3}, (byte[]) row[2]); // Blob → byte[]
         Assert.assertNull(row[3]);                                 // broken Blob → null
-        Assert.assertEquals(Arrays.asList(1, 2), row[4]);          // Array → parsed JSON list
-        Assert.assertSame("unparsable Array stays the JDBC object", arrayRaw, row[5]);
-        Assert.assertEquals(Collections.singletonMap("k", 1), row[6]); // Struct → parsed JSON map
-        Assert.assertSame("unparsable Struct stays the JDBC object", structRaw, row[7]);
-        Assert.assertNull(row[8]);                                 // broken Clob → null
-        Assert.assertNull("a failing getObject leaves the cell null", row[9]);
-        Assert.assertNull("negative Blob length → null", row[10]);
+        Assert.assertEquals(Arrays.asList(1, 2), row[4]);          // Array → its elements
+        Assert.assertEquals("a driver whose toString() is the {1,2} literal still yields the elements",
+                Arrays.asList(1, 2), row[5]);
+        Assert.assertEquals(Arrays.asList(3, 4), row[6]);          // primitive arrays box
+        Assert.assertSame("an Array whose elements cannot be read stays the JDBC object", arrayBroken, row[7]);
+        Assert.assertEquals(Collections.singletonMap("k", 1), row[8]); // Struct → parsed JSON map
+        Assert.assertEquals(Arrays.asList(1, "abc"), row[9]);      // Struct → its attribute values
+        Assert.assertSame("a Struct that yields nothing stays the JDBC object", structRaw, row[10]);
+        Assert.assertNull(row[11]);                                // broken Clob → null
+        Assert.assertNull("a failing getObject leaves the cell null", row[12]);
+        Assert.assertNull("negative Blob length → null", row[13]);
 
         Assert.assertNull("failing getColumnType leaves jdbcType null",
                 channel.metadata.get(0).getJdbcType());
@@ -1936,6 +1972,45 @@ public class DataTaskJobEngineTest {
                 channel.metadata.get(1).getJdbcType());
         Assert.assertNull("failing getColumnClassName leaves className null",
                 channel.metadata.get(1).getClassName());
+    }
+
+    @Test
+    public void leaseIsRenewedWhileAStatementBlocksBeforeItsFirstBatch() throws Exception {
+        // The lease must not depend on rows arriving: a query that needs longer than the lease window
+        // before its first batch — fewer than one batch of rows in total, even — was reaped as
+        // "executor lost" while the worker was perfectly healthy
+        final java.util.concurrent.atomic.AtomicInteger renewals = new java.util.concurrent.atomic.AtomicInteger();
+        final ResultSet rows = rowSetProxy(3, new String[]{"c1"},
+                index -> java.sql.Types.VARCHAR, index -> "java.lang.String", index -> "v");
+        final boolean[] blocked = {false};
+        ResultSet slow = (ResultSet) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[]{ResultSet.class}, (p, m, a) -> {
+                    if ("next".equals(m.getName()) && !blocked[0]) {
+                        blocked[0] = true;
+                        Thread.sleep(2600L); // well past two renewal intervals
+                    }
+                    return m.invoke(rows, a);
+                });
+        HikariDataSource pool = pooled(connectionProxy(slow, new ArrayList<>(), "H2"));
+        DataTaskJobEngine.StreamSpec spec = DataTaskJobEngine.StreamSpec.builder()
+                .dataSource(pool)
+                .product(ProductTypeEnum.MYSQL)
+                .sqlMeta(new com.cs.template.SqlMeta("SELECT c1 FROM t", Collections.<Object>emptyList()))
+                .cancelSupplier(() -> false)
+                .rowLimit(5L)
+                .flushIntervalMs(5000L)
+                .fetchSize(55)
+                .timeoutSeconds(30)
+                .leaseRefresher(renewals::incrementAndGet)
+                .leaseIntervalMs(1000L)
+                .build();
+        CaptureChannel channel = new CaptureChannel();
+
+        DataTaskJobEngine.StreamResult result = new DataTaskJobEngine().streamQuery(spec, channel);
+
+        Assert.assertEquals(3L, result.getRows());
+        Assert.assertTrue("the lease must be renewed while the statement blocks, saw " + renewals.get(),
+                renewals.get() >= 1);
     }
 
     private static Object sqlFailure(String message) {

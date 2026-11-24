@@ -590,7 +590,12 @@ public enum ProductTypeEnum {
                     .urlSample("jdbc:mongodb://172.17.2.12:27017/admin?authSource=admin&authMechanism=SCRAM-SHA-1&expand=false")
                     .sqlSchemaList(null)
                     .noViewTables(true)
-                    .adapter(database -> Pair.of(database, null)
+                    .adapter(database -> Pair.of(database, null))
+                    .pageConsumer(
+                            (page, size, parameters) -> {
+                                // no LIMIT/OFFSET template for this type, so pagination is left to
+                                // the user SQL; this no-op keeps the paging call path free of NPEs
+                            }
                     ).build()),
 
     /**
@@ -610,7 +615,12 @@ public enum ProductTypeEnum {
                     .sqlSchemaList(null)
                     .noViewTables(true)
                     .retSchemaList(Collections.singletonList("elasticsearch"))
-                    .adapter(database -> Pair.of(null, database)
+                    .adapter(database -> Pair.of(null, database))
+                    .pageConsumer(
+                            (page, size, parameters) -> {
+                                // no LIMIT/OFFSET template for this type, so pagination is left to
+                                // the user SQL; this no-op keeps the paging call path free of NPEs
+                            }
                     ).build()),
 
     /**
@@ -657,7 +667,12 @@ public enum ProductTypeEnum {
                     .sqlSchemaList(null)
                     .noViewTables(true)
                     .retSchemaList(Collections.singletonList("http"))
-                    .adapter(database -> Pair.of(null, database)
+                    .adapter(database -> Pair.of(null, database))
+                    .pageConsumer(
+                            (page, size, parameters) -> {
+                                // no LIMIT/OFFSET template for this type, so pagination is left to
+                                // the user SQL; this no-op keeps the paging call path free of NPEs
+                            }
                     ).build()),
     ;
 

@@ -108,6 +108,33 @@ public class DataTaskJobDao {
         return dataTaskJobMapper.update(patch, wrapper) > 0;
     }
 
+    /**
+     * Extends the lease alone, leaving the row count as it is: for the stretches of a row-pipeline job where
+     * no fresh count exists — a statement may block longer than the whole lease window before its first batch.
+     */
+    public boolean renewLease(Long id, Timestamp leaseExpireAt) {
+        UpdateWrapper<DataTaskJobEntity> wrapper = new UpdateWrapper<>();
+        wrapper.lambda().eq(DataTaskJobEntity::getId, id)
+                .eq(DataTaskJobEntity::getStatus, DataTaskStatus.RUNNING);
+        DataTaskJobEntity patch = DataTaskJobEntity.builder().leaseExpireAt(leaseExpireAt).build();
+        return dataTaskJobMapper.update(patch, wrapper) > 0;
+    }
+
+    /** Terminal state of a job the worker aborted on a cooperative cancel; the record and the event must agree on it. */
+    public boolean finishCanceled(Long id, String errorMessage, long totalRows, Timestamp finishTime) {
+        UpdateWrapper<DataTaskJobEntity> wrapper = new UpdateWrapper<>();
+        wrapper.lambda().eq(DataTaskJobEntity::getId, id)
+                .eq(DataTaskJobEntity::getStatus, DataTaskStatus.RUNNING);
+        wrapper.set("lease_expire_at", null);
+        DataTaskJobEntity patch = DataTaskJobEntity.builder()
+                .status(DataTaskStatus.CANCELED)
+                .errorMessage(errorMessage)
+                .totalRows(totalRows)
+                .finishTime(finishTime)
+                .build();
+        return dataTaskJobMapper.update(patch, wrapper) > 0;
+    }
+
     /** Cooperative cancel flag for a running job; false when not running anymore */
     public boolean markCancelRequested(Long id) {
         UpdateWrapper<DataTaskJobEntity> wrapper = new UpdateWrapper<>();

@@ -545,6 +545,31 @@ public class ApiExecuteServiceTest {
         Assert.assertTrue("SpEL key must embed the evaluated value: " + key, key.endsWith(":42"));
     }
 
+    /**
+     * Regression: a SpEL key that cannot be evaluated fell back to the expression text — one key for
+     * every such request whatever its parameters — so the second request was answered from the first
+     * one's cached response.
+     */
+    @Test
+    public void unevaluableSpelCacheKeyNeverSharesAnEntryBetweenRequests() throws Exception {
+        useRecordingEngine();
+        ApiAssignmentEntity config = config(CacheKeyTypeEnum.SPEL);
+        config.setCacheKeyExpr("#missing"); // no such parameter: the evaluation fails
+        Map<String, Object> alice = new HashMap<>();
+        alice.put("uid", 1L);
+        Map<String, Object> bob = new HashMap<>();
+        bob.put("uid", 2L);
+
+        ResultEntity<Object> first = service.execute(config, alice, false);
+        recordingEngine.response = Collections.singletonList("bobs-run");
+        ResultEntity<Object> second = service.execute(config, bob, false);
+
+        Assert.assertEquals("from-engine", first.getData());
+        Assert.assertEquals("a request with other parameters must not be served from another request's entry",
+                "bobs-run", second.getData());
+        Assert.assertEquals("the engine must run for the second request", 2, recordingEngine.paramCalls.size());
+    }
+
     @Test
     public void cacheHitSkipsDatasourceAndEngine() throws Exception {
         useRecordingEngine();

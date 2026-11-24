@@ -10,6 +10,7 @@ import com.cs.common.enums.ParamLocationEnum;
 import com.cs.common.enums.ParamTypeEnum;
 import com.cs.core.exec.ApiExecuteService;
 import com.cs.core.service.SystemParamService;
+import com.cs.persistence.dao.ApiOnlineDao;
 import com.cs.persistence.entity.ApiAssignmentEntity;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
@@ -120,6 +121,27 @@ public class McpToolCallHandlerTest {
         return entity;
     }
 
+    /** The online-assignment table as the handler reads it back on every call. */
+    private static class StubApiOnlineDao extends ApiOnlineDao {
+        ApiAssignmentEntity online;
+
+        @Override
+        public ApiAssignmentEntity getByApiId(Long apiId) {
+            return online;
+        }
+    }
+
+    private static StubApiOnlineDao serving(ApiAssignmentEntity config) {
+        StubApiOnlineDao dao = new StubApiOnlineDao();
+        dao.online = config;
+        return dao;
+    }
+
+    /** A handler over a fake online-assignment table that currently serves exactly {@code config}. */
+    private static McpToolCallHandler handlerFor(String name, String description, ApiAssignmentEntity config) {
+        return new McpToolCallHandler(name, description, config, serving(config));
+    }
+
     @Test
     public void schemaDescribesScalarArrayAndNestedObjectParams() throws Exception {
         installBeans(new FakeSystemParamService());
@@ -140,7 +162,7 @@ public class McpToolCallHandlerTest {
         zone.setRequired(false);
         filter.setChildren(Arrays.asList(city, zone));
 
-        McpToolCallHandler handler = new McpToolCallHandler("query_users", "查询用户",
+        McpToolCallHandler handler = handlerFor("query_users", "查询用户",
                 configWithParams(Arrays.asList(userId, keyword, flags, filter)));
         McpSchema.Tool tool = handler.getMcpToolSchema();
 
@@ -180,12 +202,54 @@ public class McpToolCallHandlerTest {
     public void schemaWithoutParamsHasEmptyPropertiesAndRequired() throws Exception {
         installBeans(new FakeSystemParamService());
 
-        McpToolCallHandler handler = new McpToolCallHandler("bare", "bare tool", configWithParams(null));
+        McpToolCallHandler handler = handlerFor("bare", "bare tool", configWithParams(null));
         McpSchema.JsonSchema schema = handler.getMcpToolSchema().getInputSchema();
 
         assertEquals("object", schema.getType());
         assertTrue(schema.getProperties().isEmpty());
         assertTrue(schema.getRequired().isEmpty());
+    }
+
+    /**
+     * Regression: a missing required flag is legal data (the admin MCP tool marks it optional and the
+     * executor treats null as "not required"); unboxing it here threw an NPE that failed every later startup.
+     */
+    @Test
+    public void schemaTreatsMissingRequiredFlagAsNotRequired() throws Exception {
+        installBeans(new FakeSystemParamService());
+
+        ItemParam keyword = param("keyword", ParamTypeEnum.STRING, true, "abc");
+        keyword.setRequired(null);
+        ItemParam filter = param("filter", ParamTypeEnum.OBJECT, false, null);
+        filter.setRequired(null);
+        BaseParam city = new BaseParam();
+        city.setName("city");
+        city.setType(ParamTypeEnum.STRING);
+        city.setRequired(null);
+        filter.setChildren(Collections.singletonList(city));
+        McpToolCallHandler handler = handlerFor("query_users", "查询用户",
+                configWithParams(Arrays.asList(keyword, filter)));
+
+        McpSchema.JsonSchema schema = handler.getMcpToolSchema().getInputSchema();
+
+        assertTrue(schema.getRequired().isEmpty());
+        Map<?, ?> filterNode = (Map<?, ?>) schema.getProperties().get("filter");
+        assertTrue(((List<?>) filterNode.get("required")).isEmpty());
+    }
+
+    @Test
+    public void executeToolTreatsMissingRequiredFlagAsOptional() throws Exception {
+        FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
+        ItemParam keyword = param("keyword", ParamTypeEnum.STRING, true, "abc");
+        keyword.setRequired(null);
+        McpToolCallHandler handler = handlerFor("query_users", "查询用户",
+                configWithParams(Collections.singletonList(keyword)));
+
+        CallToolResult result = handler.executeTool(null, new HashMap<>());
+
+        assertFalse(result.getIsError());
+        // the absent argument behaves like any optional scalar: its default value goes out
+        assertEquals("abc", executeService.capturedArgs.get("keyword"));
     }
 
     @Test
@@ -195,7 +259,7 @@ public class McpToolCallHandlerTest {
         ItemParam keyword = param("keyword", ParamTypeEnum.STRING, false, "abc");
         ItemParam filter = param("filter", ParamTypeEnum.OBJECT, false, null);
         ApiAssignmentEntity config = configWithParams(Arrays.asList(userId, keyword, filter));
-        McpToolCallHandler handler = new McpToolCallHandler("query_users", "查询用户", config);
+        McpToolCallHandler handler = handlerFor("query_users", "查询用户", config);
 
         Map<String, Object> arguments = new HashMap<>();
         arguments.put("userId", 3);
@@ -222,7 +286,7 @@ public class McpToolCallHandlerTest {
     public void executeToolKeepsCallerProvidedPageSizeAndValues() throws Exception {
         FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
         ItemParam keyword = param("keyword", ParamTypeEnum.STRING, false, "abc");
-        McpToolCallHandler handler = new McpToolCallHandler("t", "d", configWithParams(
+        McpToolCallHandler handler = handlerFor("t", "d", configWithParams(
                 Collections.singletonList(keyword)));
 
         Map<String, Object> arguments = new HashMap<>();
@@ -238,7 +302,7 @@ public class McpToolCallHandlerTest {
     public void executeToolReportsFailureWithExceptionMessage() throws Exception {
         FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
         executeService.failure = new RuntimeException("boom");
-        McpToolCallHandler handler = new McpToolCallHandler("t", "d", configWithParams(null));
+        McpToolCallHandler handler = handlerFor("t", "d", configWithParams(null));
 
         CallToolResult result = handler.executeTool(null, new HashMap<>());
 
@@ -250,11 +314,61 @@ public class McpToolCallHandlerTest {
     public void executeToolFallsBackToRootCauseMessageWhenMessageMissing() throws Exception {
         FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
         executeService.failure = new NullPointerException();
-        McpToolCallHandler handler = new McpToolCallHandler("t", "d", configWithParams(null));
+        McpToolCallHandler handler = handlerFor("t", "d", configWithParams(null));
 
         CallToolResult result = handler.executeTool(null, new HashMap<>());
 
         assertTrue(result.getIsError());
         assertTrue(textOf(result).contains("NullPointerException"));
+    }
+
+    @Test
+    public void executeToolRunsWithoutArguments() throws Exception {
+        // the spec makes tools/call params.arguments optional, and the transport then hands over null
+        FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
+        ApiAssignmentEntity config = configWithParams(
+                Collections.singletonList(param("keyword", ParamTypeEnum.STRING, false, "abc")));
+        McpToolCallHandler handler = new McpToolCallHandler("t", "d", config, serving(config));
+
+        CallToolResult result = handler.executeTool(null, null);
+
+        assertFalse(result.getIsError());
+        assertEquals("abc", executeService.capturedArgs.get("keyword"));
+        assertEquals(777, executeService.capturedArgs.get(Constants.PARAM_PAGE_SIZE));
+    }
+
+    /**
+     * Regression: the handler used to execute the assignment captured at registration forever, so
+     * an API taken offline (or deleted) stayed callable through the data MCP endpoint.
+     */
+    @Test
+    public void executeToolRefusesOnceTheApiIsOffline() throws Exception {
+        FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
+        McpToolCallHandler handler = new McpToolCallHandler("t", "d", configWithParams(
+                Collections.singletonList(param("keyword", ParamTypeEnum.STRING, false, "abc"))),
+                new StubApiOnlineDao());
+
+        CallToolResult result = handler.executeTool(null, new HashMap<>());
+
+        assertTrue(result.getIsError());
+        assertTrue(textOf(result).contains("下线"));
+        assertNull("an offline API must not reach the executor", executeService.capturedConfig);
+    }
+
+    @Test
+    public void executeToolRunsTheCurrentOnlineVersion() throws Exception {
+        FakeApiExecuteService executeService = installBeans(new FakeSystemParamService());
+        ApiAssignmentEntity atRegistration = configWithParams(
+                Collections.singletonList(param("old", ParamTypeEnum.STRING, false, "old-default")));
+        ApiAssignmentEntity republished = configWithParams(
+                Collections.singletonList(param("fresh", ParamTypeEnum.STRING, false, "fresh-default")));
+        McpToolCallHandler handler = new McpToolCallHandler("t", "d", atRegistration, serving(republished));
+
+        handler.executeTool(null, new HashMap<>());
+
+        assertSame(republished, executeService.capturedConfig);
+        // argument preparation follows the current version too
+        assertEquals("fresh-default", executeService.capturedArgs.get("fresh"));
+        assertFalse(executeService.capturedArgs.containsKey("old"));
     }
 }

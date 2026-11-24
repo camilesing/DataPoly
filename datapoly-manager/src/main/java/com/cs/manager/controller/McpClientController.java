@@ -10,6 +10,7 @@ import com.cs.manager.security.RequirePermission;
 import com.cs.common.dto.*;
 import com.cs.core.dto.*;
 import com.cs.manager.service.McpManageService;
+import com.cs.manager.service.PermissionService;
 import com.cs.persistence.entity.McpClientEntity;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +31,9 @@ public class McpClientController {
     @Resource
     private McpManageService mcpManageService;
 
+    @Resource
+    private PermissionService permissionService;
+
     @Operation(summary = "获取MCP服务地址")
     @RequirePermission(module = PermissionModule.MCP_CLIENT, action = PermissionAction.R)
     @GetMapping(value = "/endpoint", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -42,6 +46,7 @@ public class McpClientController {
     @PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResultEntity create(@Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name,
                                @RequestParam(value = "manage", required = false, defaultValue = "false") boolean manage) {
+        requireAdminToGrantManage(manage);
         mcpManageService.createClient(name, manage);
         return ResultEntity.success();
     }
@@ -52,8 +57,20 @@ public class McpClientController {
     public ResultEntity update(@PathVariable("id") Long id,
                                @Valid @NotBlank(message = "name不能为空") @RequestParam("name") String name,
                                @RequestParam(value = "manage", required = false) Boolean manage) {
+        requireAdminToGrantManage(Boolean.TRUE.equals(manage));
         mcpManageService.updateClient(id, name, manage);
         return ResultEntity.success();
+    }
+
+    /**
+     * A manage token is admin-equivalent (it reaches /mcp/admin, plaintext secrets included), so
+     * handing it out is an ADMIN-only act: the MCP_CLIENT matrix cell covers ordinary data tokens
+     * only, otherwise a USER holding that cell could promote itself through a token.
+     */
+    private void requireAdminToGrantManage(boolean manage) {
+        if (manage) {
+            permissionService.checkAdminCurrent();
+        }
     }
 
     @Operation(summary = "删除令牌")

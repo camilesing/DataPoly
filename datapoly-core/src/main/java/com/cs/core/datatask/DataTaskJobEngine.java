@@ -161,6 +161,21 @@ public class DataTaskJobEngine {
         }
     }
 
+    /**
+     * Extends the lease of a row-pipeline job without touching its row count: the pipeline reports
+     * progress itself, once per batch, and this only covers the time between those ticks.
+     */
+    private void renewLease(Long jobId) {
+        try {
+            if (!dataTaskJobDao.renewLease(jobId,
+                    new Timestamp(System.currentTimeMillis() + leaseSeconds * 1000L))) {
+                log.warn("Data task job {} is no longer RUNNING; the row pipeline notices on its next tick", jobId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to renew the lease of data task job {}: {}", jobId, e.getMessage());
+        }
+    }
+
     private ScheduledExecutorService leaseKeeper() {
         ScheduledExecutorService keeper = leaseKeeper;
         if (null == keeper) {
@@ -289,11 +304,13 @@ public class DataTaskJobEngine {
                                 ? NamingStrategyEnum.CAMEL_CASE : snapshot.getNamingStrategy())
                         .cancelSupplier(channel::isJobCancelled)
                         .rowLimit(effectiveMaxRows(snapshot.getMaxRows()))
-                        .flushIntervalMs(flushIntervalMs)
-                        .fetchSize(fetchSize)
-                        .timeoutSeconds(queryTimeoutSeconds)
-                        .progress(rows -> onProgress(jobId, rows))
-                        .build();
+                    .flushIntervalMs(flushIntervalMs)
+                    .fetchSize(fetchSize)
+                    .timeoutSeconds(queryTimeoutSeconds)
+                    .progress(rows -> onProgress(jobId, rows))
+                    .leaseRefresher(() -> renewLease(jobId))
+                    .leaseIntervalMs(Math.max(1000L, leaseSeconds * 1000L / 3))
+                    .build();
 
                 StreamResult result = streamQuery(streamSpec, channel);
                 delivered = result.getRows();
@@ -334,7 +351,12 @@ public class DataTaskJobEngine {
             boolean cancelled = t instanceof CancelledException || isRunningAndCancelled(jobId);
             terminal = cancelled ? DataTaskStatus.CANCELED : DataTaskStatus.FAILED;
             failureMessage = null == t.getMessage() ? t.getClass().getSimpleName() : t.getMessage();
-            dataTaskJobDao.finishFailure(jobId, truncate(failureMessage), delivered, now());
+            // the record must reach the same terminal state as the event published below it
+            if (cancelled) {
+                dataTaskJobDao.finishCanceled(jobId, truncate(failureMessage), delivered, now());
+            } else {
+                dataTaskJobDao.finishFailure(jobId, truncate(failureMessage), delivered, now());
+            }
             artifactUri = null;
         }
         publish(new DataTaskEvent(jobId, job.getDefId(), job.getDefName(), terminal,
@@ -415,6 +437,12 @@ public class DataTaskJobEngine {
     protected StreamResult streamQuery(StreamSpec spec, ResultChannel channel) throws Exception {
         Connection connection = spec.getDataSource().getConnection();
         boolean autoCommitChanged = false;
+        // The lease must not depend on rows arriving: a statement may block longer than the whole lease
+        // window before its first batch (or hold fewer rows than one), and the reaper would then fail a
+        // perfectly healthy job as "executor lost". The row pipeline's own ticks report progress on top.
+        ScheduledFuture<?> lease = null == spec.getLeaseRefresher() ? null
+                : leaseKeeper().scheduleAtFixedRate(spec.getLeaseRefresher(),
+                        spec.getLeaseIntervalMs(), spec.getLeaseIntervalMs(), TimeUnit.MILLISECONDS);
         try {
             Consumer<Connection> executeBeforeQuery = spec.getProduct().getContext().getExecuteBeforeQuery();
             LambdaUtils.ifDo(null != executeBeforeQuery, () -> executeBeforeQuery.accept(connection));
@@ -448,6 +476,9 @@ public class DataTaskJobEngine {
                 statement.close();
             }
         } finally {
+            if (null != lease) {
+                lease.cancel(false);
+            }
             if (autoCommitChanged) {
                 try {
                     connection.setAutoCommit(true);
@@ -624,6 +655,12 @@ public class DataTaskJobEngine {
         private final int timeoutSeconds;
         /** coarse progress callback; null for synchronous previews */
         private final LongConsumer progress;
+        /**
+         * Keeps the job lease alive while the statement runs, independently of row flow; null for
+         * synchronous previews.
+         */
+        private final Runnable leaseRefresher;
+        private final long leaseIntervalMs;
     }
 
     private class SessionChannel implements ResultChannel {
@@ -870,13 +907,47 @@ public class DataTaskJobEngine {
 
     private static Object convertArray(java.sql.Array array) {
         try {
-            return JsonUtils.toBeanList(array.toString(), Object.class);
+            // JDBC's own contract carries the elements; toString() is whatever the driver prints
+            // (PostgreSQL: the {1,2,3} literal, which is not JSON and never parses)
+            return toList(array.getArray());
         } catch (Exception e) {
-            return array;
+            Object parsed = null;
+            try {
+                // a driver that hands out no elements may at least print them
+                String printed = array.toString();
+                if (null != printed && !printed.trim().isEmpty()) {
+                    parsed = JsonUtils.toBeanList(printed, Object.class);
+                }
+            } catch (Exception notJsonEither) {
+                parsed = null;
+            }
+            return null != parsed ? parsed : array;
         }
     }
 
+    /** Any Java array — object or primitive, nested included — as a plain list of its elements. */
+    private static Object toList(Object elements) {
+        if (null == elements || !elements.getClass().isArray()) {
+            return elements;
+        }
+        int length = java.lang.reflect.Array.getLength(elements);
+        List<Object> values = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            Object element = java.lang.reflect.Array.get(elements, i);
+            values.add(null != element && element.getClass().isArray() ? toList(element) : element);
+        }
+        return values;
+    }
+
     private static Object convertStruct(java.sql.Struct struct) {
+        try {
+            Object[] attributes = struct.getAttributes();
+            if (null != attributes) {
+                return toList(attributes);
+            }
+        } catch (Exception e) {
+            // a driver that hands out nothing usable: read the text below instead
+        }
         try {
             return JsonUtils.toBeanObject(struct.toString(), Map.class);
         } catch (Exception e) {

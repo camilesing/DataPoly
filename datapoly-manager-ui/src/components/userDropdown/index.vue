@@ -28,7 +28,8 @@
 </template>
 
 <script>
-import { getAuth, clearAuth } from '../../utils/authStorage'
+import { getAuth } from '../../utils/authStorage'
+import { logout } from '../../utils/logout'
 
 export default {
   data () {
@@ -45,14 +46,9 @@ export default {
   },
   methods: {
     hadleLogout () {
-      // Clear the local login state first, then tell the server to drop the session
-      // (the server side is what makes the logout stick for the whole TTL)
-      clearAuth();
-      this.$http({
-        method: 'POST',
-        url: '/user/logout'
-      }),
-        this.$router.push("/login");
+      // The server revokes the session only if the logout request still carries the
+      // token; utils/logout.js sends it before the local login state is cleared
+      logout(this.$http, this.$router);
     }
   },
   destroyed () {

@@ -25,6 +25,33 @@ public class XmlSqlTemplateDollarTest {
         Assert.assertFalse("未闭合 token 不算替换", XmlSqlTemplate.containsDollarToken("select '${name'"));
     }
 
+    /**
+     * Regression: the ban only looked at the author's raw text, while the renderer reads the XML-decoded,
+     * backslash-unescaped text — so {@code \$\{} or {@code &#36;{} read as ${} there and were substituted.
+     */
+    @Test
+    public void banSeesTheTextTheRendererSees() {
+        String[] disguised = {
+                "select * from t where id = \\${id}",
+                "select * from t where id = &#36;{id}",
+                "select * from t where id = &#x24;{id}",
+                "select * from t where id = &#0036;{id}",
+                "select * from t where id = $&#123;id}",
+                "<if test='id != null'>and id = \\${id}</if>"};
+        for (String sql : disguised) {
+            Assert.assertTrue(sql, XmlSqlTemplate.containsDollarToken(sql));
+            try {
+                new XmlSqlTemplate(sql).process(params("id", "7 OR 1=1"), false);
+                Assert.fail("expected DollarSubstitutionException for: " + sql);
+            } catch (DollarSubstitutionException e) {
+                // the ban holds for this spelling too
+            }
+        }
+        // with substitution allowed the disguised spelling does substitute — which is what made it dangerous
+        SqlMeta meta = new XmlSqlTemplate("select * from t where id = &#36;{id}").process(params("id", "7"));
+        Assert.assertEquals("select * from t where id = 7", meta.getSql());
+    }
+
     @Test
     public void processAllowedByDefault() {
         XmlSqlTemplate template = new XmlSqlTemplate("select * from t where name = '${name}'");

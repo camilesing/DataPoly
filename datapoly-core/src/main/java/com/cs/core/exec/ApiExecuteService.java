@@ -53,11 +53,20 @@ public class ApiExecuteService {
     }
 
     private String getCacheKeyValue(ApiAssignmentEntity config, Map<String, Object> paramValues) {
-        String key = CacheKeyTypeEnum.SPEL == config.getCacheKeyType()
-                ? SpelUtils.getExpressionValue(config.getCacheKeyExpr(), paramValues)
-                : DigestUtil.sha256Hex(JsonUtils.toJsonString(new TreeMap<>(paramValues)));
+        String key = allParamsKey(paramValues);
+        if (CacheKeyTypeEnum.SPEL == config.getCacheKeyType()) {
+            String evaluated = SpelUtils.getExpressionValue(config.getCacheKeyExpr(), paramValues);
+            // An expression that cannot be evaluated comes back as its own text — one key for every
+            // such request whatever its parameters, i.e. one request answered from another's response.
+            // Fall back to the key that covers all parameters instead.
+            key = config.getCacheKeyExpr().equals(evaluated) ? key : evaluated;
+        }
         return buildCacheKey(Constants.getResourceName(config.getMethod().name(), config.getPath()),
                 config.getCommitId(), key);
+    }
+
+    private static String allParamsKey(Map<String, Object> paramValues) {
+        return DigestUtil.sha256Hex(JsonUtils.toJsonString(new TreeMap<>(paramValues)));
     }
 
     /**
@@ -138,7 +147,7 @@ public class ApiExecuteService {
                 .map(
                         p ->
                                 (Boolean.TRUE.equals(p.getIsArray()) ? I18nUtils.getMessage("api.param.array") : "")
-                                        + I18nUtils.getMessage("api.param.name", p.getName())
+                                        + I18nUtils.getMessage("api.param.name", new Object[]{p.getName()})
                                         + p.getLocation().getIn())
                 .collect(Collectors.joining(";"));
     }

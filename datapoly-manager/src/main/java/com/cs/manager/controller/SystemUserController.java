@@ -15,6 +15,7 @@ import com.cs.core.dto.UserPermissionResponse;
 import com.cs.core.dto.UserPermissionSaveRequest;
 import com.cs.core.service.SystemUserService;
 import com.cs.manager.security.RequireAdmin;
+import com.cs.manager.service.PermissionService;
 import com.cs.manager.service.SystemUserManageService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,16 +38,34 @@ public class SystemUserController {
     @Resource
     private SystemUserManageService systemUserManageService;
 
+    @Resource
+    private PermissionService permissionService;
+
     @Operation(summary = "用户详情", description = "根据用户ID获取用户详情")
     @GetMapping(value = "/detail/id", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResultEntity<SystemUserDetailResponse> getUserById(@RequestParam("id") Long id) {
-        return ResultEntity.success(systemUserService.getUserDetailById(id));
+    public ResultEntity<SystemUserDetailResponse> getUserById(@RequestParam("id") Long id, HttpServletRequest request) {
+        SystemUserDetailResponse detail = systemUserService.getUserDetailById(id);
+        requireSelfOrAdmin(detail.getUsername(), request);
+        return ResultEntity.success(detail);
     }
 
     @Operation(summary = "用户详情", description = "根据用户名获取用户详情")
     @GetMapping(value = "/detail/name", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResultEntity<SystemUserDetailResponse> getUserByName(@RequestParam("username") String username) {
+    public ResultEntity<SystemUserDetailResponse> getUserByName(@RequestParam("username") String username,
+                                                                 HttpServletRequest request) {
+        requireSelfOrAdmin(username, request);
         return ResultEntity.success(systemUserService.getUserDetailByUsername(username));
+    }
+
+    /**
+     * The detail endpoints sit outside the matrix on purpose: they are self-service. An account's
+     * profile goes to its owner (the username the token filter put on the request) or to an ADMIN.
+     */
+    private void requireSelfOrAdmin(String username, HttpServletRequest request) {
+        Object caller = request.getAttribute("username");
+        if (null == caller || !caller.equals(username)) {
+            permissionService.checkAdminCurrent();
+        }
     }
 
     @Operation(summary = "修改密码", description = "用户修改自己的密码")

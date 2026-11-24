@@ -4,7 +4,10 @@ package com.cs.template;
 
 import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.parsing.*;
+import org.apache.ibatis.scripting.xmltags.TextSqlNode;
 import org.apache.ibatis.session.Configuration;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import java.util.*;
 import java.util.regex.*;
@@ -34,13 +37,43 @@ public class XmlSqlTemplate {
     }
 
     /**
-     * Detects whether the SQL text contains a ${} literal substitution token (S3): same token semantics as
-     * MyBatis TextSqlNode's dynamic check (GenericTokenParser "${"/"}"); does not affect #{} or plain text.
+     * Detects whether the template contains a ${} literal substitution token (S3) where the renderer will
+     * look for it — in the text MyBatis reads back, i.e. after XML decoding and the backslash-unescaping of
+     * {@code XNode.getStringBody()}. The author's raw text is another string: {@code \$\{} or {@code &#36;{}
+     * reads as {@code ${} only there. #{} and plain text are unaffected.
      */
     public static boolean containsDollarToken(String sqlText) {
         if (null == sqlText || sqlText.isEmpty()) {
             return false;
         }
+        XNode root;
+        try {
+            root = parseXml(sqlText);
+        } catch (RuntimeException unparsable) {
+            // the template is rejected elsewhere; for a verdict on it the raw text is all there is
+            return containsRawDollarToken(sqlText);
+        }
+        return containsDollarToken(root);
+    }
+
+    private static boolean containsDollarToken(XNode node) {
+        NodeList children = node.getNode().getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            XNode child = node.newXNode(children.item(i));
+            short type = child.getNode().getNodeType();
+            if (Node.TEXT_NODE == type || Node.CDATA_SECTION_NODE == type) {
+                // the same detector XmlScriptBuilder uses to hand a text node to ${} substitution
+                if (new TextSqlNode(child.getStringBody()).isDynamic()) {
+                    return true;
+                }
+            } else if (containsDollarToken(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsRawDollarToken(String sqlText) {
         boolean[] found = new boolean[1];
         new GenericTokenParser("${", "}", name -> {
             found[0] = true;
@@ -55,7 +88,7 @@ public class XmlSqlTemplate {
         return configuration;
     }
 
-    private XNode parseXml(String sql) {
+    private static XNode parseXml(String sql) {
         // The template is not XML: bare '<' / '&' (comparisons, string literals) are escaped for the
         // parser here while dynamic tags keep their meaning — see SqlXmlTexts for the rules
         String xml = "<script>" + SqlXmlTexts.toXmlSafe(sql) + "</script>";
@@ -162,7 +195,7 @@ public class XmlSqlTemplate {
     }
 
     private Rendered render(Map<String, Object> params, boolean dollarSubstitutionAllowed) {
-        if (!dollarSubstitutionAllowed && containsDollarToken(xmlSql)) {
+        if (!dollarSubstitutionAllowed && containsDollarToken(root)) {
             throw new DollarSubstitutionException(
                     "Dollar substitution ${} is not allowed for this API, use #{} instead");
         }

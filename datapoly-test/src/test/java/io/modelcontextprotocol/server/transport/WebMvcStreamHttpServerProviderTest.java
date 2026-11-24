@@ -153,6 +153,58 @@ public class WebMvcStreamHttpServerProviderTest {
         assertEquals("alpha:bare", result.path("content").get(0).path("text").asText());
     }
 
+    @Test
+    public void legacyVersionHeaderIsServedAsLegacy() throws Exception {
+        // Legacy clients from 2025-03-26 on send MCP-Protocol-Version on every request after the
+        // initialize handshake, and never send the modern Mcp-Method/Mcp-Name headers
+        String body = "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"alpha\",\"arguments\":{\"text\":\"header\"}}}";
+        for (String legacyVersion : WebMvcStreamHttpServerProvider.SUPPORTED_PROTOCOL_VERSIONS) {
+            if (WebMvcStreamHttpServerProvider.MODERN_PROTOCOL_VERSION.equals(legacyVersion)) {
+                continue;
+            }
+            Map<String, String> headers = new HashMap<>();
+            headers.put("MCP-Protocol-Version", legacyVersion);
+            ServerResponse response = post(body, headers);
+
+            assertEquals(legacyVersion, 200, response.statusCode().value());
+            JsonNode result = readResult(response);
+            assertEquals(legacyVersion, "alpha:header", result.path("content").get(0).path("text").asText());
+            assertFalse(legacyVersion, result.has("resultType"));
+        }
+    }
+
+    @Test
+    public void legacyMetaVersionIsServedAsLegacy() throws Exception {
+        String body = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/list\",\"params\":{"
+                + "\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2025-11-25\"}}}";
+        JsonNode result = readResult(post(body, Collections.emptyMap()));
+
+        assertEquals(2, result.path("tools").size());
+        assertFalse(result.has("resultType"));
+    }
+
+    @Test
+    public void modernMetaBehindALegacyHeaderStillReportsTheMismatch() throws Exception {
+        String body = "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"tools/list\",\"params\":{"
+                + "\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\"}}}";
+        Map<String, String> headers = modernHeaders("tools/list");
+        headers.put("MCP-Protocol-Version", "2025-06-18");
+
+        assertEquals(-32020, readError(post(body, headers)).path("code").asInt());
+    }
+
+    @Test
+    public void unsupportedVersionInBodyMetaAloneIsRejected() throws Exception {
+        // no header is sent, so the body _meta carries the verdict on its own
+        String body = "{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/list\",\"params\":{"
+                + "\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"1900-01-01\"}}}";
+        ServerResponse response = post(body, Collections.emptyMap());
+
+        assertEquals(400, response.statusCode().value());
+        assertEquals(-32022, readError(response).path("code").asInt());
+    }
+
     // ---------- modern era (2026-07-28, stateless) ----------
 
     @Test

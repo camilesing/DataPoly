@@ -7,9 +7,11 @@ import com.cs.core.datatask.DataTaskTestSupport;
 import com.cs.core.dto.EntitySearchRequest;
 import com.cs.core.dto.McpServerAddrResponse;
 import com.cs.manager.service.McpManageService;
+import com.cs.manager.service.PermissionService;
 import com.cs.persistence.entity.McpClientEntity;
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 
 import java.util.Collections;
 
@@ -22,13 +24,16 @@ import static org.junit.Assert.*;
 public class McpClientControllerTest {
 
     private StubMcpManageService service;
+    private StubPermissionService permissionService;
     private McpClientController controller;
 
     @Before
     public void setUp() {
         service = new StubMcpManageService();
+        permissionService = new StubPermissionService();
         controller = new McpClientController();
         DataTaskTestSupport.setField(controller, "mcpManageService", service);
+        DataTaskTestSupport.setField(controller, "permissionService", permissionService);
     }
 
     @Test
@@ -61,6 +66,55 @@ public class McpClientControllerTest {
         assertNull(service.updateManage);
     }
 
+    /**
+     * Regression: a manage token is admin-equivalent (it reaches /mcp/admin, plaintext secrets
+     * included), but granting it only needed the MCP_CLIENT matrix cell — a USER holding U could
+     * turn any data token into an admin-equivalent one.
+     */
+    @Test
+    public void grantingManageIsAdminOnly() {
+        permissionService.admin = false;
+
+        try {
+            controller.create("reader", true);
+            fail("a USER must not create a manage token");
+        } catch (AuthorizationDeniedException expected) {
+            // denied before anything reaches the service
+        }
+        assertNull(service.createName);
+
+        try {
+            controller.update(5L, "same-name", Boolean.TRUE);
+            fail("a USER must not promote a token to manage");
+        } catch (AuthorizationDeniedException expected) {
+            // denied
+        }
+        assertNull(service.updateId);
+    }
+
+    @Test
+    public void ordinaryTokenChangesStillNeedOnlyTheMatrixCell() {
+        permissionService.admin = false;
+
+        controller.create("reader", false);
+        assertEquals(Boolean.FALSE, service.createManage);
+
+        // revoking manage is not an escalation either
+        controller.update(6L, "renamed", Boolean.FALSE);
+        assertEquals(Boolean.FALSE, service.updateManage);
+        assertEquals(0, permissionService.adminChecks);
+    }
+
+    @Test
+    public void adminCanGrantManage() {
+        controller.create("admin-tool", true);
+        assertEquals(Boolean.TRUE, service.createManage);
+
+        controller.update(5L, "renamed", Boolean.TRUE);
+        assertEquals(Boolean.TRUE, service.updateManage);
+        assertEquals(2, permissionService.adminChecks);
+    }
+
     @Test
     public void deleteDelegatesId() {
         ResultEntity result = controller.delete(7L);
@@ -83,6 +137,19 @@ public class McpClientControllerTest {
         ResultEntity<String> result = controller.getToken(3L);
         assertEquals(Long.valueOf(3L), service.tokenId);
         assertEquals("dp_plain_token", result.getData());
+    }
+
+    private static class StubPermissionService extends PermissionService {
+        boolean admin = true;
+        int adminChecks;
+
+        @Override
+        public void checkAdminCurrent() {
+            adminChecks++;
+            if (!admin) {
+                throw new AuthorizationDeniedException("admin only");
+            }
+        }
     }
 
     private static class StubMcpManageService extends McpManageService {
